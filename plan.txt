@@ -1,0 +1,165 @@
+================================================================================
+  MULTIVERSE — IMPLEMENTATION PLAN
+================================================================================
+
+AGENT STACK
+────────────────────────────────────────────────────────────────────────────────
+  ROLE          PURPOSE                        PROVIDER    FREE LIMIT
+  @build        Routine tasks, file writing    Groq        1,000 req/day
+  @architect    Threading, wiring, complex     Groq        1,000 req/day (own pool)
+  @plan         Read-only review, overflow     Cerebras    1M tokens/day
+  @fallback     Emergency backup               Groq        1,000 req/day (own pool)
+
+  Model assignments → opencode.json (single source of truth)
+  All four pools are independent. Exhausting one does not affect the others.
+────────────────────────────────────────────────────────────────────────────────
+
+
+PART 1 — ONE-TIME SETUP (~30 minutes, do once per machine)
+────────────────────────────────────────────────────────────
+
+1.  Get a free Groq API key
+    → console.groq.com → API Keys → Create API Key
+
+2.  Get a free Cerebras API key
+    → cloud.cerebras.ai → API Keys → Generate
+
+3.  Set both as environment variables
+    Windows (PowerShell):
+      [System.Environment]::SetEnvironmentVariable("GROQ_API_KEY","your-key","User")
+      [System.Environment]::SetEnvironmentVariable("CEREBRAS_API_KEY","your-key","User")
+    macOS/Linux (~/.bashrc or ~/.zshrc):
+      export GROQ_API_KEY="your-key"
+      export CEREBRAS_API_KEY="your-key"
+
+4.  Install OpenCode
+    → curl -fsSL https://opencode.ai/install | bash
+    → verify: opencode --version
+
+5.  Install the OpenCode VS Code extension
+    → Ctrl+Shift+X → search "OpenCode" → install
+
+6.  Authenticate OpenCode
+    → opencode auth login → select Groq → paste Groq key
+    → opencode auth login → select Cerebras → paste Cerebras key
+
+7.  Configure git (once per machine)
+    → git config --global user.name "Your Name"
+    → git config --global user.email "you@example.com"
+    → git config --global init.defaultBranch main
+
+8.  Authenticate gh CLI (for repo creation at T-00)
+    → gh auth status
+    → if not authenticated: gh auth login
+
+9.  Install ffmpeg (Windows — required by faster-whisper)
+    → https://ffmpeg.org/download.html → add ffmpeg/bin to PATH
+    → verify: ffmpeg -version
+
+10. Download bible.db (before T-07)
+    → https://github.com/scrollmapper/bible_databases/releases
+    → place at: multiverse/data/bible.db
+    → verify: sqlite3 bible.db "SELECT count(*) FROM verses;" → expect 31,102
+
+11. Copy all 7 project files into your multiverse/ folder root.
+    Open VS Code on that folder and confirm the OpenCode panel is active.
+
+
+PART 2 — STARTING AND RESUMING
+────────────────────────────────
+
+START MESSAGE (paste into OpenCode panel):
+  "Read project_config.md, then lessons_learned.md, then workflow_state.md fully — in that order. Identify the first PENDING task and begin."
+
+The agent works continuously without asking for approval between tasks.
+It only stops when an INTERVENTION CONDITION is met (see project_config.md
+Section 0 for the exact list — missing prerequisites, blockers, irreversible
+actions, genuine ambiguity).
+
+RESUME MESSAGE (after any break):
+  "Resume build — read project_config.md, then lessons_learned.md,
+   then workflow_state.md fully — in that order.
+   Find the first PENDING task and continue."
+
+Nothing is lost between sessions. workflow_state.md always holds the resume point.
+
+
+PART 3 — HOW THE BUILD FLOWS
+──────────────────────────────
+
+For each task the agent:
+  ▶ Announces: T-XX — [Task Name] — @agent — [git action or NONE]
+  ▶ Switches to @architect automatically for complex tasks (AGENT column drives this)
+  ▶ Writes the code, verifies against Section 10, updates workflow_state.md, marks ✅
+  ▶ Moves immediately to the next task
+
+After the last task in every phase:
+  → git add -A → git commit → git push → log in GIT COMMIT LOG
+
+THE BIG PARALLEL MOMENT (after Phase 0):
+  Three subagents spawn simultaneously:
+    @subagent-audio  → T-10–T-13  (@architect — audio + transcription)
+    @subagent-db     → T-23–T-26  (@build — bible database)
+    @subagent-vmix   → T-28–T-31  (@build — vMix bridge)
+
+
+PART 4 — REQUEST BUDGET AND RATE LIMITS
+─────────────────────────────────────────
+
+  Phase 0 (@build, sequential)         ~15 req
+  Phases 1+3+4 parallel (Group A)      ~20 req
+  Phase 2 (mixed)                      ~25 req
+  Phase 5 (mixed)                      ~40 req
+  Phase 6 (mixed)                      ~15 req
+  Phase 7 (@architect, integration)    ~30 req
+  Phase 8 (@build)                     ~10 req
+  ────────────────────────────────────────────
+  Total                                ~155 req   (well within 1,000/day per agent)
+
+If a rate limit (429) hits:
+  @build exhausted    → agent switches to @fallback automatically
+  @architect exhausted → @plan for reasoning + @fallback for code
+  All Groq exhausted  → switch both to Cerebras in opencode.json (1M tokens/day)
+  Groq resets midnight UTC. Cerebras resets midnight Pacific.
+
+To switch a model mid-build — only ever touch opencode.json, one line:
+  "model": "groq/llama-3.3-70b-versatile"   ← replace the model string, save, done
+
+
+PART 5 — GETTING BETTER OVER TIME
+────────────────────────────────────
+
+The agent surfaces "SUGGESTED LESSONS FOR OWNER REVIEW" at the end of every
+session. Review and add approved ones to lessons_learned.md:
+
+  ## L-XXX — [Short title]
+  Discovered: [task ID]
+  Lesson: [what was learned]
+  Apply to: [future tasks affected]
+
+Each session the agent reads this file first and applies every lesson before
+writing a single line of code. It never repeats the same mistake twice.
+
+
+PART 6 — FINAL OUTPUT (T-65)
+──────────────────────────────
+
+  → Complete Python desktop application (all 66 files)
+  → pytest suite passing with zero failures
+  → PyInstaller .exe (runs without Python installed)
+  → README.md + EXPLANATION.txt
+  → 9 clean phase commits on GitHub
+  → workflow_state.md fully completed (all ✅)
+
+
+================================================================================
+  FILES IN THIS PACKAGE (all go in multiverse/ root)
+  ──────────────────────────────────────────────────
+  project_config.md    READ-ONLY build specification
+  workflow_state.md    Dynamic task tracker (agent writes this)
+  lessons_learned.md   Cross-session learning log (you write this)
+  AGENTS.md            Agent loop instructions
+  opencode.json        Model assignments — single source of truth
+  rules.md             Global coding rules
+  plan.txt             This file
+================================================================================
