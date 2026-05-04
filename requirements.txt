@@ -1,0 +1,33 @@
+# MultiVerse v1.0.0 — Python dependencies
+# Locked versions for reproducible builds
+# Per project_config.md Section 4 — Locked Tech Stack
+
+# Audio capture
+sounddevice==0.4.7
+numpy==1.26.4
+
+# Transcription (faster-whisper for offline Whisper)
+faster-whisper==1.1.1
+word2number==1.1.0
+
+# Verse detection
+regex==2024.11.6
+rapidfuzz==3.12.2
+
+# UI framework
+PyQt6==6.7.1
+PyQt6-Qt6==6.7.1
+PyQt6-sip==6.8.6
+
+# Config management
+python-dotenv==1.0.1
+
+# vMix bridge
+requests==2.32.3
+
+# Testing
+pytest==8.3.5
+pytest-qt==4.4.0
+
+# Packaging
+pyinstaller==6.12.0

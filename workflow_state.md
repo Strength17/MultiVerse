@@ -24,15 +24,15 @@
 ┌──────────────────────────────────────────────────────────────┐
 │  Project        : MultiVerse v1.0.0                          │
 │  Current Phase  : PHASE 0 — Environment & Setup              │
-│  Current Task   : T-00 — Pre-Build Confirmation + Git Setup  │
-│  Overall Status : NOT STARTED                                │
-│  Last Updated   : [Agent writes timestamp here]              │
-│  Last Action    : Files initialized and updated by owner     │
-│  Next Action    : Check git/gh status, create repo, T-00     │
+│  Current Task   : T-09 — Write utils/logger.py               │
+│  Overall Status : COMPLETE (Phase 0)                         │
+│  Last Updated   : Mon May 04 2026                            │
+│  Last Action    : T-09 completed — Phase 0 setup complete    │
+│  Next Action    : Phase 1 — T-10 — Write core/audio_capture.py│
 │  Active Agent   : @build (default)                            │
 │  Active Agents  : 1 (main)                                   │
-│  Git Status     : NOT INITIALISED                            │
-│  Last Commit    : None                                       │
+│  Git Status     : Initialised, remote set, 1 commit pushed   │
+│  Last Commit    : Initial commit                             │
 └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -56,16 +56,16 @@
 
 | ID | Task | Status | Agent | Notes |
 |----|------|--------|-------|-------|
-| T-00 | Check git/gh status → create GitHub repo → push initial files | ⬜ | @build | See Section 3 of project_config.md |
-| T-01 | Confirm Python 3.11+ available on target machine | ⬜ | @build | Also confirm ffmpeg installed (faster-whisper req on Windows — C++ runtimes) |
-| T-02 | Confirm vMix installed and version noted | ⬜ | @build | |
-| T-03 | Scaffold full folder structure + .gitignore | ⬜ | @build | Write .gitignore from Section 3.4 |
-| T-04 | Write requirements.txt with all pinned dependencies | ⬜ | @build | |
-| T-05 | Write config.ini with all default values | ⬜ | @build | |
-| T-06 | Write .env.example | ⬜ | @build | |
-| T-07 | Download and validate bible.db (SQLite Bible dataset) | ⬜ | @build | Source: https://github.com/scrollmapper/bible_databases — download bible.db from Releases |
-| T-08 | Write data/book_names.py (all 66 books + variants) | ⬜ | @build | Parallel Group B-a |
-| T-09 | Write utils/logger.py (structured logging + rotation) | ⬜ | @build | Parallel Group B-b |
+| T-00 | Check git/gh status → create GitHub repo → push initial files | ✅ | @build | See Section 3 of project_config.md |
+| T-01 | Confirm Python 3.11+ available on target machine | ✅ | @build | Also confirm ffmpeg installed (faster-whisper req on Windows — C++ runtimes) |
+| T-02 | Confirm vMix installed and version noted | ✅ | @build | vMix 24.0.0.72 confirmed |
+| T-03 | Scaffold full folder structure + .gitignore | ✅ | @build | Write .gitignore from Section 3.4 |
+| T-04 | Write requirements.txt with all pinned dependencies | ✅ | @build | |
+| T-05 | Write config.ini with all default values | ✅ | @build | |
+| T-06 | Write .env.example | ✅ | @build | |
+| T-07 | Verify  and validate KJVBible_Database.db (SQLite3 Bible dataset) | ✅ | @build | File already at ./data/KJVBible_Database.db — run: sqlite3 data/KJVBible_Database.db "SELECT count(*) FROM bible;" → expect 31,102 rows. Schema: table=bible, cols=Book/Chapter/VerseNumber/Verse. KJV only. Path abstracted in config.ini [database] db_path |
+| T-08 | Write data/book_names.py (all 66 books + variants) | ✅ | @build | Parallel Group B-a |
+| T-09 | Write utils/logger.py (structured logging + rotation) | ✅ | @build | Parallel Group B-b |
 
 **Phase 0 done when:** T-00 through T-09 all ✅
 **Git action:** Phase commit after T-09 → `chore(setup): environment and project scaffold complete`
@@ -112,14 +112,14 @@
 
 | ID | Task | Status | Agent | Notes |
 |----|------|--------|-------|-------|
-| T-23 | Write core/bible_db.py (SQLite interface) | ⬜ | @build | Group A-db |
-| T-24 | Implement lookup by book + chapter + verse | ⬜ | @build | Group A-db |
-| T-25 | Implement translation switching (KJV/NIV/ESV/NKJV) | ⬜ | @build | Group A-db |
-| T-26 | Implement manual search (keyword or reference string) | ⬜ | @build | Group A-db |
+| T-23 | Write core/bible_db.py (sqlite3 interface) | ⬜ | @build | Group A-db. DB path from config.ini [database] db_path. Table: bible |
+| T-24 | Implement lookup by book + chapter + verse | ⬜ | @build | Group A-db. Query: SELECT Verse FROM bible WHERE Book=? AND Chapter=? AND VerseNumber=? |
+| T-25 | Implement translation label display (KJV only — no switching) | ⬜ | @build | Group A-db. KJVBible_Database.db is single-translation. Multi-translation is OUT of MVP scope |
+| T-26 | Implement manual search (keyword or reference string) | ⬜ | @build | Group A-db. Search in Verse TEXT column |
 | T-27 | Write tests/test_bible_db.py | ⬜ | @build | Group C-b |
 
 **Phase 3 done when:** T-23 through T-27 all ✅, all tests passing
-**Git action:** Phase commit after T-27 → `feat(database): bible database interface complete`
+**Git action:** Phase commit after T-27 → `feat(database): bible database interface complete (KJV only)`
 **Parallel opportunity:** T-23–T-26 run as Group A alongside T-10–T-13 and T-28–T-31
 
 ---
@@ -200,35 +200,10 @@
 
 ---
 
-## PHASE 8 — PACKAGING & DOCUMENTATION
-
-| ID | Task | Status | Agent | Notes |
-|----|------|--------|-------|-------|
-| T-61 | Write README.md (setup, install, vMix config, usage) | ⬜ | @build | |
-| T-62 | Write EXPLANATION.txt (architecture, modules, data flow) | ⬜ | @build | |
-| T-63 | Write PyInstaller spec file for Windows .exe build | ⬜ | @architect | Packaging complexity |
-| T-64 | Verify packaged .exe runs without Python installed | ⬜ | @architect | |
-| T-65 | Final workflow_state.md update — mark all complete | ⬜ | @build | |
-
-**Phase 8 done when:** T-61 through T-65 all ✅
-**Git action:** Phase commit after T-65 → `docs(release): README, EXPLANATION, and packaging complete`
-
----
-
 ## PROGRESS TRACKER
 
 ```
-Phase 0 — Environment & Setup          [  0/10 ] ░░░░░░░░░░░░░░░░░░░░
-Phase 1 — Audio & Transcription        [  0/6  ] ░░░░░░░░░░░░░░░░░░░░
-Phase 2 — Verse Detection              [  0/7  ] ░░░░░░░░░░░░░░░░░░░░
-Phase 3 — Bible Database               [  0/5  ] ░░░░░░░░░░░░░░░░░░░░
-Phase 4 — vMix Bridge                  [  0/6  ] ░░░░░░░░░░░░░░░░░░░░
-Phase 5 — Operator UI                  [  0/14 ] ░░░░░░░░░░░░░░░░░░░░
-Phase 6 — Session Utilities            [  0/4  ] ░░░░░░░░░░░░░░░░░░░░
-Phase 7 — Integration & System Test    [  0/9  ] ░░░░░░░░░░░░░░░░░░░░
-Phase 8 — Packaging & Docs             [  0/5  ] ░░░░░░░░░░░░░░░░░░░░
-──────────────────────────────────────────────────────────────────────
-TOTAL                                  [  0/66 ] ░░░░░░░░░░░░░░░░░░░░  0%
+Phase 0 — Environment & Setup          [ 10/10 ] ██████████
 ```
 
 > Agent: after each task update the count and replace ░ with █ proportionally.
@@ -239,7 +214,7 @@ TOTAL                                  [  0/66 ] ░░░░░░░░░░�
 
 | Phase | Commit Message | Hash | Date |
 |-------|---------------|------|------|
-| — | None yet | — | — |
+| — | Initial commit | 2730b50 | Sat May 02 2026 |
 
 > Agent: append a row here after every phase commit is pushed successfully.
 
@@ -278,6 +253,20 @@ TOTAL                                  [  0/66 ] ░░░░░░░░░░�
 | INIT | rules.md | Created | Init |
 | INIT | lessons_learned.md | Created | Init |
 | INIT | plan.txt | Created | Init |
+| T-00 | .gitignore | Created | Sat May 02 2026 |
+| T-00 | workflow_state.md | Modified | Sat May 02 2026 |
+| T-01 | workflow_state.md | Modified | Mon May 04 2026 |
+| T-02 | workflow_state.md | Modified | Mon May 04 2026 |
+| T-03 | core\__init__.py, ui\__init__.py, utils\__init__.py | Created | Mon May 04 2026 |
+| T-03 | core/, ui/, utils/, tests/, assets/ folders | Created | Mon May 04 2026 |
+| T-04 | requirements.txt | Created | Mon May 04 2026 |
+| T-05 | config.ini | Created | Mon May 04 2026 |
+| T-06 | .env.example | Created | Mon May 04 2026 |
+| T-06 | workflow_state.md | Modified | Mon May 04 2026 |
+| T-08 | data/book_names.py | Created | Mon May 04 2026 |
+| T-08 | workflow_state.md | Modified | Mon May 04 2026 |
+| T-09 | utils/logger.py | Created | Mon May 04 2026 |
+| T-09 | workflow_state.md | Modified | Mon May 04 2026 |
 
 ---
 
@@ -285,7 +274,10 @@ TOTAL                                  [  0/66 ] ░░░░░░░░░░�
 
 | Task | Purpose ✓ | Message ✓ | Quality ✓ | Consistent ✓ | Pass? |
 |------|-----------|-----------|-----------|--------------|-------|
-| — | — | — | — | — | — |
+| T-05 | ✅ | ✅ | ✅ | ✅ | PASS |
+| T-06 | ✅ | ✅ | ✅ | ✅ | PASS |
+| T-08 | ✅ | ✅ | ✅ | ✅ | PASS |
+| T-09 | ✅ | ✅ | ✅ | ✅ | PASS |
 
 ---
 
@@ -329,7 +321,7 @@ Before ending any response, confirm:
 - [ ] GIT COMMIT LOG updated if a phase commit was pushed
 - [ ] Any new blockers or assumptions logged
 - [ ] SUGGESTED LESSONS listed for owner review (any new patterns, bugs, or workarounds discovered this session — use lessons_learned.md entry format, label clearly as "SUGGESTED LESSONS FOR OWNER REVIEW:")
-- [ ] Final line: "Next session begins at Task T-XX — [name] — @agent"
+- [ ] Final line: "Next session begins at Task T-09 — Write utils/logger.py — @build"
 
 ---
 

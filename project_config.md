@@ -40,7 +40,7 @@ STEP 0.15 → Loop back to STEP 0.1 — do not stop between tasks
 
 The agent MUST pause and send the Section 9 format when:
 - A prerequisite is MISSING and the task cannot proceed without it
-  (e.g. gh not authenticated, ffmpeg not found, bible.db absent)
+  (e.g. gh not authenticated, ffmpeg not found, KJVBible_Database.db absent)
 - A BLOCKER is hit mid-task that the agent cannot self-resolve
   (command fails, import error not fixable within requirements.txt)
 - Genuine spec ambiguity where either interpretation has real consequences
@@ -109,8 +109,9 @@ The agent MUST NOT pause for:
   Confidence threshold: configurable (default 0.75)
          ↓
 [MultiVerse — Bible Database]
-  Local SQLite database
-  Translations: KJV (default), NIV, ESV, NKJV
+  Local SQLite3 database: data/KJVBible_Database.db  ← path set in config.ini [database]
+  Translation: KJV only (single-translation dataset)
+  Table: bible | Columns: Book (INT), Chapter (INT), VerseNumber (INT), Verse (TEXT)
   Zero network latency — all lookups offline
          ↓
 [MultiVerse — Operator UI]
@@ -238,8 +239,8 @@ env/
 *.bin
 models/
 
-# Bible database (downloaded at runtime)
-data/bible.db
+# Bible database (excluded from repo — already present locally at data/)
+data/KJVBible_Database.db
 
 # PyInstaller output
 *.spec
@@ -274,7 +275,7 @@ Thumbs.db
 | Verse detection | regex + rapidfuzz | Handles spoken numbers + fuzzy book names |
 | Number conversion | word2number | "twenty eight" → 28 |
 | Bible database | sqlite3 (stdlib) | Zero dependency, offline, instant |
-| Bible data | bible-sqlite dataset (open source) | All major translations included |
+| Bible data | KJVBible_Database.db (local, KJV only) | Pre-existing KJV dataset at data/ |
 | Operator UI | PyQt6 | Native look, cross-platform, real-time updates |
 | vMix bridge | requests (stdlib-adjacent) | Simple HTTP to vMix API |
 | Config management | python-dotenv + config.ini | User settings without code changes |
@@ -295,7 +296,7 @@ Thumbs.db
 | F-03 | Bible Book Vocabulary Injection | All 66 books injected as Whisper initial prompt |
 | F-04 | Spoken Number Normalization | Converts spoken numbers to digits in references |
 | F-05 | Verse Reference Detection | Regex + fuzzy matching with confidence score |
-| F-06 | Multi-Translation Support | KJV, NIV, ESV, NKJV — operator selects preferred |
+| F-06 | Translation Display | KJVBible_Database.db contains KJV only — translation label shown in overlay; multi-translation OUT of MVP scope |
 | F-07 | Operator Approval Panel | Shows detected verse, APPROVE / DISMISS / EDIT |
 | F-08 | Auto-Send Timer | Optional: auto-approve after configurable delay |
 | F-09 | vMix HTTP Bridge | Sends verse text + reference to vMix Title input |
@@ -355,7 +356,7 @@ multiverse/
 │   └── styles.py
 │
 ├── data/
-│   ├── bible.db
+│   ├── KJVBible_Database.db
 │   └── book_names.py
 │
 ├── utils/
@@ -381,23 +382,43 @@ multiverse/
 
 All user-editable settings live in `config.ini`. Never hardcode these values.
 
-### 7.1 — bible.db Download
+### 7.1 — Bible Database
 
-The Bible database is NOT included in the repo (listed in .gitignore).
-Download once before the build starts:
+The Bible database is already present locally. **Do NOT attempt to download it.**
 
 ```
-Source:  https://github.com/scrollmapper/bible_databases
-Method:  Go to Releases → download bible.db directly
-Place:   multiverse/data/bible.db
-Verify:  sqlite3 bible.db "SELECT count(*) FROM verses;" → expect 31,102 rows
+File:    data/KJVBible_Database.db       ← pre-existing, do not regenerate
+Tool:    sqlite3  (stdlib — NOT "sqlite")
+Schema:
+  Table : bible
+  Columns:
+    Book        INTEGER   (book number, e.g. 43 = John)
+    Chapter     INTEGER
+    VerseNumber INTEGER
+    Verse       TEXT
+
+Translation: KJV only — this database contains a single translation.
+
+Verify DB is functional (run from project root):
+  sqlite3 data/KJVBible_Database.db "SELECT count(*) FROM bible;"
+  → expect 31,102 rows
+
+Sample query (John 3:16):
+  sqlite3 data/KJVBible_Database.db \
+    "SELECT Verse FROM bible WHERE Book=43 AND Chapter=3 AND VerseNumber=16;"
 ```
 
-This is a T-07 prerequisite. If the file is missing, T-07 must be treated as BLOCKED.
+The database path is abstracted in `config.ini` under `[database]` (see Section 7.2).
+All code must read the path from config — never hardcode `KJVBible_Database.db`.
+
+If the file is missing → T-07 must be treated as BLOCKED.
 
 ### 7.2 — config.ini Defaults
 
 ```ini
+[database]
+db_path = data/KJVBible_Database.db
+
 [audio]
 input_device_index = 0
 sample_rate = 16000
@@ -568,7 +589,7 @@ Results logged in workflow_state.md SECTION VERIFICATION LOG.
 ### 10.4 — Consistency Check
 - [ ] Imports resolve correctly against folder structure in Section 6
 - [ ] Config keys match Section 7 definitions
-- [ ] Bible book names reference data/book_names.py only
+- [ ] Database path read from config.ini [database] db_path — never hardcoded
 - [ ] vMix element names match config.ini values
 
 ---

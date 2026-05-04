@@ -163,3 +163,32 @@ PART 6 — FINAL OUTPUT (T-65)
   rules.md             Global coding rules
   plan.txt             This file
 ================================================================================
+
+
+
+"fallback_models": [
+    "openrouter/openrouter/elephant-alpha:free",
+
+
+    openrouter/poolside/laguna-m.1:free
+    openrouter/poolside/laguna-xs.2:free
+    openrouter/xiaomi/mimo-v2-flash:free
+    openrouter/qwen/qwen3-coder:free
+    openrouter/nvidia/nemotron-3-super:free
+    openrouter/deepseek/deepseek-r1:free
+    openrouter/mistralai/devstral-2:free
+    openrouter/tencent/hy3-preview:free
+    openrouter/z-ai/glm-4.5-air:free
+    openrouter/google/gemma-4-31b-it:free
+
+  ],
+
+
+
+| Provider     | Base URL                          | Model Name                       | Context | Daily Limit      |
+|--------------|-----------------------------------|----------------------------------|---------|------------------|
+| Google AI    | https://generativelanguage.google...| gemini-1.5-pro                   | 2,000K  | 50 Requests      |
+| SambaNova    | https://sambanova.ai       | Meta-Llama-3.1-405B-Instruct     | 128K    | High (None set)  |
+| OpenRouter   | https://openrouter.ai/api/v1      | poolside/laguna-m.1:free         | 128K    | ~50-200 Requests |
+| Groq         | https://groq.com    | llama-3.3-70b-versatile          | 128K    | 14,400 Requests  |
+

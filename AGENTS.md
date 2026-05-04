@@ -7,7 +7,15 @@
 1. Read `project_config.md` fully — rules, tech stack, git protocol, standards
 2. Read `lessons_learned.md` fully — apply every lesson before writing any code
 3. Read `workflow_state.md` fully — current phase, current task, current state
-4. Do not write a single line of code before completing all three reads
+4. Do not write a single line of code before completing all 
+
+## Request Efficiency Rules
+- Batch ALL file reads into one tool call — never read files one by one
+- Never re-read a file already read this session
+- Never re-run a command whose output is already in context
+- Complete all thinking before making any tool call
+- Make the minimum number of tool calls needed — not the maximum possible
+- If you already know the answer from context, do not make a tool call to confirm it
 
 ## Git — First Thing At T-00
 Before any code is written at T-00:
@@ -85,3 +93,7 @@ At the end of every session, after updating workflow_state.md:
 - Every code block starts with the file path as a comment on line 1
 - Update workflow_state.md before ending every response
 - Never commit .env files — only .env.example
+
+
+### Note
+- Demand that pro version model be used for T-46, T-52, and T-60.
