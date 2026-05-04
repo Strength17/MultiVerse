@@ -23,6 +23,9 @@ env/
 *.bin
 models/
 
+# OpenCode config (contains secrets)
+opencode.json
+
 # Bible database (downloaded at runtime)
 data/bible.db
 

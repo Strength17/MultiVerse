@@ -23,16 +23,16 @@
 ```
 ┌──────────────────────────────────────────────────────────────┐
 │  Project        : MultiVerse v1.0.0                          │
-│  Current Phase  : PHASE 0 — Environment & Setup              │
-│  Current Task   : T-09 — Write utils/logger.py               │
-│  Overall Status : COMPLETE (Phase 0)                         │
+│  Current Phase  : PHASE 1/3/4 — Core Engines (Group A)       │
+│  Current Task   : T-10–T-13, T-23–T-26, T-28–T-31            │
+│  Overall Status : IN PROGRESS (Parallel Group A)             │
 │  Last Updated   : Mon May 04 2026                            │
-│  Last Action    : T-09 completed — Phase 0 setup complete    │
-│  Next Action    : Phase 1 — T-10 — Write core/audio_capture.py│
+│  Last Action    : Phase 0 commit pushed (e280b82)            │
+│  Next Action    : Complete Parallel Group A                  │
 │  Active Agent   : @build (default)                            │
-│  Active Agents  : 1 (main)                                   │
-│  Git Status     : Initialised, remote set, 1 commit pushed   │
-│  Last Commit    : Initial commit                             │
+│  Active Agents  : 4 (main + 3 subagents)                     │
+│  Git Status     : Initialised, remote set, 2 commits pushed  │
+│  Last Commit    : chore(setup): environment and project scaffold complete│
 └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -112,10 +112,10 @@
 
 | ID | Task | Status | Agent | Notes |
 |----|------|--------|-------|-------|
-| T-23 | Write core/bible_db.py (sqlite3 interface) | ⬜ | @build | Group A-db. DB path from config.ini [database] db_path. Table: bible |
-| T-24 | Implement lookup by book + chapter + verse | ⬜ | @build | Group A-db. Query: SELECT Verse FROM bible WHERE Book=? AND Chapter=? AND VerseNumber=? |
-| T-25 | Implement translation label display (KJV only — no switching) | ⬜ | @build | Group A-db. KJVBible_Database.db is single-translation. Multi-translation is OUT of MVP scope |
-| T-26 | Implement manual search (keyword or reference string) | ⬜ | @build | Group A-db. Search in Verse TEXT column |
+| T-23 | Write core/bible_db.py (sqlite3 interface) | ✅ | @build | Group A-db. DB path from config.ini [database] db_path. Table: bible |
+| T-24 | Implement lookup by book + chapter + verse | ✅ | @build | Group A-db. Query: SELECT Verse FROM bible WHERE Book=? AND Chapter=? AND VerseNumber=? |
+| T-25 | Implement translation label display (KJV only — no switching) | ✅ | @build | Group A-db. KJVBible_Database.db is single-translation. Multi-translation is OUT of MVP scope |
+| T-26 | Implement manual search (keyword or reference string) | ✅ | @build | Group A-db. Search in Verse TEXT column |
 | T-27 | Write tests/test_bible_db.py | ⬜ | @build | Group C-b |
 
 **Phase 3 done when:** T-23 through T-27 all ✅, all tests passing
@@ -128,10 +128,10 @@
 
 | ID | Task | Status | Agent | Notes |
 |----|------|--------|-------|-------|
-| T-28 | Write core/vmix_bridge.py (HTTP API wrapper) | ⬜ | @build | Group A-vmix |
-| T-29 | Implement send_verse(text, reference, translation) | ⬜ | @build | Group A-vmix |
-| T-30 | Implement clear_overlay() | ⬜ | @build | Group A-vmix |
-| T-31 | Implement test_connection() → returns bool + version | ⬜ | @build | Group A-vmix |
+| T-28 | Write core/vmix_bridge.py (HTTP API wrapper) | âœ… | @build | Group A-vmix |
+| T-29 | Implement send_verse(text, reference, translation) | âœ… | @build | Group A-vmix |
+| T-30 | Implement clear_overlay() | âœ… | @build | Group A-vmix |
+| T-31 | Implement test_connection() â†’ returns bool + version | âœ… | @build | Group A-vmix |
 | T-32 | Implement graceful failure (vMix offline = warn, not crash) | ⬜ | @architect | Error handling |
 | T-33 | Write tests/test_vmix_bridge.py (mock HTTP calls) | ⬜ | @build | Group C-c |
 
@@ -328,4 +328,5 @@ Before ending any response, confirm:
 *End of workflow_state.md*
 *READ-WRITE — agent updates after every task.*
 *project_config.md is READ-ONLY. Never modify it.*
+*DYNAMIC STATE CONTENT — always placed after static content in request context.*
 *DYNAMIC STATE CONTENT — always placed after static content in request context.*

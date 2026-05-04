@@ -33,6 +33,14 @@ After the last task of every phase is marked ✅:
 - Log the commit in workflow_state.md GIT COMMIT LOG
 - Never commit with failing tests
 
+## Phase Completion Recap
+After every phase completion message, always include these Top 3 Commands:
+1. `/compress`: Condenses the conversation history into a summary to preserve context window and reduce token costs.
+2. `/rewind`: Allows you to travel back to any point in the session to fix errors or restart from a known good state.
+3. `/resume`: Opens the session browser to quickly switch between tasks or restore previous work sessions.
+- **Provide a structured "Phase Complete Summary" block in the session (Phase Name, Tasks, Commit Message, Hash, Next Phase).**
+- **Prompt the user to run `/clear` to reset the session context for the next phase.**
+
 ## Model Selection
 - Check the AGENT column in workflow_state.md for every task
 - @build tasks → use @build (default agent) — proceed automatically
