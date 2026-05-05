@@ -111,7 +111,7 @@ before proceeding to Phase 3 or any UI work. Do NOT skip again.
 | T-21 | Implement confidence scoring per detection | ✅ | @architect | Done |
 | T-22 | Implement configurable confidence threshold filter | ✅ | @build | Done |
 | T-23 | Write tests/test_verse_detector.py (30+ test cases) | ✅ | @build | Done |
-| T-24 | Write tests/test_number_words.py | ⬜ | @build | |
+| T-24 | Write tests/test_number_words.py | ✅ | @build | Done |
 
 ---
 

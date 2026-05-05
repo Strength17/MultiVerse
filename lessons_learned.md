@@ -84,7 +84,15 @@ Apply to: T-00
 *No session lessons yet. The owner adds entries here after each build session
 based on patterns the agent discovered and reported.*
 
+## L-008 — Regex flexibility for spoken numbers
+Discovered: T-18, T-19
+Lesson: Spoken Bible references are highly variable. Using non-capturing groups and flexible whitespace/separator patterns in regex is critical to catch variants like "chapter X verse Y" vs "X Y".
+Apply to: Any future text-to-reference parsing tasks.
+
+## L-009 — Test-driven development for regex
+Discovered: T-23
+Lesson: Regex patterns should be developed in tandem with comprehensive test suites to catch edge-case failures quickly. Test cases should cover both digit-based and word-based numbers to ensure robust parsing.
+Apply to: Any future regex-heavy development.
+
 ---
 *End of lessons_learned.md*
-*This file grows over time. Never delete existing entries.*
-*New entries are added by the project owner, not the agent.*
