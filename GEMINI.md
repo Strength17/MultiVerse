@@ -39,6 +39,7 @@ After every phase completion message, always include these Top 3 Commands:
 2. `/rewind`: Allows you to travel back to any point in the session to fix errors or restart from a known good state.
 3. `/resume`: Opens the session browser to quickly switch between tasks or restore previous work sessions.
 - **Provide a structured "Phase Complete Summary" block in the session (Phase Name, Tasks, Commit Message, Hash, Next Phase).**
+- **Update README.md with the latest project changes.**
 - **Prompt the user to run `/clear` to reset the session context for the next phase.**
 
 ## Model Selection

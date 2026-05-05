@@ -75,12 +75,12 @@ The agent MUST NOT pause for:
 | Tagline | Real-time scripture detection and display for live worship |
 | Type | Desktop application (Python, cross-platform) |
 | Version | 1.0.0 MVP |
-| Primary Purpose | Detect Bible verses mentioned in live sermons via audio transcription and display them automatically through vMix via NDI output |
+| Primary Purpose | Detect Bible verses mentioned in live sermons via audio transcription and display them automatically in a standalone fullscreen scripture overlay window. **vMix/NDI integration is planned for a future release — MVP outputs to its own display window only.** |
 | Target Users | Church AV technicians, worship production teams |
 | Target OS | Windows 10/11 (primary), macOS (secondary) |
-| Target Hardware | Mid-range PC connected to audio mixer and vMix workstation |
+| Target Hardware | Mid-range PC connected to audio mixer |
 | GitHub Repo Name | multiverse |
-| GitHub Description | Real-time scripture detection and display system for live worship via vMix NDI |
+| GitHub Description | Real-time scripture detection and display system for live worship |
 | GitHub Visibility | private |
 
 ---
@@ -98,6 +98,9 @@ The agent MUST NOT pause for:
 [MultiVerse — Transcription Engine]
   Whisper (local, offline, no internet required)
   Model: medium.en (best balance of speed and accuracy)
+  Models loaded from local cache — NO download required
+  Cache path: C:\Users\<user>\.cache\huggingface\hub\
+  Config key: [transcription] model_dir (set in config.ini)
   Custom vocabulary prompt: all 66 Bible book names injected
   Chunk size: 5 seconds rolling window
          ↓
@@ -121,14 +124,17 @@ The agent MUST NOT pause for:
   Operator can: APPROVE / DISMISS / EDIT before sending
   Configurable: auto-send after N seconds if no action (default: OFF)
          ↓
-[MultiVerse — vMix Bridge]
-  HTTP POST to vMix API at localhost:8088
-  Updates Title Input named "MultiVerse_Overlay"
-  Controls: verse text, reference, translation label, fade in/out
-         ↓
-[vMix — NDI Output]
-  vMix renders the overlay and broadcasts via NDI
-  Output reaches projectors, screens, confidence monitors, stream
+[MultiVerse — Scripture Display Window]  ← STANDALONE MVP OUTPUT
+  Separate fullscreen PyQt6 window (designed for a second monitor or projector)
+  Displays verse text, reference, and translation label
+  Animated fade in / fade out on verse change
+  Clear screen on demand
+  ─────────────────────────────────────────────────
+  ⚠️  FUTURE RELEASE — vMix / NDI Integration
+  MultiVerse will later send its display output via NDI to vMix
+  using the HTTP API bridge (core/vmix_bridge.py is scaffolded now,
+  wired to live display in a future phase).
+  ─────────────────────────────────────────────────
 ```
 
 ---
@@ -146,7 +152,7 @@ IF NOT a git repo:
   1. Run: git init
   2. Run: gh repo create multiverse
           --description "Real-time scripture detection and display
-          system for live worship via vMix NDI"
+          system for live worship"
           --private
           --source=.
           --remote=origin
@@ -196,7 +202,7 @@ Phase commit message format by phase:
 | 1 | `feat(audio): audio capture and transcription engine complete` |
 | 2 | `feat(detection): verse detection engine complete` |
 | 3 | `feat(database): bible database interface complete` |
-| 4 | `feat(vmix): vMix bridge complete` |
+| 4 | `feat(display): standalone scripture display window complete` |
 | 5 | `feat(ui): operator UI complete` |
 | 6 | `feat(session): session utilities complete` |
 | 7 | `feat(integration): integration and system tests passing` |
@@ -272,12 +278,14 @@ Thumbs.db
 | Audio capture | sounddevice | Real-time PCM capture, device selection |
 | Transcription | faster-whisper | Whisper Python binding, GPU optional |
 | STT model | medium.en (Whisper) | Best speed/accuracy for English sermons |
+| Model loading | Local cache only — `local_files_only=True` | Models already present at HuggingFace cache dir; no download |
 | Verse detection | regex + rapidfuzz | Handles spoken numbers + fuzzy book names |
 | Number conversion | word2number | "twenty eight" → 28 |
 | Bible database | sqlite3 (stdlib) | Zero dependency, offline, instant |
 | Bible data | KJVBible_Database.db (local, KJV only) | Pre-existing KJV dataset at data/ |
 | Operator UI | PyQt6 | Native look, cross-platform, real-time updates |
-| vMix bridge | requests (stdlib-adjacent) | Simple HTTP to vMix API |
+| Scripture display | PyQt6 (separate fullscreen window) | Standalone MVP display — second monitor or projector output |
+| vMix bridge | requests (stdlib-adjacent) | **SCAFFOLDED NOW, wired in future release via NDI** |
 | Config management | python-dotenv + config.ini | User settings without code changes |
 | Logging | Python logging (stdlib) | Structured logs with rotation |
 | Packaging | PyInstaller | Single .exe for Windows deployment |
@@ -296,29 +304,32 @@ Thumbs.db
 | F-03 | Bible Book Vocabulary Injection | All 66 books injected as Whisper initial prompt |
 | F-04 | Spoken Number Normalization | Converts spoken numbers to digits in references |
 | F-05 | Verse Reference Detection | Regex + fuzzy matching with confidence score |
-| F-06 | Translation Display | KJVBible_Database.db contains KJV only — translation label shown in overlay; multi-translation OUT of MVP scope |
+| F-06 | Translation Display | KJVBible_Database.db contains KJV only — translation label shown in overlay |
 | F-07 | Operator Approval Panel | Shows detected verse, APPROVE / DISMISS / EDIT |
 | F-08 | Auto-Send Timer | Optional: auto-approve after configurable delay |
-| F-09 | vMix HTTP Bridge | Sends verse text + reference to vMix Title input |
-| F-10 | vMix Connection Test | Button to verify vMix API connection on startup |
+| F-09 | Standalone Scripture Display Window | Fullscreen PyQt6 window showing verse text, reference, and translation label with fade transitions. Designed for second monitor or projector. **This is the MVP output — replaces vMix output for now.** |
+| F-10 | Display Connection Indicator | Status indicator showing whether the display window is open and receiving |
 | F-11 | Verse History Log | Scrollable log of all verses sent this session |
 | F-12 | Manual Verse Lookup | Operator can manually search and send any verse |
 | F-13 | Confidence Threshold Config | Slider to tune detection sensitivity |
 | F-14 | Session Log Export | Save session transcript + verses to .txt file |
-| F-15 | Offline Operation | Zero internet dependency after model download |
+| F-15 | Offline Operation | Zero internet dependency — all models and data local |
 | F-16 | Dark UI Theme | Appropriate for low-light AV control environments |
-| F-17 | vMix Overlay Clear Button | One-click to fade out/clear current verse display |
+| F-17 | Clear Display Button | One-click to fade out/clear current verse on the display window |
 | F-18 | README.md | Full setup and usage guide |
 | F-19 | EXPLANATION.txt | System architecture, routes, security, I/O |
 
 ### 5.2 Explicitly OUT of MVP Scope
 
+- vMix HTTP bridge wiring (scaffolded in core/vmix_bridge.py but not connected to display — future release)
+- NDI output (future release)
 - Multi-language sermon support (non-English)
 - Cloud transcription fallback
 - Mobile companion app
-- Multi-camera or multi-screen vMix layout control
+- Multi-camera or multi-screen layout control
 - Congregation lyrics display (separate product)
 - Web dashboard
+- Multi-translation support (KJV only in this dataset)
 
 ---
 
@@ -343,7 +354,7 @@ multiverse/
 │   ├── transcriber.py
 │   ├── verse_detector.py
 │   ├── bible_db.py
-│   └── vmix_bridge.py
+│   └── vmix_bridge.py             ← scaffolded now; wired to display in future release
 │
 ├── ui/
 │   ├── __init__.py
@@ -353,6 +364,7 @@ multiverse/
 │   ├── history_panel.py
 │   ├── settings_dialog.py
 │   ├── manual_lookup.py
+│   ├── scripture_display.py       ← NEW: standalone fullscreen display window
 │   └── styles.py
 │
 ├── data/
@@ -430,6 +442,9 @@ model_size = medium.en
 device = cpu
 compute_type = int8
 initial_prompt =
+; Path to local HuggingFace model cache — no download will occur if models exist here
+model_dir = C:\Users\Strenght Awa\.cache\huggingface\hub
+local_files_only = true
 
 [detection]
 confidence_threshold = 0.75
@@ -437,7 +452,21 @@ auto_send_enabled = false
 auto_send_delay_seconds = 3
 default_translation = KJV
 
+[display]
+; Standalone scripture display window settings (MVP output)
+background_color = #000000
+verse_text_color = #FFFFFF
+reference_color = #AAAAAA
+translation_color = #888888
+verse_font_size = 48
+reference_font_size = 24
+fade_duration_ms = 500
+; Monitor index for the display window (0 = primary, 1 = second monitor/projector)
+target_screen_index = 1
+always_on_top = true
+
 [vmix]
+; vMix bridge — SCAFFOLDED FOR FUTURE RELEASE. Not wired to display in MVP.
 host = localhost
 port = 8088
 title_input_name = MultiVerse_Overlay
@@ -590,7 +619,8 @@ Results logged in workflow_state.md SECTION VERIFICATION LOG.
 - [ ] Imports resolve correctly against folder structure in Section 6
 - [ ] Config keys match Section 7 definitions
 - [ ] Database path read from config.ini [database] db_path — never hardcoded
-- [ ] vMix element names match config.ini values
+- [ ] Display settings read from config.ini [display] — never hardcoded
+- [ ] vMix element names match config.ini values (future use only)
 
 ---
 
@@ -629,7 +659,7 @@ before proceeding to the next task outside the group.
 ```
 @subagent-audio  → T-10, T-11, T-12, T-13  (audio + transcription)
 @subagent-db     → T-23, T-24, T-25, T-26  (bible database)
-@subagent-vmix   → T-28, T-29, T-30, T-31  (vMix HTTP bridge)
+@subagent-vmix   → T-28, T-29, T-30, T-31  (vMix HTTP bridge — scaffold only)
 ```
 
 Spawn all three simultaneously when Phase 0 is complete.
@@ -704,9 +734,45 @@ time of day, and which fallback was activated.
 
 ---
 
-## 14. VMIX INTEGRATION REFERENCE
+## 14. DISPLAY WINDOW REFERENCE (MVP)
 
 ```
+MultiVerse standalone scripture display — PyQt6 QMainWindow
+
+Window behaviour:
+  - Opens on target_screen_index (config.ini [display])
+  - Fullscreen, always on top, no title bar
+  - Background: solid black (configurable)
+  - Three text regions: verse body, reference, translation label
+  - Fade in / fade out on verse change (duration configurable)
+
+Verse layout (top-down):
+  ┌────────────────────────────────────────────────────┐
+  │                                                    │
+  │   "For God so loved the world, that he gave        │
+  │    his only begotten Son..."                       │
+  │                                                    │
+  │                    — John 3:16 (KJV)               │
+  └────────────────────────────────────────────────────┘
+
+Python signal to update display (from approval_panel or auto-send):
+  display_window.show_verse(verse_text: str, reference: str, translation: str)
+
+Clear display:
+  display_window.clear_verse()
+
+Screen selection:
+  QApplication.screens()[target_screen_index]
+  Falls back to screen 0 if index out of range — logs warning
+```
+
+## 14b. VMIX INTEGRATION REFERENCE (FUTURE RELEASE)
+
+```
+NOTE: The following is scaffolded in core/vmix_bridge.py but NOT wired
+to any live output in MVP. It will be connected in a future release
+alongside NDI output configuration.
+
 Set title text:
 GET http://localhost:8088/api/?Function=SetText
     &Input=MultiVerse_Overlay&SelectedName=VerseBody.Text
@@ -722,11 +788,6 @@ GET http://localhost:8088/api/?Function=OverlayInput1Out
 Check vMix running:
 GET http://localhost:8088/api/?Function=GetVersion
 ```
-
-vMix Title Setup (operator does once):
-1. Add GT Title named: MultiVerse_Overlay
-2. Add text fields: VerseBody.Text, VerseRef.Text, Translation.Text
-3. Set as Overlay 1
 
 ---
 
@@ -772,9 +833,28 @@ logger.warning("Recoverable issue")
 logger.error("Something failed — include exception info")
 ```
 
+### Model Loading
+```python
+# Always load from local cache — no download
+from faster_whisper import WhisperModel
+model = WhisperModel(
+    model_size_or_path,   # read from config.ini [transcription] model_size
+    device=device,        # read from config.ini [transcription] device
+    compute_type=compute_type,   # read from config.ini [transcription] compute_type
+    download_root=model_dir,     # read from config.ini [transcription] model_dir
+    local_files_only=True        # read from config.ini [transcription] local_files_only
+)
+```
+
+### Display Window
+- scripture_display.py runs as a separate QMainWindow
+- Verse updates received via Qt signal — never called directly across threads
+- Screen targeting uses QApplication.screens() — index read from config
+
 ### vMix Bridge
 - All vMix calls: try/except with timeout=2 seconds
-- If vMix unreachable: log warning, show UI indicator, do NOT crash
+- If vMix unreachable: log warning, do NOT crash — bridge is scaffolded only in MVP
+- vmix_bridge.py must remain fully implemented so future wiring is a config change, not a rewrite
 
 ---
 
