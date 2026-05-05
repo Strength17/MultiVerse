@@ -97,10 +97,20 @@ Lesson: Running standalone scripts or tests from subdirectories (e.g., `tests/`)
         `set PYTHONPATH=.` (CMD) before execution.
 Apply to: T-17, T-23, T-24, T-29, T-35, all testing tasks
 
----
 ## Session Lessons (added by owner after each build session)
 
+## L-011 — PyQt6 Window Opacity for Fade Effects
+Discovered: T-30, T-38
+Lesson: To achieve a smooth fade-in/fade-out for a window, `setWindowOpacity()` must be called on the `QMainWindow` itself. Attempting to set opacity on child widgets or using graphics effects for window-level fades is often less reliable and can lead to flickering or failure to render.
+Apply to: Any future fullscreen display or overlay window work.
+
+## L-012 — Screen Index Validation
+Discovered: T-33, T-38
+Lesson: Always validate the `target_screen_index` against `QApplication.screens()` before attempting to move a window. If the index is out of range (e.g., trying to target a second monitor when only one is connected), the application should log a warning and fallback to the primary screen (index 0) to prevent the window from being rendered off-screen or crashing.
+Apply to: T-44, T-60, any multi-monitor UI features.
+
 ## L-009 — Run tests as a module
+...
 Discovered: T-24
 Lesson: When encountering `ImportError` in complex project structures, running `python -m pytest` is often more robust than running `pytest` directly, as it automatically includes the project root in `sys.path`.
 Apply to: Any future test execution in this repository.
@@ -118,7 +128,10 @@ Apply to: Any future text-to-reference parsing tasks.
 ## L-009 — Test-driven development for regex
 Discovered: T-23
 Lesson: Regex patterns should be developed in tandem with comprehensive test suites to catch edge-case failures quickly. Test cases should cover both digit-based and word-based numbers to ensure robust parsing.
-Apply to: Any future regex-heavy development.
+Apply to: UI development using PyQt6.
+
+- **Lesson - PyQt6 Import Locations**: Always verify the correct module for PyQt6 classes. For example, `QAction` has moved from `PyQt6.QtWidgets` to `PyQt6.QtGui` since older PyQt5 versions. Relying on incorrect imports will cause immediate runtime errors.
+Apply to: Future UI development and migration tasks.
 
 ---
 *End of lessons_learned.md*
