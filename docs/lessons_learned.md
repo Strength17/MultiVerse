@@ -138,5 +138,10 @@ Discovered: Project Finalization
 Lesson: For PyQt6 applications, creating a custom `spec` file is essential for ensuring all external assets (database files, configs, and models) are correctly included in the standalone executable. Using `PyInstaller` with `--add-data` ensures portability.
 Apply to: Future deployments of MultiVerse.
 
+## L-014 — Application Portability
+Discovered: Project Finalization
+Lesson: When bundling with PyInstaller using the default (folder) mode, the resulting executable and the `_internal/` directory must always reside in the same root folder. Moving the executable without the `_internal/` dependencies will break the application.
+Apply to: Any future deployments or shortcuts created for users.
+
 ---
 *End of lessons_learned.md*

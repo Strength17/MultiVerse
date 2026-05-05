@@ -71,7 +71,7 @@ class MainWindow(QMainWindow):
         self.device_selector.currentIndexChanged.connect(self._on_device_changed)
         self.statusBar().addWidget(self.device_selector)
 
-        self.statusBar().addSeparator()
+        self.statusBar().addWidget(QLabel(" | ", self))
 
         # Translation Selector
         self.statusBar().addWidget(QLabel(" Trans:", self))
@@ -81,7 +81,7 @@ class MainWindow(QMainWindow):
         self.translation_selector.setEnabled(False) # KJV only in MVP
         self.statusBar().addWidget(self.translation_selector)
 
-        self.statusBar().addSeparator()
+        self.statusBar().addWidget(QLabel(" | ", self))
 
         # Clear Display Button
         self.clear_display_button = QPushButton("Clear Display", self)
@@ -90,7 +90,7 @@ class MainWindow(QMainWindow):
         self.clear_display_button.clicked.connect(self.scripture_display_window.clear_verse)
         self.statusBar().addWidget(self.clear_display_button)
 
-        self.statusBar().addSeparator()
+        self.statusBar().addWidget(QLabel(" | ", self))
 
         # Display Status Indicator
         self.display_status_label = QLabel("Display: Offline", self)
@@ -137,6 +137,13 @@ class MainWindow(QMainWindow):
         self.status_timer = QTimer(self)
         self.status_timer.timeout.connect(self._check_display_status)
         self.status_timer.start(2000) # Check every 2 seconds
+
+    def _create_status_bar_separator(self):
+        """Helper to create a vertical line separator for the status bar."""
+        separator = QFrame()
+        separator.setFrameShape(QFrame.Shape.VLine)
+        separator.setFrameShadow(QFrame.Shadow.Sunken)
+        return separator
 
     def _populate_audio_devices(self):
         """
