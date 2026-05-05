@@ -133,5 +133,10 @@ Apply to: UI development using PyQt6.
 - **Lesson - PyQt6 Import Locations**: Always verify the correct module for PyQt6 classes. For example, `QAction` has moved from `PyQt6.QtWidgets` to `PyQt6.QtGui` since older PyQt5 versions. Relying on incorrect imports will cause immediate runtime errors.
 Apply to: Future UI development and migration tasks.
 
+## L-013 — Application Bundling
+Discovered: Project Finalization
+Lesson: For PyQt6 applications, creating a custom `spec` file is essential for ensuring all external assets (database files, configs, and models) are correctly included in the standalone executable. Using `PyInstaller` with `--add-data` ensures portability.
+Apply to: Future deployments of MultiVerse.
+
 ---
 *End of lessons_learned.md*
