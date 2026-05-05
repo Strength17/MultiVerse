@@ -78,11 +78,37 @@ Lesson: The gh CLI must be authenticated before `gh repo create` will work.
         Do not attempt repo creation if gh auth status fails.
 Apply to: T-00
 
+## L-008 — Windows binary wheel availability
+Discovered: T-06
+Lesson: Pinning older versions of core libraries (like `numpy==1.26.4`) on
+        Windows with newer Python versions (3.13+) often fails because pre-built
+        binary wheels are unavailable. This triggers a source build requiring
+        a C++ compiler. To avoid this, either relax the version constraint
+        to allow versions with wheels or use `--only-binary :all:` to force
+        binary installation where possible.
+Apply to: Phase 0 setup, requirements.txt
+
+## L-009 — PYTHONPATH for local module resolution
+Discovered: T-17
+Lesson: Running standalone scripts or tests from subdirectories (e.g., `tests/`)
+        requires the project root to be in the `PYTHONPATH`. Without it, imports
+        of local packages like `core` or `utils` will fail with
+        `ModuleNotFoundError`. Use `$env:PYTHONPATH="."` (PowerShell) or 
+        `set PYTHONPATH=.` (CMD) before execution.
+Apply to: T-17, T-23, T-24, T-29, T-35, all testing tasks
+
 ---
 ## Session Lessons (added by owner after each build session)
 
-*No session lessons yet. The owner adds entries here after each build session
-based on patterns the agent discovered and reported.*
+## L-009 — Run tests as a module
+Discovered: T-24
+Lesson: When encountering `ImportError` in complex project structures, running `python -m pytest` is often more robust than running `pytest` directly, as it automatically includes the project root in `sys.path`.
+Apply to: Any future test execution in this repository.
+
+## L-010 — Test-implementation alignment
+Discovered: T-24
+Lesson: Ensure that tests import from the exact module path and function names implemented in the source files, especially after refactoring utility functions.
+Apply to: Any future test file creation or refactoring tasks.
 
 ## L-008 — Regex flexibility for spoken numbers
 Discovered: T-18, T-19

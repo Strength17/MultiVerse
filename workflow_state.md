@@ -23,18 +23,17 @@
 ```
 ┌──────────────────────────────────────────────────────────────┐
 │  Project        : MultiVerse v1.0.0                          │
-│  Current Phase  : PHASE 2 — VERSE DETECTION                  │
-│  Current Task   : T-18                                       │
+│  Current Phase  : PHASE 4 — STANDALONE DISPLAY WINDOW        │
+│  Current Task   : T-30                                       │
 │  Overall Status : IN PROGRESS                                │
 │  Last Updated   : Mon May 04 2026                            │
-│  Last Action    : T-17 transcription test passed (sample     │
-│                   audio transcribed correctly with base.en)  │
-│  Next Action    : Begin T-18 — verse_detector.py             │
+│  Last Action    : Phase 3 complete; T-29 tests passed        │
+│  Next Action    : Begin T-30 — ui/scripture_display.py       │
 │  Active Agent   : @architect                                 │
 │  Active Agents  : 1                                          │
-│  Git Status     : Initialised, remote set, 2 commits pushed  │
-│  Last Commit    : chore(setup): environment and project      │
-│                   scaffold complete                          │
+│  Git Status     : Initialised, remote set, 3 commits pushed  │
+│  Last Commit    : feat(database): bible database interface    │
+│                   complete                                   │
 │                                                              │
 │  ⚠️  ARCHITECTURE CHANGE (owner-confirmed, Mon May 04 2026): │
 │  MultiVerse MVP outputs to a STANDALONE PyQt6 display        │
@@ -123,7 +122,7 @@ before proceeding to Phase 3 or any UI work. Do NOT skip again.
 | T-26 | Implement lookup by book + chapter + verse | ✅ | @build | |
 | T-27 | Implement translation label display (KJV only) | ✅ | @build | |
 | T-28 | Implement manual search (keyword or reference string) | ✅ | @build | |
-| T-29 | Write tests/test_bible_db.py | ⬜ | @build | |
+| T-29 | Write tests/test_bible_db.py | ✅ | @build | |
 
 ---
 
@@ -136,15 +135,15 @@ live output in this phase. See project_config.md Section 14 and 14b.
 
 | ID | Task | Status | Agent | Notes |
 |----|------|--------|-------|-------|
-| T-30 | Write ui/scripture_display.py (fullscreen PyQt6 display window) | ⬜ | @architect | NEW: standalone display — replaces vMix as MVP output. See Section 14 of project_config.md |
-| T-31 | Implement show_verse(text, reference, translation) with fade-in | ⬜ | @architect | Fade duration from config.ini [display] fade_duration_ms |
-| T-32 | Implement clear_verse() with fade-out | ⬜ | @architect | |
-| T-33 | Implement screen targeting (target_screen_index from config) | ⬜ | @build | Falls back to screen 0 if index out of range; logs warning |
-| T-34 | Implement display_ready() → returns bool (window open + visible) | ⬜ | @build | Equivalent of vmix test_connection for standalone display |
+| T-30 | Write ui/scripture_display.py (fullscreen PyQt6 display window) | ✅ | @architect | NEW: standalone display — replaces vMix as MVP output. See Section 14 of project_config.md |
+| T-31 | Implement show_verse(text, reference, translation) with fade-in | ✅ | @architect | Fade duration from config.ini [display] fade_duration_ms |
+| T-32 | Implement clear_verse() with fade-out | ✅ | @architect | |
+| T-33 | Implement screen targeting (target_screen_index from config) | ✅ | @build | Falls back to screen 0 if index out of range; logs warning |
+| T-34 | Implement display_ready() → returns bool (window open + visible) | ✅ | @build | Equivalent of vmix test_connection for standalone display |
 | T-35 | Write core/vmix_bridge.py (HTTP API wrapper — SCAFFOLD ONLY) | ✅ | @build | Fully implemented but NOT wired to display in MVP; future release |
 | T-36 | Implement send_verse / clear_overlay / test_connection in bridge | ✅ | @build | Scaffolded; graceful failure if vMix unreachable |
-| T-37 | Write tests/test_vmix_bridge.py (mock HTTP calls) | ⬜ | @build | |
-| T-38 | Write tests/test_scripture_display.py (PyQt6 widget tests) | ⬜ | @build | |
+| T-37 | Write tests/test_vmix_bridge.py (mock HTTP calls) | ✅ | @build | |
+| T-38 | Write tests/test_scripture_display.py (PyQt6 widget tests) | ✅ | @build | |
 
 ---
 
