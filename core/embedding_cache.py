@@ -42,12 +42,12 @@ class EmbeddingLoader(QObject):
             with open(self.refs_path, 'rb') as f:
                 refs = pickle.load(f)
             # Need to re-load model but not compute
-            model = SentenceTransformer('all-MiniLM-L6-v2', cache_folder=self.model_cache)
+            model = SentenceTransformer('all-MiniLM-L6-v2', cache_folder=self.model_cache, local_files_only=True)
             self.ready.emit(model, matrix, refs)
             return
 
         logger.info("Computing verse embeddings...")
-        model = SentenceTransformer('all-MiniLM-L6-v2', cache_folder=self.model_cache)
+        model = SentenceTransformer('all-MiniLM-L6-v2', cache_folder=self.model_cache, local_files_only=True)
         
         db = BibleDB(self.db_path)
         with db._get_connection() as conn:
