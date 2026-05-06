@@ -34,6 +34,9 @@ data/bible.db
 data/verse_embeddings.npy
 data/verse_refs.pkl
 
+# Manual downloads
+"Manually Downloaded requirements/"
+
 # PyInstaller output
 *.spec
 dist/

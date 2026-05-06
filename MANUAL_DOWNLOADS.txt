@@ -1,0 +1,21 @@
+# LARGE DEPENDENCIES FOR MANUAL DOWNLOAD
+# The following dependencies exceed size constraints for automatic agent handling.
+# Please download these, place them in the appropriate directory or install manually,
+# then inform me to resume.
+
+1. torch==2.11.0 (Approx 114MB)
+   - Source: https://download.pytorch.org/whl/cpu/torch-2.11.0%2Bcpu-cp313-cp313-win_amd64.whl
+   
+2. transformers==5.7.0 (Approx 10.5MB)
+   - Source: https://pypi.org/project/transformers/#files (or via pip install transformers)
+
+3. scikit-learn==1.8.0 (Approx 8MB)
+   - Source: https://pypi.org/project/scikit-learn/#files (or via pip install scikit-learn)
+
+4. scipy==1.17.1 (Approx 36MB)
+   - Source: https://pypi.org/project/scipy/#files (or via pip install scipy)
+
+5. sentence-transformers==5.4.1 (Requires model assets ~22MB-100MB+)
+   - Note: The agent attempted to download the 'all-MiniLM-L6-v2' model during the smoke test (R-19).
+   - This model is automatically handled by the HuggingFace cache system.
+   - If manual cache is required: https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/tree/main

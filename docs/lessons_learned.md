@@ -143,5 +143,15 @@ Discovered: Project Finalization
 Lesson: When bundling with PyInstaller using the default (folder) mode, the resulting executable and the `_internal/` directory must always reside in the same root folder. Moving the executable without the `_internal/` dependencies will break the application.
 Apply to: Any future deployments or shortcuts created for users.
 
+## L-015 — Large Binary Asset Handling
+Discovered: Rebuild Phase
+Lesson: Large binary assets like LLM models (e.g., SentenceTransformers) should be handled outside the automated CI/CD or agent loop. Manual acquisition and local cache pre-loading (`local_files_only=True`) ensure consistent performance and avoid environment timeouts during build and test phases.
+Apply to: Future model integrations.
+
+## L-016 — Asynchronous "Warm-up" Pattern
+Discovered: Rebuild Phase optimization
+Lesson: Prefer background "warm-up" patterns over modal splash screens for heavy asset loading. Launching the UI instantly with background loading indicators (e.g., in the status bar) improves perceived performance and allows the user to begin basic tasks while functional features "awaken."
+Apply to: Any heavy initialization tasks.
+
 ---
 *End of lessons_learned.md*

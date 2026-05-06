@@ -1,13 +1,12 @@
 # ui/main_window.py
 
-from PyQt6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QSplitter, QLabel, QComboBox, QPushButton
-from PyQt6.QtCore import Qt, QSize
+from PyQt6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QSplitter, QLabel, QComboBox, QPushButton, QStatusBar
+from PyQt6.QtCore import Qt, QSize, pyqtSlot
 from ui.styles import COLORS, FONTS
 from ui.audio_meter import AudioMeterWidget
 from ui.transcript_panel import TranscriptPanel
 from ui.approval_panel import ApprovalPanel
 from ui.manual_lookup import ManualLookup
-from core.audio_capture import AudioCapture
 
 class MainWindow(QMainWindow):
     def __init__(self, config, db):
@@ -27,7 +26,6 @@ class MainWindow(QMainWindow):
         header = QHBoxLayout()
         header.addWidget(QLabel("● MultiVerse"))
         self._device_combo = QComboBox()
-        # Populate devices here...
         header.addWidget(self._device_combo)
         self._start_btn = QPushButton("▶ START")
         self._start_btn.setObjectName("btn_primary")
@@ -69,5 +67,28 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(self.manual_lookup)
         
         # Set splitter sizes from config
-        sizes = [int(s) for s in self._config["ui"]["splitter_sizes"].split(",")]
-        splitter.setSizes(sizes)
+        try:
+            sizes = [int(s) for s in self._config["ui"]["splitter_sizes"].split(",")]
+            splitter.setSizes(sizes)
+        except (KeyError, ValueError):
+            splitter.setSizes([300, 600, 300])
+
+        # Startup Status Bar
+        self._status_bar = QStatusBar()
+        self.setStatusBar(self._status_bar)
+        self._status_bar.showMessage("Waking up AI engine...")
+        self._status_bar.setStyleSheet(f"QStatusBar {{ font-size: 10px; color: {COLORS['text_muted']}; border-top: 1px solid {COLORS['border']}; }}")
+
+    @pyqtSlot(int)
+    def update_startup_progress(self, val: int):
+        """Updates the status bar with loading percentage."""
+        self._status_bar.showMessage(f"Initializing Semantic AI: {val}%")
+
+    @pyqtSlot(object, object, list)
+    def on_models_ready(self, model, matrix, refs):
+        """Called when background thread finishes loading embeddings."""
+        self._status_bar.showMessage("AI Engine Ready.", 5000)
+        # Pass the ready model to lookup for semantic features
+        self.manual_lookup.enable_semantic_mode(model, matrix, refs)
+        # Notify worker thread if it exists (not implemented here yet)
+        # self.worker.set_semantic_models(model, matrix, refs)
