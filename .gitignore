@@ -26,8 +26,13 @@ models/
 # OpenCode config (contains secrets)
 opencode.json
 
-# Bible database (downloaded at runtime)
+# Bible database
+data/KJVBible_Database.db
 data/bible.db
+
+# Generated data
+data/verse_embeddings.npy
+data/verse_refs.pkl
 
 # PyInstaller output
 *.spec

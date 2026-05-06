@@ -1,157 +1,87 @@
 # ui/styles.py
 
-"""
-Defines the dark theme stylesheet for the MultiVerse PyQt6 application.
-This stylesheet provides a consistent dark aesthetic suitable for low-light AV control environments.
-"""
+from PyQt6.QtWidgets import QApplication
 
-DARK_THEME_STYLESHEET = """
-/* General application style */
-QWidget {
-    background-color: #2b2b2b; /* Dark Gray */
-    color: #f0f0f0;            /* Light Gray for text */
-    selection-background-color: #0078d7; /* Standard blue for selection */
-    selection-color: #ffffff;
-}
-
-/* Main window and container widgets */
-QMainWindow, QFrame, QGroupBox, QTabWidget::pane {
-    background-color: #202020; /* Even darker for primary backgrounds */
-    border: 1px solid #3a3a3a;
-}
-
-/* Labels */
-QLabel {
-    color: #f0f0f0;
-}
-
-/* Push Buttons */
-QPushButton {
-    background-color: #3a3a3a;
-    color: #f0f0f0;
-    border: 1px solid #5a5a5a;
-    padding: 5px 10px;
-    border-radius: 3px;
-}
-QPushButton:hover {
-    background-color: #4a4a4a;
-    border: 1px solid #6a6a6a;
-}
-QPushButton:pressed {
-    background-color: #0078d7;
-    border: 1px solid #005bb7;
-}
-QPushButton:disabled {
-    background-color: #2b2b2b;
-    color: #707070;
-    border: 1px solid #4a4a4a;
+COLORS = {
+    "bg_window":   "#0D0D0D",
+    "bg_panel":    "#161616",
+    "bg_card":     "#1F1F1F",
+    "bg_elevated": "#282828",
+    "bg_hover":    "#2E2E2E",
+    "bg_selected": "#1A3A5C",
+    "accent":      "#4A9EFF",
+    "accent_dark": "#1A6ECC",
+    "success":     "#22C55E",
+    "warning":     "#F59E0B",
+    "danger":      "#EF4444",
+    "muted":       "#4B5563",
+    "text_primary":   "#F9FAFB",
+    "text_secondary": "#9CA3AF",
+    "text_muted":     "#6B7280",
+    "text_verse":     "#FFFFFF",
+    "text_ref":       "#B0C4DE",
+    "text_trans":     "#7B9BB8",
+    "border":       "#2D2D2D",
+    "border_focus": "#4A9EFF",
+    "meter_low":  "#22C55E",
+    "meter_mid":  "#F59E0B",
+    "meter_high": "#EF4444",
+    "meter_bg":   "#1A1A1A",
 }
 
-/* Line Edits (text input) */
-QLineEdit, QTextEdit {
-    background-color: #3a3a3a;
-    color: #f0f0f0;
-    border: 1px solid #5a5a5a;
-    padding: 3px;
-    border-radius: 3px;
-}
-QLineEdit:focus, QTextEdit:focus {
-    border: 1px solid #0078d7;
-}
-
-/* Combo Box */
-QComboBox {
-    background-color: #3a3a3a;
-    color: #f0f0f0;
-    border: 1px solid #5a5a5a;
-    padding: 3px;
-    border-radius: 3px;
-}
-QComboBox::drop-down {
-    subcontrol-origin: padding;
-    subcontrol-position: top right;
-    width: 20px;
-    border-left-width: 1px;
-    border-left-color: #5a5a5a;
-    border-left-style: solid;
-    border-top-right-radius: 3px;
-    border-bottom-right-radius: 3px;
-}
-/* QComboBox::down-arrow {
-    image: url(resources/down_arrow_dark.png);
-} */
-QComboBox QAbstractItemView {
-    background-color: #3a3a3a;
-    selection-background-color: #0078d7;
-    color: #f0f0f0;
+FONTS = {
+    "family": "Segoe UI",
+    "family_mono": "Consolas",
+    "size_xs":   10,
+    "size_sm":   11,
+    "size_md":   13,
+    "size_lg":   15,
+    "size_xl":   20,
+    "size_verse": 42,
+    "size_ref":   24,
+    "size_trans": 16,
 }
 
-/* Scroll Bars */
-QScrollBar:vertical {
-    border: 1px solid #3a3a3a;
-    background: #2b2b2b;
-    width: 10px;
-    margin: 0px 0px 0px 0px;
-}
-QScrollBar::handle:vertical {
-    background: #5a5a5a;
-    min-height: 20px;
-    border-radius: 2px;
-}
-QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
-    background: none;
-}
-QScrollBar::up-arrow:vertical, QScrollBar::down-arrow:vertical {
-    background: none;
-}
-QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
-    background: none;
-}
+RADIUS = {"sm": 4, "md": 8, "lg": 12, "xl": 16}
 
-/* Sliders */
-QSlider::groove:horizontal {
-    border: 1px solid #4a4a4a;
-    height: 8px;
-    background: #3a3a3a;
-    margin: 2px 0;
-    border-radius: 4px;
-}
-QSlider::handle:horizontal {
-    background: #0078d7;
-    border: 1px solid #005bb7;
-    width: 18px;
-    margin: -5px 0;
-    border-radius: 9px;
-}
-QSlider::groove:vertical {
-    border: 1px solid #4a4a4a;
-    width: 8px;
-    background: #3a3a3a;
-    margin: 0 2px;
-    border-radius: 4px;
-}
-QSlider::handle:vertical {
-    background: #0078d7;
-    border: 1px solid #005bb7;
-    height: 18px;
-    margin: 0 -5px;
-    border-radius: 9px;
-}
-
-/* Checkboxes */
-QCheckBox::indicator {
-    width: 13px;
-    height: 13px;
-    border: 1px solid #5a5a5a;
-    border-radius: 3px;
-    background-color: #3a3a3a;
-}
-QCheckBox::indicator:checked {
-    background-color: #0078d7;
-    /* image: url(resources/checked_dark.png); */
-}
-QCheckBox::indicator:disabled {
-    background-color: #2b2b2b;
-    border: 1px solid #4a4a4a;
-}
-"""
+def get_stylesheet() -> str:
+    return f"""
+        QMainWindow, QWidget#central {{ background-color: {COLORS['bg_window']}; }}
+        QWidget#panel_left, #panel_center, #panel_right {{ 
+            background-color: {COLORS['bg_panel']}; 
+            border-right: 1px solid {COLORS['border']};
+        }}
+        QWidget#card {{ 
+            background-color: {COLORS['bg_card']}; 
+            border-radius: {RADIUS['md']}px; 
+        }}
+        QLineEdit {{ 
+            background-color: {COLORS['bg_card']}; 
+            color: {COLORS['text_primary']}; 
+            border: 1px solid {COLORS['border']}; 
+            padding: 8px; 
+            border-radius: {RADIUS['sm']}px; 
+        }}
+        QLineEdit:focus {{ border: 1px solid {COLORS['border_focus']}; }}
+        QPushButton#btn_primary {{ 
+            background-color: {COLORS['accent']}; 
+            color: white; 
+            border-radius: {RADIUS['sm']}px; 
+            font-weight: bold; 
+            padding: 8px 16px; 
+        }}
+        QPushButton#btn_primary:hover {{ background-color: {COLORS['accent_dark']}; }}
+        QPushButton#btn_success {{ background-color: {COLORS['success']}; }}
+        QPushButton#btn_danger {{ background-color: {COLORS['danger']}; }}
+        QPushButton#btn_muted {{ background-color: {COLORS['bg_elevated']}; color: {COLORS['text_secondary']}; }}
+        QListWidget {{ background-color: {COLORS['bg_card']}; border: none; outline: none; }}
+        QListWidget::item {{ padding: 8px 12px; color: {COLORS['text_primary']}; }}
+        QListWidget::item:selected {{ background-color: {COLORS['bg_selected']}; color: white; }}
+        QListWidget::item:hover {{ background-color: {COLORS['bg_hover']}; }}
+        QScrollBar:vertical {{ background-color: {COLORS['bg_card']}; width: 6px; }}
+        QScrollBar::handle:vertical {{ background-color: {COLORS['muted']}; border-radius: 3px; }}
+        QLabel#label_section {{ color: {COLORS['text_secondary']}; font-size: {FONTS['size_sm']}px; text-transform: uppercase; }}
+        QLabel#label_verse {{ color: {COLORS['text_primary']}; font-size: {FONTS['size_lg']}px; font-weight: bold; }}
+        QLabel#label_ref {{ color: {COLORS['accent']}; font-size: {FONTS['size_md']}px; }}
+        QSplitter::handle {{ background-color: {COLORS['border']}; height: 1px; }}
+    """

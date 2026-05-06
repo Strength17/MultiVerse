@@ -1,125 +1,70 @@
 # ui/scripture_display.py
-import logging
-import configparser
-from PyQt6.QtWidgets import QMainWindow, QLabel, QVBoxLayout, QWidget, QApplication
-from PyQt6.QtCore import Qt, QPropertyAnimation, QEasingCurve, pyqtProperty, pyqtSlot
-from PyQt6.QtGui import QFont, QColor, QScreen
 
-logger = logging.getLogger(__name__)
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QApplication
+from PyQt6.QtCore import Qt, QPropertyAnimation, QEasingCurve
+from ui.styles import COLORS, FONTS
 
-class ScriptureDisplay(QMainWindow):
-    """
-    Standalone fullscreen scripture display window.
-    Designed for output to a projector or second monitor.
-    """
+class ScriptureDisplay(QWidget):
+    """Fullscreen scripture display window with fade effects."""
 
-    def __init__(self):
+    def __init__(self, config):
         super().__init__()
-        self.config = configparser.ConfigParser()
-        self.config.read('config.ini')
-        
-        self._setup_ui()
-        self._apply_config()
-        self._setup_animations()
-        
-        # Initial state is hidden (cleared)
-        self.setWindowOpacity(0.0)
-        self._is_ready = False
-
-    def _setup_ui(self):
-        """Initialize UI widgets and layout."""
-        self.setWindowTitle("MultiVerse Display")
+        self._config = config
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint)
+        self.setStyleSheet(f"background-color: {self._config['display']['background_color']};")
         
-        self.central_widget = QWidget()
-        self.setCentralWidget(self.central_widget)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(40, 40, 40, 40)
+        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
-        self.layout = QVBoxLayout(self.central_widget)
-        self.layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.layout.setContentsMargins(50, 50, 50, 50)
+        self._trans_label = QLabel()
+        self._trans_label.setStyleSheet(f"color: {COLORS['text_trans']}; font-size: {FONTS['size_trans']}px;")
+        self._trans_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self._trans_label)
         
-        self.content_widget = QWidget()
-        self.content_layout = QVBoxLayout(self.content_widget)
+        self._verse_label = QLabel()
+        self._verse_label.setWordWrap(True)
+        self._verse_label.setStyleSheet(f"color: {COLORS['text_verse']}; font-size: {FONTS['size_verse']}px; font-weight: bold;")
+        self._verse_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self._verse_label)
         
-        self.verse_label = QLabel("")
-        self.verse_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.verse_label.setWordWrap(True)
+        self._ref_label = QLabel()
+        self._ref_label.setStyleSheet(f"color: {COLORS['text_ref']}; font-size: {FONTS['size_ref']}px;")
+        self._ref_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self._ref_label)
         
-        self.ref_label = QLabel("")
-        self.ref_label.setAlignment(Qt.AlignmentFlag.AlignRight)
-        
-        self.content_layout.addWidget(self.verse_label)
-        self.content_layout.addSpacing(20)
-        self.content_layout.addWidget(self.ref_label)
-        
-        self.layout.addWidget(self.content_widget)
-        
-        self.setObjectName("ScriptureDisplay")
+        self._anim = None
 
-    def _apply_config(self):
-        """Apply styles and screen targeting from config.ini."""
-        bg_color = self.config.get('display', 'background_color', fallback='#000000')
-        self.setStyleSheet(f"background-color: {bg_color};")
-        
-        verse_color = self.config.get('display', 'verse_text_color', fallback='#FFFFFF')
-        ref_color = self.config.get('display', 'reference_color', fallback='#AAAAAA')
-        trans_color = self.config.get('display', 'translation_color', fallback='#888888')
-        
-        v_size = self.config.getint('display', 'verse_font_size', fallback=48)
-        r_size = self.config.getint('display', 'reference_font_size', fallback=24)
-        
-        self.verse_label.setStyleSheet(f"color: {verse_color}; font-size: {v_size}px; font-weight: bold;")
-        self.ref_label.setStyleSheet(f"color: {ref_color}; font-size: {r_size}px;")
-        
-        # Screen targeting
-        target_idx = self.config.getint('display', 'target_screen_index', fallback=0)
+    def show_verse(self, text: str, reference: str, translation: str = "KJV") -> None:
+        """Fades in new verse."""
+        self._verse_label.setText(text)
+        self._ref_label.setText(reference)
+        self._trans_label.setText(translation)
+        self._fade_in()
+
+    def _fade_in(self) -> None:
+        self._anim = QPropertyAnimation(self, b"windowOpacity")
+        self._anim.setDuration(int(self._config["display"]["fade_in_ms"]))
+        self._anim.setStartValue(0.0)
+        self._anim.setEndValue(1.0)
+        self._anim.setEasingCurve(QEasingCurve.Type.OutCubic)
+        self.show()
+        self._anim.start()
+
+    def clear_display(self) -> None:
+        """Fades out."""
+        self._anim = QPropertyAnimation(self, b"windowOpacity")
+        self._anim.setDuration(int(self._config["display"]["fade_out_ms"]))
+        self._anim.setStartValue(1.0)
+        self._anim.setEndValue(0.0)
+        self._anim.finished.connect(self.hide)
+        self._anim.start()
+
+    def move_to_monitor(self, index: int) -> None:
+        """Moves window to target monitor."""
         screens = QApplication.screens()
-        
-        if target_idx < len(screens):
-            screen = screens[target_idx]
-        else:
-            logger.warning(f"Target screen index {target_idx} out of range. Falling back to primary screen.")
-            screen = screens[0]
-            
-        self.setGeometry(screen.geometry())
-        
-        if self.config.getboolean('display', 'always_on_top', fallback=True):
-            self.setWindowFlags(self.windowFlags() | Qt.WindowType.WindowStaysOnTopHint)
-
-    def _setup_animations(self):
-        """Setup fade animations."""
-        self.fade_anim = QPropertyAnimation(self, b"windowOpacity")
-        self.fade_duration = self.config.getint('display', 'fade_duration_ms', fallback=500)
-        self.fade_anim.setDuration(self.fade_duration)
-        self.fade_anim.setEasingCurve(QEasingCurve.Type.InOutQuad)
-
-    @pyqtSlot(str, str, str)
-    def show_verse(self, text: str, reference: str, translation: str):
-        """Display a verse with a fade-in effect."""
-        logger.info(f"Displaying verse: {reference} ({translation})")
-        
-        # If already showing something, fade out first or just update and fade in
-        # For MVP, we'll update text and trigger fade in
-        self.verse_label.setText(f'"{text}"')
-        self.ref_label.setText(f"— {reference} ({translation})")
-        
-        self.fade_anim.stop()
-        self.fade_anim.setStartValue(self.windowOpacity())
-        self.fade_anim.setEndValue(1.0)
-        self.fade_anim.start()
-        
-        self.showFullScreen()
-        self._is_ready = True
-
-    @pyqtSlot()
-    def clear_verse(self):
-        """Clear the current verse with a fade-out effect."""
-        logger.info("Clearing display")
-        self.fade_anim.stop()
-        self.fade_anim.setStartValue(self.windowOpacity())
-        self.fade_anim.setEndValue(0.0)
-        self.fade_anim.start()
-
-    def display_ready(self) -> bool:
-        """Returns True if the display window is initialized and visible."""
-        return self.isVisible() and self.windowOpacity() > 0
+        target = screens[index] if index < len(screens) else screens[0]
+        geo = target.geometry()
+        self.setGeometry(geo)
+        if self._config.getboolean("display", "fullscreen"):
+            self.showFullScreen()

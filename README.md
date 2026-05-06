@@ -9,6 +9,7 @@ MultiVerse is a real-time scripture detection and display system for live worshi
 - Offline-first operation (all models and data local).
 - Operator UI for reviewing and sending verses.
 
+
 ## Setup
 1. Clone the repository.
 2. Install requirements: `pip install -r requirements.txt`.

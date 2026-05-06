@@ -1,10 +1,10 @@
 # core/audio_capture.py
 import sounddevice as sd
 import numpy as np
-import queue
 import logging
 from typing import Optional, Callable
 import configparser
+from PyQt6.QtCore import QObject, pyqtSignal
 
 # Load configuration
 config = configparser.ConfigParser()
@@ -12,8 +12,10 @@ config.read('config.ini')
 
 logger = logging.getLogger(__name__)
 
-class AudioCapture:
+class AudioCapture(QObject):
     """Captures real-time audio from the selected input device."""
+    
+    audio_level = pyqtSignal(float)
     
     def __init__(self, callback: Callable[[np.ndarray], None]):
         """
@@ -22,6 +24,7 @@ class AudioCapture:
         Args:
             callback: Function to call with audio chunks.
         """
+        super().__init__()
         self.device_index = config.getint('audio', 'input_device_index', fallback=0)
         self.sample_rate = config.getint('audio', 'sample_rate', fallback=16000)
         self.channels = config.getint('audio', 'channels', fallback=1)
@@ -54,6 +57,10 @@ class AudioCapture:
         """Callback function for the audio stream."""
         if status:
             logger.warning(f"Audio stream status: {status}")
+        
+        # Calculate RMS
+        rms = float(np.sqrt(np.mean(indata ** 2)))
+        self.audio_level.emit(rms)
         
         # Pass the audio data to the provided callback
         self.callback(indata.copy())

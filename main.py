@@ -2,88 +2,65 @@
 
 import sys
 import os
+os.environ['TRANSFORMERS_OFFLINE'] = '1'
+os.environ['HF_DATASETS_OFFLINE'] = '1'
+os.environ['HF_HUB_OFFLINE'] = '1'
 import logging
 from configparser import ConfigParser, ExtendedInterpolation
-from PyQt6.QtWidgets import QApplication
-from PyQt6.QtCore import QThread
+from PyQt6.QtWidgets import QApplication, QProgressBar, QVBoxLayout, QWidget, QLabel
+from PyQt6.QtCore import QThread, Qt
 
-# Project imports
 from ui.main_window import MainWindow
 from ui.scripture_display import ScriptureDisplay
 from core.bible_db import BibleDB
-from core.transcription_worker import TranscriptionWorker
+from core.embedding_cache import EmbeddingLoader
+from ui.styles import get_stylesheet
 from utils.logger import setup_logger
 
 def main():
-    # Setup logging
-    log_dir = "logs"
-    if not os.path.exists(log_dir):
-        os.makedirs(log_dir)
-    setup_logger(log_level="DEBUG")
+    setup_logger(log_level="INFO")
     logger = logging.getLogger(__name__)
-    logger.info("MultiVerse starting...")
 
-    # Load configuration
     config = ConfigParser(interpolation=ExtendedInterpolation())
-    config.read('config.ini')
-    # Attach path for SettingsDialog in MainWindow
-    config.path = 'config.ini'
+    files_read = config.read('config/config.ini')
+    print(f"DEBUG: CWD={os.getcwd()}, Files read={files_read}, Sections={config.sections()}")
 
     app = QApplication(sys.argv)
-    app.setApplicationName("MultiVerse")
+    app.setStyleSheet(get_stylesheet())
 
-    # Initialize Bible Database
-    bible_db = BibleDB()
+    # Splash screen for embedding load
+    splash = QWidget()
+    splash.setWindowTitle("MultiVerse — Loading...")
+    splash.setFixedSize(400, 150)
+    layout = QVBoxLayout(splash)
+    layout.addWidget(QLabel("Pre-computing verse embeddings..."))
+    progress = QProgressBar()
+    layout.addWidget(progress)
+    splash.show()
 
-    # Create Scripture Display Window (Stand-alone output)
-    display_window = ScriptureDisplay()
+    # Embedding Loader Thread
+    loader_thread = QThread()
+    # Pass section-specific config values
+    loader = EmbeddingLoader(
+        db_path=config.get('database', 'db_path'),
+        model_cache=config.get('transcription', 'model_cache_path')
+    )
+    loader.moveToThread(loader_thread)
     
-    # Create Main Operator Window
-    main_window = MainWindow(config, display_window, bible_db)
-
-    # Setup Transcription Worker and Thread
-    worker_thread = QThread()
-    worker = TranscriptionWorker(config, bible_db)
-    worker.moveToThread(worker_thread)
-
-    # Connections for Worker
-    # Started/Stopped via MainWindow signals
-    main_window.session_started.connect(lambda: worker_thread.start() if not worker_thread.isRunning() else worker.start_processing())
-    main_window.session_stopped.connect(worker.stop_processing)
+    bible_db = BibleDB(config.get('database', 'db_path'))
     
-    worker_thread.started.connect(worker.start_processing)
-    worker.transcript_signal.connect(main_window.transcript_panel.append_transcript)
-    worker.verse_detected_signal.connect(main_window.approval_panel.update_proposal)
-    worker.status_signal.connect(lambda msg: main_window.statusBar().showMessage(msg, 5000))
-    worker.error_signal.connect(lambda msg: main_window.statusBar().showMessage(f"Error: {msg}", 0))
+    def on_ready(model, matrix, refs):
+        display_window = ScriptureDisplay(config)
+        main_window = MainWindow(config, bible_db)
+        
+        main_window.show()
+        splash.close()
+        loader_thread.quit()
 
-    # Wiring MainWindow signals to Display and Worker
-    # (Many connections already happen inside MainWindow.__init__)
-    
-    # Handle application shutdown
-    def cleanup():
-        logger.info("Shutting down...")
-        try:
-            worker.stop_processing()
-            if worker_thread.isRunning():
-                worker_thread.quit()
-                worker_thread.wait(2000) # Wait up to 2 seconds
-            display_window.close()
-            bible_db.close()
-            logger.info("Cleanup complete.")
-        except Exception as e:
-            logger.error(f"Error during cleanup: {e}")
-
-    app.aboutToQuit.connect(cleanup)
-
-    # Show windows
-    main_window.show()
-    
-    # Optionally show display window based on config or user action
-    # For MVP, we show it automatically
-    display_window.show()
-
-    # Worker thread NOT started automatically. Operator clicks "Start Session".
+    loader.progress.connect(progress.setValue)
+    loader.ready.connect(on_ready)
+    loader_thread.started.connect(loader.run)
+    loader_thread.start()
 
     sys.exit(app.exec())
 

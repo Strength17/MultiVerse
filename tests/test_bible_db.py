@@ -28,18 +28,17 @@ def test_lookup_invalid_verse(db):
 
 def test_search_verse_keyword(db):
     """Verify keyword search returns results."""
-    results = db.search_verse("beginning")
+    results = db.search_fts("beginning")
     assert len(results) > 0
-    # First result should be Genesis 1:1
-    # Result format: (Book, Chapter, VerseNumber, Verse)
+    # First result should be Genesis 1:1 (Book 1)
     found_gen_1_1 = False
     for r in results:
-        if r[0] == 1 and r[1] == 1 and r[2] == 1:
+        if r["reference"] == "1 1:1":
             found_gen_1_1 = True
             break
     assert found_gen_1_1
 
 def test_search_no_results(db):
     """Verify search returns empty list for non-existent keyword."""
-    results = db.search_verse("nonexistentkeyword12345")
+    results = db.search_fts("nonexistentkeyword12345")
     assert results == []
