@@ -13,7 +13,14 @@ def test_transcription_chain():
     logger.info("Initializing transcription test...")
     
     # 1. Initialize Transcriber
-    transcriber = Transcriber()
+    from configparser import ConfigParser
+    config = ConfigParser()
+    config.add_section('transcription')
+    config.add_section('audio')
+    config.set('transcription', 'model_size', 'base.en')
+    config.set('transcription', 'device', 'cpu')
+    config.set('audio', 'chunk_seconds', '5')
+    transcriber = Transcriber(config)
     transcriber.initialize_model()
     
     # 2. Mock Audio Capture (Simulating 5 seconds of audio)

@@ -4,13 +4,8 @@ import os
 import pickle
 import numpy as np
 import logging
-import configparser
 from PyQt6.QtCore import QObject, pyqtSignal
 from core.bible_db import BibleDB, build_ref
-
-# Load config
-config = configparser.ConfigParser()
-config.read('config.ini')
 
 logger = logging.getLogger(__name__)
 

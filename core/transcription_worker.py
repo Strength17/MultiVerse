@@ -7,7 +7,7 @@ import time
 from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot
 from core.audio_capture import AudioCapture
 from core.transcriber import Transcriber
-from core.verse_detector import VerseDetector
+from core.verse_detector import DetectionWorker
 from core.bible_db import BibleDB
 from data.book_names import BIBLE_BOOKS
 from configparser import ConfigParser
@@ -16,11 +16,11 @@ logger = logging.getLogger(__name__)
 
 class TranscriptionWorker(QObject):
     """
-    Worker class to handle audio capture, transcription, and verse detection in a background thread.
-    Emits signals for UI updates.
+    Worker class to handle audio capture and transcription.
+    Passes transcript chunks to a separate DetectionWorker logic.
     """
     transcript_signal = pyqtSignal(str)
-    verse_detected_signal = pyqtSignal(str, str, float) # text, reference, confidence
+    verse_detected_signal = pyqtSignal(dict) # Emits full verse data dict
     status_signal = pyqtSignal(str)
     error_signal = pyqtSignal(str)
 
@@ -31,11 +31,16 @@ class TranscriptionWorker(QObject):
         self.audio_queue = queue.Queue()
         self.is_running = False
         
-        self.transcriber = Transcriber()
-        self.detector = VerseDetector(
-            confidence_threshold=self.config.getfloat('detection', 'confidence_threshold', fallback=0.75)
+        self.transcriber = Transcriber(self.config)
+        # DetectionWorker will be initialized with models later via enable_detection
+        self.detector = None
+        
+        self.audio_capture = AudioCapture(
+            device_index=self.config.getint('audio', 'input_device_index', fallback=0),
+            sample_rate=self.config.getint('audio', 'sample_rate', fallback=16000),
+            channels=self.config.getint('audio', 'channels', fallback=1),
+            callback=self._audio_callback
         )
-        self.audio_capture = AudioCapture(callback=self._audio_callback)
 
         # Build initial prompt for Whisper (Bible vocabulary)
         self.initial_prompt = ", ".join(BIBLE_BOOKS.keys())
@@ -43,6 +48,12 @@ class TranscriptionWorker(QObject):
     def _audio_callback(self, audio_chunk: np.ndarray):
         """Callback from AudioCapture to queue audio data."""
         self.audio_queue.put(audio_chunk)
+
+    def enable_detection(self, model, matrix, refs):
+        """Initializes the Tier 2 detection worker once models are loaded."""
+        logger.info("Enabling Tier 2 semantic detection in TranscriptionWorker.")
+        self.detector = DetectionWorker(model, matrix, refs, self.config)
+        self.detector.verse_detected.connect(self.verse_detected_signal.emit)
 
     @pyqtSlot()
     def start_processing(self):
@@ -59,6 +70,7 @@ class TranscriptionWorker(QObject):
             required_frames = chunk_seconds * sample_rate
             
             audio_buffer = np.zeros((0, 1), dtype=np.float32)
+            start_time = time.time()
 
             while self.is_running:
                 try:
@@ -69,28 +81,26 @@ class TranscriptionWorker(QObject):
 
                     # If we have enough audio, process it
                     if len(audio_buffer) >= required_frames:
-                        # Process only the required frames, keep the rest for rolling window
+                        # Process only the required frames
                         to_process = audio_buffer[:required_frames].flatten()
-                        # Shift buffer (simple rolling window: keep last 2 seconds)
+                        # Shift buffer (keep last 2 seconds for overlap)
                         overlap_frames = 2 * sample_rate
                         audio_buffer = audio_buffer[-(overlap_frames):] if len(audio_buffer) > overlap_frames else np.zeros((0, 1), dtype=np.float32)
 
                         # Transcribe
                         text = self.transcriber.transcribe(to_process, initial_prompt=self.initial_prompt)
                         if text:
+                            timestamp = time.time() - start_time
                             logger.debug(f"Transcript: {text}")
                             self.transcript_signal.emit(text)
 
-                            # Detect Verses
-                            detections = self.detector.detect(text)
-                            for d in detections:
-                                logger.info(f"Verse Detected: {d['book']} {d['chapter']}:{d['verse']} ({d['confidence']})")
-                                # Lookup verse text in DB
-                                verse_text, ref = self.bible_db.lookup_verse(f"{d['book']} {d['chapter']}:{d['verse']}")
-                                if verse_text:
-                                    self.verse_detected_signal.emit(verse_text, ref, d['confidence'])
+                            # Detect Verses if detector is ready
+                            if self.detector:
+                                self.detector.process_chunk(text, timestamp)
+                            else:
+                                logger.debug("Detection skipped: AI models not yet ready.")
 
-                    time.sleep(0.5) # Prevent CPU spinning
+                    time.sleep(0.5)
                 except queue.Empty:
                     time.sleep(0.1)
                 except Exception as e:

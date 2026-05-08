@@ -4,17 +4,35 @@ import logging
 import configparser
 import os
 from typing import Optional, List, Dict
+from data.book_names import BIBLE_BOOKS
 
-# Load config to get db path
+# Locate config file - prioritizing config/config.ini as per project structure
 config = configparser.ConfigParser()
-config.read('config.ini')
+config_path = 'config/config.ini'
+if not os.path.exists(config_path):
+    config_path = 'config.ini' # Fallback to root
+
+if os.path.exists(config_path):
+    config.read(config_path)
+else:
+    logging.warning(f"Config file not found at {config_path}, using defaults.")
+
 DB_PATH = config.get('database', 'db_path', fallback='data/KJVBible_Database.db')
 
 logger = logging.getLogger(__name__)
 
-def build_ref(book, chapter, verse) -> str:
-    """Utility to build reference string."""
-    return f"{book} {chapter}:{verse}"
+# ID -> Name mapping (1-based index)
+BOOK_ID_TO_NAME = {i + 1: name for i, name in enumerate(BIBLE_BOOKS.keys())}
+# Name -> ID mapping
+BOOK_NAME_TO_ID = {name: i + 1 for i, name in enumerate(BIBLE_BOOKS.keys())}
+
+def build_ref(book_id_or_name, chapter, verse) -> str:
+    """Utility to build reference string with canonical book name."""
+    if isinstance(book_id_or_name, int):
+        book_name = BOOK_ID_TO_NAME.get(book_id_or_name, str(book_id_or_name))
+    else:
+        book_name = book_id_or_name
+    return f"{book_name} {chapter}:{verse}"
 
 class BibleDB:
     """Interface for the local KJV Bible SQLite database."""
@@ -23,28 +41,32 @@ class BibleDB:
         self.db_path = db_path
         if not os.path.exists(self.db_path):
             logger.error(f"Database file not found at {self.db_path}")
-        self._build_fts_index()
+        self._ensure_fts_index()
 
     def _get_connection(self):
         """Create a new connection for the calling thread."""
         return sqlite3.connect(self.db_path)
 
-    def _build_fts_index(self):
-        """Creates FTS5 virtual table for lightning-fast text search. Idempotent."""
+    def _ensure_fts_index(self):
+        """Ensures FTS5 virtual table exists. Only rebuilds if missing."""
         try:
             with self._get_connection() as conn:
-                # We need columns that match the 'bible' table for external content
-                conn.execute("DROP TABLE IF EXISTS bible_fts")
-                conn.execute("""
-                    CREATE VIRTUAL TABLE bible_fts USING fts5(
-                        Book, Chapter, VerseNumber, Verse,
-                        content='bible',
-                        content_rowid='rowid'
-                    )
-                """)
-                conn.execute("INSERT INTO bible_fts(bible_fts) VALUES('rebuild')")
-                conn.commit()
-                logger.info("FTS5 index ready.")
+                # Check if bible_fts already exists
+                cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='bible_fts'")
+                if not cursor.fetchone():
+                    logger.info("FTS5 index missing. Building now...")
+                    conn.execute("""
+                        CREATE VIRTUAL TABLE bible_fts USING fts5(
+                            Book, Chapter, VerseNumber, Verse,
+                            content='bible',
+                            content_rowid='rowid'
+                        )
+                    """)
+                    conn.execute("INSERT INTO bible_fts(bible_fts) VALUES('rebuild')")
+                    conn.commit()
+                    logger.info("FTS5 index built successfully.")
+                else:
+                    logger.debug("FTS5 index already exists.")
         except sqlite3.Error as e:
             logger.error(f"FTS5 initialization error: {e}")
 
@@ -58,7 +80,7 @@ class BibleDB:
             with self._get_connection() as conn:
                 cursor = conn.execute(f"""
                     SELECT b.Book, b.Chapter, b.VerseNumber, b.Verse,
-                           highlight(bible_fts, 1, '<MATCH>', '</MATCH>') as snippet
+                           highlight(bible_fts, 3, '<MATCH>', '</MATCH>') as snippet
                     FROM bible_fts
                     JOIN bible b ON bible_fts.rowid = b.rowid
                     WHERE bible_fts MATCH ?
@@ -87,13 +109,22 @@ class BibleDB:
             logger.error(f"Database search error: {e}")
             return []
 
-    def lookup_verse(self, book_number: int, chapter: int, verse: int) -> Optional[str]:
-        """Lookup verse text by Book (INT), Chapter (INT), VerseNumber (INT)."""
+    def lookup_verse(self, book: str | int, chapter: int, verse: int) -> Optional[str]:
+        """Lookup verse text by Book (Name or ID), Chapter (INT), VerseNumber (INT)."""
+        if isinstance(book, str):
+            book_id = BOOK_NAME_TO_ID.get(book)
+            if book_id is None:
+                # Try fuzzy match as last resort or if it's a name variation
+                logger.warning(f"Unknown book name: {book}. DB lookup may fail.")
+                book_id = book
+        else:
+            book_id = book
+
         query = "SELECT Verse FROM bible WHERE Book=? AND Chapter=? AND VerseNumber=?"
         try:
             with self._get_connection() as conn:
                 cursor = conn.cursor()
-                cursor.execute(query, (book_number, chapter, verse))
+                cursor.execute(query, (book_id, chapter, verse))
                 result = cursor.fetchone()
                 return result[0] if result else None
         except sqlite3.Error as e:

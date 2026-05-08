@@ -27,6 +27,10 @@ class TranscriptPanel(QWidget):
         """)
         layout.addWidget(self._text_edit)
         
+    def add_text(self, text: str, timestamp: float = 0.0) -> None:
+        """Compatibility method for transcription worker."""
+        self.append_segment(text, timestamp)
+
     def append_segment(self, text: str, timestamp: float) -> None:
         """Appends a new transcription segment. Auto-scrolls."""
         mins = int(timestamp // 60)

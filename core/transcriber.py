@@ -1,54 +1,67 @@
 # core/transcriber.py
 import logging
-from faster_whisper import WhisperModel
-import configparser
+import os
+import whisper
+import numpy as np
+import time
+from configparser import ConfigParser
 from typing import Optional
-
-# Load configuration
-config = configparser.ConfigParser()
-config.read('config.ini')
 
 logger = logging.getLogger(__name__)
 
 class Transcriber:
-    """Wraps faster-whisper for real-time transcription."""
+    """Wraps openai-whisper for real-time transcription."""
     
-    def __init__(self):
-        self.model_size = config.get('transcription', 'model_size', fallback='medium.en')
+    def __init__(self, config: ConfigParser):
+        """
+        Initializes the Transcriber with settings from config.
+        
+        Args:
+            config: ConfigParser instance containing [transcription] section.
+        """
+        self.config = config
+        self.model_size = config.get('transcription', 'model_size', fallback='base.en')
         self.device = config.get('transcription', 'device', fallback='cpu')
-        self.compute_type = config.get('transcription', 'compute_type', fallback='int8')
-        self.model: Optional[WhisperModel] = None
+        self.model_dir = config.get('transcription', 'model_cache_path', fallback=None)
+        self.chunk_seconds = config.getint('audio', 'chunk_seconds', fallback=5)
+        self.model: Optional[whisper.Whisper] = None
 
     def initialize_model(self):
-        """Initializes the Whisper model. Handles download if necessary."""
+        """Initializes the standard Whisper model."""
         try:
-            logger.info(f"Loading Whisper model: {self.model_size}")
-            self.model = WhisperModel(
+            logger.info(f"Loading Whisper model: {self.model_size} on {self.device}")
+            # Ensure local files only if configured
+            is_local = self.config.getboolean('transcription', 'local_files_only', fallback=True)
+            self.model = whisper.load_model(
                 self.model_size,
                 device=self.device,
-                compute_type=self.compute_type
+                download_root=self.model_dir
             )
             logger.info("Whisper model loaded successfully.")
         except Exception as e:
             logger.error(f"Failed to load Whisper model: {e}")
             raise
 
-    def transcribe(self, audio_data, initial_prompt: str = ""):
+    def transcribe(self, audio_data: np.ndarray, initial_prompt: str = ""):
         """
-        Transcribes audio data.
+        Transcribes audio data using standard Whisper with benchmarking.
         
         Args:
-            audio_data: Numpy array of audio samples.
+            audio_data: Numpy array of audio samples (float32).
             initial_prompt: Vocabulary injection string.
         """
         if not self.model:
             raise RuntimeError("Model not initialized. Call initialize_model() first.")
             
-        segments, info = self.model.transcribe(
+        t = time.perf_counter()
+        result = self.model.transcribe(
             audio_data,
-            beam_size=5,
-            initial_prompt=initial_prompt
+            initial_prompt=initial_prompt,
+            language='en',
+            fp16=False # Critical: N3530 has no hardware float16 support
         )
+        duration = time.perf_counter() - t
         
-        full_text = " ".join([segment.text for segment in segments])
-        return full_text.strip()
+        logger.info(f"Transcription took {duration:.2f}s for {self.chunk_seconds}s audio")
+        
+        return result.get("text", "").strip()

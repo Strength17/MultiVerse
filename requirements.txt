@@ -4,22 +4,22 @@
 
 # Audio capture
 sounddevice==0.4.7
-numpy==1.26.4
+numpy>=2.0.0
 
-# Transcription (faster-whisper for offline Whisper)
-faster-whisper==1.1.1
+# Transcription (openai-whisper for AVX-less CPU compatibility)
+openai-whisper>=20231117
 word2number==1.1.0
 
 # Verse detection
 regex==2024.11.6
 rapidfuzz==3.12.2
 sentence-transformers>=2.7.0
-torch==2.2.0+cpu
+torch>=2.11.0
 
 # UI framework
 PyQt6==6.7.1
 PyQt6-Qt6==6.7.1
-PyQt6-sip==6.8.6
+PyQt6-sip>=13.11.1
 
 # Config management
 python-dotenv==1.0.1
@@ -30,6 +30,7 @@ requests==2.32.3
 # Testing
 pytest==8.3.5
 pytest-qt==4.4.0
+pytest-timeout==2.3.1
 
 # Packaging
 pyinstaller==6.12.0

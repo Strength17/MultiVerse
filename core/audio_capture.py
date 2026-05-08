@@ -3,12 +3,7 @@ import sounddevice as sd
 import numpy as np
 import logging
 from typing import Optional, Callable
-import configparser
 from PyQt6.QtCore import QObject, pyqtSignal
-
-# Load configuration
-config = configparser.ConfigParser()
-config.read('config.ini')
 
 logger = logging.getLogger(__name__)
 
@@ -17,20 +12,28 @@ class AudioCapture(QObject):
     
     audio_level = pyqtSignal(float)
     
-    def __init__(self, callback: Callable[[np.ndarray], None]):
+    def __init__(self, device_index: int = 0, sample_rate: int = 16000, channels: int = 1, callback: Optional[Callable[[np.ndarray], None]] = None):
         """
-        Initializes the AudioCapture with a callback.
+        Initializes the AudioCapture.
         
         Args:
+            device_index: Index of the audio input device.
+            sample_rate: Sample rate for capture.
+            channels: Number of audio channels.
             callback: Function to call with audio chunks.
         """
         super().__init__()
-        self.device_index = config.getint('audio', 'input_device_index', fallback=0)
-        self.sample_rate = config.getint('audio', 'sample_rate', fallback=16000)
-        self.channels = config.getint('audio', 'channels', fallback=1)
+        self.device_index = device_index
+        self.sample_rate = sample_rate
+        self.channels = channels
         self.callback = callback
         self.stream: Optional[sd.InputStream] = None
         
+    @staticmethod
+    def get_devices():
+        """Returns a list of available input devices."""
+        return sd.query_devices()
+
     def start(self):
         """Starts the audio input stream."""
         try:
@@ -63,4 +66,5 @@ class AudioCapture(QObject):
         self.audio_level.emit(rms)
         
         # Pass the audio data to the provided callback
-        self.callback(indata.copy())
+        if self.callback:
+            self.callback(indata.copy())

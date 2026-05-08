@@ -41,6 +41,7 @@ def main():
     # 3. Launch UI Immediately
     main_window = MainWindow(config, bible_db)
     main_window.show()
+    main_window.start_worker()
 
     # 4. Connect Background Loader to UI
     loader.progress.connect(main_window.update_startup_progress)

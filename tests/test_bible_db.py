@@ -33,7 +33,7 @@ def test_search_verse_keyword(db):
     # First result should be Genesis 1:1 (Book 1)
     found_gen_1_1 = False
     for r in results:
-        if r["reference"] == "1 1:1":
+        if r["reference"] == "Genesis 1:1":
             found_gen_1_1 = True
             break
     assert found_gen_1_1

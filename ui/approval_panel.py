@@ -31,6 +31,11 @@ class ApprovalPanel(QWidget):
         
         self._current_verse = None
 
+    def queue_verse(self, detection: dict) -> None:
+        """Compatibility method for transcription worker."""
+        # Check config for auto-send settings
+        self.show_detection(detection)
+
     def show_detection(self, detection: dict, auto_send=False, delay=5) -> None:
         """Displays detection card with amber glow."""
         self._current_verse = detection
