@@ -1,0 +1,24 @@
+# requirements.txt
+# MultiVerse Backend — Pinned Dependencies
+#
+# INSTALL ORDER IS CRITICAL:
+# Step 1 — Install PyTorch CPU-only first (prevents 2GB GPU variant download):
+#   pip install torch==2.2.2+cpu torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+#
+# Step 2 — Then install this file:
+#   pip install -r requirements.txt
+#
+# ⚠️  ctranslate2==3.9.0 is MANDATORY — do not upgrade.
+# ⚠️  The N3530 CPU has NO AVX support. ctranslate2 >= 4.x requires AVX and
+#     will crash with "Illegal instruction" on this hardware.
+
+ctranslate2==3.9.0
+faster-whisper==1.0.3
+pyaudio==0.2.14
+numpy==1.26.4
+sentence-transformers==2.7.0
+faiss-cpu==1.7.4
+word2number==1.1
+rapidfuzz==3.6.1
+librosa==0.10.2
+tqdm==4.66.4
