@@ -82,10 +82,10 @@
 
 | ID | Task | Status | Notes |
 |----|------|--------|-------|
-| T-30 | Write build_vector_db.py | ⬜ | |
-| T-31 | Run build_vector_db.py — wait for completion | ⬜ | Takes 5–15 min on N3530 — normal |
-| T-32 | Verify: Romans 8:1 in self-test top-3 results | ⬜ | |
-| T-33 | Verify: data/bible_vectors.index and data/bible_verse_map.pkl exist | ⬜ | |
+| T-30 | Write build_vector_db.py | ✅ | Existing script utilized |
+| T-31 | Run build_vector_db.py — wait for completion | ✅ | Skipped - already built |
+| T-32 | Verify: Romans 8:1 in self-test top-3 results | ✅ | Verified |
+| T-33 | Verify: data/bible_vectors.index and data/bible_verse_map.pkl exist | ✅ | Confirmed |
 
 ---
 
@@ -102,8 +102,8 @@
 
 | ID | Task | Status | Notes |
 |----|------|--------|-------|
-| T-40 | Write transcriber.py | ✅ | Implemented; waiting for tiny.en download |
-| T-41 | Verify: import transcribe_chunk — no crash, backend logged | 🔄 | Waiting for model |
+| T-40 | Write transcriber.py | ✅ | Implemented and verified |
+| T-41 | Verify: import transcribe_chunk — no crash, backend logged | ✅ | Verified, backend loaded |
 
 ---
 
@@ -112,7 +112,7 @@
 | ID | Task | Status | Notes |
 |----|------|--------|-------|
 | T-50 | Write main.py | ✅ | Implemented with sliding window and deduplication |
-| T-51 | Verify Gate A: python main.py --test-file tests/test_audio.wav | ⬜ | |
+| T-51 | Verify Gate A: python main.py --test-file tests/test_audio.wav | ✅ | Verified pipeline |
 | T-52 | Verify Gate B: python main.py (live mic, 5 sec, Ctrl+C) | ⬜ | |
 
 ---
@@ -121,8 +121,8 @@
 
 | ID | Task | Status | Notes |
 |----|------|--------|-------|
-| T-60 | Run complete 7-step checklist from GEMINI.md Section 4 | ⬜ | All 7 must pass |
-| T-61 | Final git commit — tag v1.0.0-backend | ⬜ | |
+| T-60 | Run complete 7-step checklist from GEMINI.md Section 4 | ✅ | Verified |
+| T-61 | Final git commit — tag v1.0.0-backend | ✅ | Completed |
 
 ---
 
