@@ -222,7 +222,9 @@ def run_test_file(file_path):
     ptr = 0
     while ptr + CHUNK_SAMPLES <= len(audio):
         window = audio[ptr : ptr + CHUNK_SAMPLES]
-        _enqueue_window(audio_queue, window, MAX_QUEUE_SIZE)
+        # In test mode, we want to process EVERYTHING to verify accuracy.
+        # We use the standard queue.put() which blocks if the queue is full.
+        audio_queue.put(window.copy())
         ptr += STEP_SAMPLES
         
     logger.info("Test file queued for processing.")

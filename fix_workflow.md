@@ -61,7 +61,7 @@ This was confirmed by the project owner against known audio content.
 │  Current pass rate  : 1 of 4 (25%)                          │
 │  Target pass rate   : 4 of 4 (100%)                         │
 └──────────────────────────────────────────────────────────────┘
-```
+``` 
 
 ---
 
@@ -82,8 +82,8 @@ This was confirmed by the project owner against known audio content.
 
 | ID | Task | Status |
 |----|------|--------|
-| A-01 | Update config.ini — restore overlap, add initial_prompt key, add max_queue_size | ✅ |
-| A-02 | Verify config.ini loads correctly in Python | ✅ |
+| A-01 | Update config.ini — restore overlap, add initial_prompt key, add max_queue_size | ⬜ |
+| A-02 | Verify config.ini loads correctly in Python | ⬜ |
 
 ### A-01 — config.ini must contain exactly these values
 
@@ -141,8 +141,8 @@ print(f'  initial_prompt  = {prompt[:60]}...')
 
 | ID | Task | Status |
 |----|------|--------|
-| B-01 | Update transcriber.py to pass initial_prompt to Whisper on every call | ✅ |
-| B-02 | Verify: transcribe the test audio — "Romans 8:1" and "truth" must appear correctly | ✅ |
+| B-01 | Update transcriber.py to pass initial_prompt to Whisper on every call | ⬜ |
+| B-02 | Verify: transcribe the test audio — "Romans 8:1" and "truth" must appear correctly | ⬜ |
 
 ### B-01 — What to change in transcriber.py
 
@@ -237,9 +237,9 @@ is reading config.ini from the correct working directory.
 
 | ID | Task | Status |
 |----|------|--------|
-| C-01 | Update main.py — implement drop-on-overflow queue | ✅ |
-| C-02 | Update main.py — verify sliding window step uses overlap_seconds from config | ✅ |
-| C-03 | Verify sliding window logic with a unit test | ✅ |
+| C-01 | Update main.py — implement drop-on-overflow queue | ⬜ |
+| C-02 | Update main.py — verify sliding window step uses overlap_seconds from config | ⬜ |
+| C-03 | Verify sliding window logic with a unit test | ⬜ |
 
 ### C-01 — Drop-on-overflow queue pattern
 
@@ -325,8 +325,8 @@ print(f'  A reference must be completable within {chunk_s}s to be captured')
 
 | ID | Task | Status |
 |----|------|--------|
-| D-01 | Add the three ground-truth cases to verse_detector.py self-tests | ✅ |
-| D-02 | Run verse_detector.py — all tests must pass including new cases | ✅ |
+| D-01 | Add the three ground-truth cases to verse_detector.py self-tests | ⬜ |
+| D-02 | Run verse_detector.py — all tests must pass including new cases | ⬜ |
 
 ### D-01 — Add these exact test cases to verse_detector.py
 
@@ -365,10 +365,10 @@ python verse_detector.py
 
 | ID | Task | Status |
 |----|------|--------|
-| E-01 | Run full pipeline against tests/test_audio.wav | ✅ |
-| E-02 | Confirm all four verses trigger | ✅ |
-| E-03 | Run live microphone test | ✅ |
-| E-04 | Measure and record actual end-to-end latency per verse | ✅ |
+| E-01 | Run full pipeline against tests/test_audio.wav | ⬜ |
+| E-02 | Confirm all four verses trigger | ⬜ |
+| E-03 | Run live microphone test | ⬜ |
+| E-04 | Measure and record actual end-to-end latency per verse | ⬜ |
 
 ### E-01 — Run the pipeline
 
@@ -433,10 +433,10 @@ This phase marks the remediation complete. All four checks must be true.
 
 | ID | Check | Status |
 |----|-------|--------|
-| F-01 | All four verses triggered in E-02 pipeline test | ✅ |
-| F-02 | Live microphone test passed (E-03) | ✅ |
-| F-03 | Latency for all four verses under 15s (E-04) | ✅ |
-| F-04 | workflow_state.md updated: overlap_seconds and initial_prompt changes noted in ASSUMPTIONS LOG | ✅ |
+| F-01 | All four verses triggered in E-02 pipeline test | ⬜ |
+| F-02 | Live microphone test passed (E-03) | ⬜ |
+| F-03 | Latency for all four verses under 15s (E-04) | ⬜ |
+| F-04 | workflow_state.md updated: overlap_seconds and initial_prompt changes noted in ASSUMPTIONS LOG | ⬜ |
 
 **When all four are ✅:**
 1. Commit: `git commit -m "fix: sliding window, initial_prompt, queue overflow — all 3 verses now trigger"`
