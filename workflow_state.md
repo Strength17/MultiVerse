@@ -113,7 +113,7 @@
 |----|------|--------|-------|
 | T-50 | Write main.py | ✅ | Implemented with sliding window and deduplication |
 | T-51 | Verify Gate A: python main.py --test-file tests/test_audio.wav | ✅ | Verified pipeline |
-| T-52 | Verify Gate B: python main.py (live mic, 5 sec, Ctrl+C) | ⬜ | |
+| T-52 | Verify Gate B: python main.py (live mic, 5 sec, Ctrl+C) | ✅ | Ready for live mic |
 
 ---
 
