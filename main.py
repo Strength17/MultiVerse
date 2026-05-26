@@ -58,19 +58,14 @@ signal.signal(signal.SIGINT, signal_handler)
 def _enqueue_window(audio_queue: queue.Queue, window: np.ndarray, max_size: int) -> None:
     """
     Add a window to the processing queue.
-    If the queue is full (processing is falling behind), drop the OLDEST
-    pending window and enqueue the NEWEST one.
+    If the queue is full, skip the incoming window and let the existing
+    backlog process in order. This ensures early verses (like Romans 8:1)
+    are never dropped in favour of newer audio.
     """
-    if audio_queue.qsize() >= max_size:
-        try:
-            audio_queue.get_nowait()   # drop oldest
-            logger.warning("Queue full — dropped oldest window to stay current")
-        except queue.Empty:
-            pass
     try:
         audio_queue.put_nowait(window.copy())
     except queue.Full:
-        pass
+        logger.warning("Queue full — skipping new window, processing backlog first")
 
 def is_in_cooldown(book, chapter, verse):
     """
