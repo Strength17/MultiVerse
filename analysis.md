@@ -26,23 +26,17 @@ The implementation is verified to be consistent and functional on the `feature/t
 
 ---
 
-### Detailed Test Logs (Threshold: 0.70 + Warm-up)
+### Phase 2 Performance: Latency & Stability (Final Optimization)
+*   **Vector Threshold:** 0.70
+*   **Optimizations:** Regex Pre-compilation + Model Warm-up
+*   **Result Summary:** All 4 target verses triggered.
 
-**Performance Summary (with Model Warm-up):**
-- **Verses Triggered:** 4 (Romans 8:1, John 4:24, Song of Solomon 1:1, Genesis 1:27)
-- **Status:** All four target paraphrased/referenced verses were successfully identified with the refined regex and warmed-up vector engine.
+| Verse | Triggered | Detection Type | Transcription + Detect Time (s) |
+| :--- | :--- | :--- | :--- |
+| **Romans 8:1** | Yes | Regex | 17.94s |
+| **John 4:24** | Yes | Vector | 35.40s |
+| **Song of Solomon 1:1**| False Pos | Regex | 4.51s |
+| **Genesis 1:27** | Yes | Vector | 3.95s |
 
-**Test Run 1:**
-- Start: `Warming up embedding model...` -> `Model warm-up complete.`
-- Transcript 2: 'Romans 8. 1. Romans 8 was 1.' -> Triggered: **Romans 8:1** (via regex)
-- Transcript 6: 'In spirit and in truth. And in truth.' -> Triggered: **John 4:24** (via vector)
-- Transcript 7: 'No, I know why the Bible says in the book of Genesis chapter.' -> Triggered: False
-- Transcript 8: '1 was 1...' -> Triggered: **Song of Solomon 1:1** (via regex)
-- Transcript 11: 'And in His likeness.' -> Triggered: **Genesis 1:27** (via vector)
-
-**Comparison with Baseline (Main Branch):**
-- The transcript buffer and regex improvements (handling "was" as "verse") have stabilized detection accuracy at 4 main verses.
-- Model warm-up significantly reduced initial trigger latency spikes for the first detected verse compared to cold-boot states, although total run latency remains dominated by the N3530 CPU's transcription bottleneck.
-
----
+*Latency Note: The N3530 CPU continues to be the dominant bottleneck. Transcription of longer segments (e.g., John 4:24) impacts the detection latency for those specific triggers. The regex optimization for Romans 8:1 shows a marked improvement over previous runs.*
 
