@@ -1,4 +1,11 @@
 # vector_search.py
+# OFFLINE MODE: Force sentence_transformers to use only cached local files.
+# This eliminates ~23 HTTP round trips to huggingface.co on every startup.
+import os
+os.environ["TRANSFORMERS_OFFLINE"] = "1"
+os.environ["HF_HUB_OFFLINE"] = "1"
+os.environ["HF_DATASETS_OFFLINE"] = "1"
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 import faiss
 import pickle

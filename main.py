@@ -1,4 +1,10 @@
 # main.py
+# OFFLINE MODE: Force sentence_transformers to use only cached local files.
+import os
+os.environ["TRANSFORMERS_OFFLINE"] = "1"
+os.environ["HF_HUB_OFFLINE"] = "1"
+os.environ["HF_DATASETS_OFFLINE"] = "1"
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 import sys
 import time
