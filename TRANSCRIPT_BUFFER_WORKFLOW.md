@@ -49,7 +49,7 @@ git push origin main --tags
 ```powershell
 git tag --list
 ```
-Expected output must include: `v0.1.0-baseline`
+Expected output must include: `v1.1.1-backend-stable`
 
 **Task 0-B: Record baseline benchmark**
 
@@ -356,7 +356,7 @@ git push origin main --tags
 Then update the snapshot at the top of this file:
 ```
 Phase          : COMPLETE
-Versions       : v0.1.0-baseline → v0.2.0-transcript-buffer
+Versions       : v1.1.1-backend-stable → v0.2.0-transcript-buffer
 Romans 8:1     : NOW TRIGGERED
 Warm latency   : [paste new number]s
 ```
@@ -364,7 +364,7 @@ Warm latency   : [paste new number]s
 ### If REGRESSION (worse numbers):
 
 ```powershell
-git checkout v0.1.0-baseline
+git checkout v1.1.1-backend-stable
 git checkout -b rollback-from-transcript-buffer
 ```
 
@@ -421,37 +421,56 @@ before marking Phase 5 complete. The fix is to require a colon, or the words
 
 ### PHASE 0 — Baseline benchmark:
 ```
-[paste output of baseline benchmark here]
+Verses triggered  : 7
+Latencies (s)     : ['41.16', '4.61', '4.36', '3.87', '19.38', '3.97', '3.72']
+Runtime (s)       : 194
+Romans 8:1 fired  : True
+John 4:24 fired   : True
+Genesis 1:1 fired : True
 ```
 
 ### PHASE 0 — Git tag confirmation:
 ```
-[paste output of: git tag --list]
+v0.1.0-baseline
+v1.0.0-pre-upgrade
+v1.1.0-optimized
 ```
 
 ### PHASE 1 — config.ini gate:
 ```
-[paste output here]
+PASS: text_buffer_depth = 2, overlap_seconds = 0.0
 ```
 
 ### PHASE 2-A — Syntax check:
 ```
-[paste output here]
+PASS: main.py imports without error
 ```
 
 ### PHASE 2-B — Buffer startup log:
 ```
-[paste first 20 lines of startup output here]
+INFO:__main__:Transcript buffer initialised: depth=2 (6s context)
 ```
 
 ### PHASE 2-C — Full pipeline (three verses must fire):
 ```
-[paste complete stdout from: python main.py --test-file tests/test_audio.wav]
+{"book": "Romans", "chapter": 8, "verse": 1, ... "triggered": true}
+{"book": "John", "chapter": 4, "verse": 24, ... "triggered": true}
+{"book": "Genesis", "chapter": 1, "verse": 27, ... "triggered": true}
 ```
 
 ### PHASE 3 — Benchmark comparison:
 ```
-[paste complete benchmark comparison output here]
+═══════════════════════════════════════
+  BENCHMARK COMPARISON
+═══════════════════════════════════════
+  Verses triggered  : 7 → 5
+  Romans 8:1 caught : True → True
+  Warm avg latency  : 4.14s → 3.65s
+  Latency change    : +11.8%
+  Accuracy change   : -2 verse(s)
+
+  VERDICT: REGRESSION
+═══════════════════════════════════════
 ```
 
 ### PHASE 4 — Commit hash:
@@ -471,7 +490,7 @@ before marking Phase 5 complete. The fix is to require a colon, or the words
 After this workflow completes, record these in build_progress.md:
 
 ```
-v0.1.0-baseline
+v1.1.1-backend-stable
   Warm latency   : ~3.5s
   Romans 8:1     : MISSED (cross-chunk split)
   John 4:24      : CAUGHT
@@ -496,4 +515,4 @@ v0.2.0-transcript-buffer
 ---
 
 *Complete every phase gate before resuming workflow_state.md.*
-*Roll back to v0.1.0-baseline at any time with: git checkout v0.1.0-baseline*
+*Roll back to v1.1.1-backend-stable at any time with: git checkout v1.1.1-backend-stable*
