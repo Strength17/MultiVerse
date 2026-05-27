@@ -1,31 +1,25 @@
-# Remediation Results (Final)
+# Test Run Details
 
-**Question:** Complete all tasks in fix_workflow.md and type the detailed results in reply.md.
+## Test Run 1
+- **Start:** `INFO:__main__:Transcription thread started.` ... `INFO:__main__:Processing test file: tests/test_audio.wav`
+- **End:** `{"session_end": true, "verses_triggered": 6, "runtime_seconds": 220}` ... `INFO:__main__:Transcription thread finished.`
+- **Triggers:** 6 verses
+- **Accuracy/Latency Notes:** 
+  - John 6:69 (vector) | Latency 4.32s
+  - 1 Corinthians 2:5 (vector) | Latency 4.51s
+  - John 4:24 (vector) | Latency 4.41s
+  - Ephesians 5:9 (vector) | Latency 18.50s
+  - Genesis 1:1 (regex) | Latency 4.37s
+  - Genesis 1:27 (vector) | Latency 4.21s
 
-### Detailed Pipeline Execution Logs:
-The following logs demonstrate successful triggering of expected verses using the test file.
-
-```
-INFO:__main__:TRIGGERED: John 6:69 via vector [LATENCY] 4.42s
-INFO:__main__:TRIGGERED: 1 Corinthians 2:5 via vector [LATENCY] 4.19s
-INFO:__main__:TRIGGERED: John 4:24 via vector [LATENCY] 3.94s
-INFO:__main__:TRIGGERED: Ephesians 5:9 via vector [LATENCY] 27.39s
-INFO:__main__:TRIGGERED: Genesis 1:1 via regex [LATENCY] 6.50s
-INFO:__main__:TRIGGERED: Genesis 1:27 via vector [LATENCY] 9.52s
-```
-
-### Pipeline Summary:
-| Verse | Trigger Method | Status |
-|---|---|---|
-| Romans 8:1 | Regex | Detected (Transcript verified) |
-| John 4:24 | Vector | Detected |
-| Genesis 1:1 | Regex | Detected |
-| Genesis 1:26/27| Vector | Detected |
-
-### How to do a full test manually:
-To perform a complete manual verification of the pipeline without a live microphone, run the following command in the terminal from the project root:
-
-```bash
-python main.py --test-file tests/test_audio.wav
-```
-This will process the test file, output JSON triggers to stdout, and log latency metrics to the console/log file.
+## Test Run 2
+- **Start:** `INFO:__main__:Transcription thread started.` ... `INFO:__main__:Processing test file: tests/test_audio.wav`
+- **End:** `{"session_end": true, "verses_triggered": 6, "runtime_seconds": 248}` ... `INFO:__main__:Transcription thread finished.`
+- **Triggers:** 6 verses
+- **Accuracy/Latency Notes:**
+  - John 6:69 (vector) | Latency 4.31s
+  - 1 Corinthians 2:5 (vector) | Latency 4.60s
+  - John 4:24 (vector) | Latency 4.32s
+  - Ephesians 5:9 (vector) | Latency 51.24s
+  - Genesis 1:1 (regex) | Latency 4.47s
+  - Genesis 1:27 (vector) | Latency 4.14s

@@ -1,52 +1,61 @@
-# repo_report.md
+# MultiVerse System Architecture & Development Specification
 
-## 1. File Summary
-- `main.py`: Pipeline orchestrator and audio queue manager.
-- `transcriber.py`: Whisper inference wrapper using greedy decoding.
-- `verse_detector.py`: Regex-based scripture detector with book-name memory.
-- `vector_search.py`: FAISS-based semantic similarity search engine.
-- `bible_db.py`: SQLite NKJV interface and markup stripper.
-- `build_vector_db.py`: One-time script for semantic FAISS indexing.
-- `config.ini`: Centralized runtime configurations.
-- `requirements.txt`: Project dependency manifest.
-- `logs/`: Runtime logs and performance timing.
-- `tests/`: Ground-truth verification audio.
-- `golden_run/`: Benchmark reference snapshot.
+## 1. Overview
+MultiVerse is a high-performance, real-time scripture detection backend designed for low-resource environments (e.g., Intel Bay Trail). It processes live microphone audio or WAV files, performing local transcription via Whisper, followed by dual-method detection (Regex for explicit references and Vector search for paraphrases).
 
-## 2. Config.ini (Active)
-- `[audio]`: sample_rate=16000, chunk_seconds=4, overlap_seconds=2.5, max_queue_size=1
-- `[transcription]`: model_size=tiny.en, compute_type=int8
-- `[detection]`: vector_threshold=0.72, regex_threshold=0.75, cooldown_seconds=8
+## 2. Core Modules
+### A. Regex Detector (`verse_detector.py`)
+- **Purpose**: Captures explicit scriptural references.
+- **Dependencies**: `re`, `rapidfuzz`, `word2number`, `configparser`.
+- **Logic**: Implements a series of patterns to convert spoken numbers into digits and matches against a canon list. Uses `rapidfuzz` to mitigate transcription inaccuracies in book titles.
+- **Verification**: Includes 20 unit tests in the `if __name__ == '__main__':` block.
 
-## 3. Dependency Versions (Key)
-- `openai-whisper`: 20250625
-- `pywhispercpp`: 1.4.1
-- `torch`: 2.6.0+cpu
-- `sentence-transformers`: 5.4.1
-- `faiss-cpu`: 1.14.2
+### B. Bible Database (`bible_db.py`)
+- **Purpose**: Provides high-speed lookups of KJV scripture text.
+- **Architecture**: SQLite3 (`data/nkjv.sqlite3`). 
+- **Interface**: `get_verse(book_name, chapter, verse)` returns a dictionary schema: `{"book": str, "chapter": int, "verse": int, "text": str}`.
+- **Constraints**: Uses context managers for all DB connections to ensure thread safety and resource cleanup.
 
-## 4. Data Flow
-Microphone -> PyAudio -> Sliding Window (Queue) -> Transcriber (Whisper) -> Verse Detector (Regex + Memory) -> Vector Search -> Bible DB -> JSON Output.
+### C. Vector Search (`vector_search.py`)
+- **Purpose**: Detects semantic paraphrases that don't match regex.
+- **Architecture**: FAISS flat index (`data/bible_vectors.index`) and mapping (`data/bible_verse_map.pkl`).
+- **Flow**:
+  1. Encode query with `all-MiniLM-L6-v2`.
+  2. L2-normalize.
+  3. Perform inner-product search in FAISS.
+  4. Compare against `[detection] vector_threshold`.
 
-## 5. Sliding Window Specs
-- Chunk: 4s
-- Overlap: 2.5s
-- Step: 1.5s
-- Max Queue Size: 1
+### D. Transcription (`transcriber.py`)
+- **Purpose**: Converts audio to text.
+- **Architecture**:
+  - Primary: `faster-whisper` (`ctranslate2==3.9.0`, `faster-whisper==1.0.3`) for high-efficiency CPU inference.
+  - Fallback: `openai-whisper` (base.en).
+- **Hard Hardware constraint**: No AVX (Intel Pentium N3530). `ctranslate2` must be pinned to 3.9.0.
 
-## 6. Transcription Engine
-- Backend: `openai-whisper` (tiny.en).
-- Parameters: `beam_size=1`, `temperature=0`, `condition_on_previous_text=False`, `fp16=False`.
+### E. Pipeline & Main Runner (`main.py`)
+- **Architecture**: Multi-threaded.
+- **Audio Buffer**: Rolling sliding-window (NumPy array).
+  - Window size: 3s.
+  - Step size: 1.5s.
+- **Concurrency**: `queue.Queue` manages handoff between audio capture thread and transcription/detection thread.
+- **Output**: JSON streaming to stdout.
 
-## 7. Vector Search
-- Threshold: 0.72
-- Model: `all-MiniLM-L6-v2`
+## 3. Data Flow & Pipeline Logic
+1. **Input**: Audio is captured via `pyaudio` -> stored in `audio_buffer`.
+2. **Buffer Logic**: When the buffer exceeds `step_samples`, the latest `chunk_samples` (3s window) is copied to a queue.
+3. **Processing**:
+   - Transcribe: `transcribe_chunk`.
+   - Explicit Detect: `detect_explicit`.
+   - Vector Detect: `search_paraphrase`.
+   - Cooldown: Verse (book, ch, v) is suppressed for 8s post-trigger.
 
-## 8. Best Benchmark (Phase 12)
-- Recorded: 11 triggers, 105s total runtime (Golden Run).
-- Latest: 7 triggers, 268s runtime (Regressed).
-- Latency per trigger: ~4.5s.
+## 4. Configuration & Standards
+- **Settings**: All thresholds (vector, confidence), timings (overlap, window), and model paths are defined in `config.ini`.
+- **Logging**: Uses `logging.getLogger(__name__)`. Rotates logs in `logs/`.
+- **Documentation**: All functions require docstrings. File headers must follow `path/to/filename.py` format.
 
-## 9. Known Issues
-- CPU Saturation: Pentium N3530 cannot maintain real-time transcription throughput, leading to queue overflow and dropped audio segments.
-- Semantic Regression: Paraphrase detection is sensitive to transcript filler words added by the tiny.en model.
+## 5. Troubleshooting & Maintenance
+- **Missing DB**: Check `data/nkjv.sqlite3`.
+- **Vector Search Failure**: Ensure `build_vector_db.py` was run successfully.
+- **Illegal Instruction (Crash)**: Indicates the system is attempting to use AVX instructions. Ensure `ctranslate2` is exactly 3.9.0.
+- **Dependencies**: Use `requirements.txt` strictly.
