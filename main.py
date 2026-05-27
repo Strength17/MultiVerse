@@ -10,6 +10,7 @@ import numpy as np
 import json
 import argparse
 import signal
+from collections import deque
 
 from verse_detector import detect_explicit
 from bible_db import get_verse
@@ -46,7 +47,6 @@ STEP_SAMPLES = int((CHUNK_SECONDS - OVERLAP_SECONDS) * SAMPLE_RATE)
 # Global state
 audio_queue = queue.Queue()
 is_running = True
-triggered_verses = {} # (book, chap, verse) -> last_trigger_time
 
 def signal_handler(sig, frame):
     global is_running
@@ -58,101 +58,100 @@ signal.signal(signal.SIGINT, signal_handler)
 def _enqueue_window(audio_queue: queue.Queue, window: np.ndarray, max_size: int) -> None:
     """
     Add a window to the processing queue.
-    If the queue is full, skip the incoming window and let the existing
-    backlog process in order. This ensures early verses (like Romans 8:1)
-    are never dropped in favour of newer audio.
     """
     try:
         audio_queue.put_nowait(window.copy())
     except queue.Full:
         logger.warning("Queue full — skipping new window, processing backlog first")
 
-def is_in_cooldown(book, chapter, verse):
-    """
-    Checks if a verse was recently triggered.
-    """
-    key = (book, chapter, verse)
-    now = time.time()
-    if key in triggered_verses:
-        if now - triggered_verses[key] < COOLDOWN_SECONDS:
-            return True
-    return False
-
-def mark_triggered(book, chapter, verse):
-    """
-    Marks a verse as triggered to start cooldown.
-    """
-    triggered_verses[(book, chapter, verse)] = time.time()
-
 def process_audio_thread():
     """
-    Consumes audio windows from the queue and runs the detection pipeline.
+    Main processing loop. Reads audio chunks from the queue, transcribes
+    each chunk exactly once (no audio reprocessing), appends the transcript
+    to a rolling text buffer, and runs detection on the combined buffer text.
+
+    Cross-chunk verse references (e.g. 'Romans' in chunk N, '8:1' in chunk N+1)
+    are caught because the combined buffer contains both chunks as a single string.
+
+    Args:
+        audio_queue:   queue.Queue of numpy float32 audio chunks.
+        config:        ConfigParser object with all settings.
+        running_flag:  threading.Event — clear to stop the loop.
     """
-    logger.info("Transcription thread started.")
+    text_buffer_depth = int(config.get('audio', 'text_buffer_depth', fallback='2'))
+    transcript_buffer = deque(maxlen=text_buffer_depth)
+    cooldown_tracker = {}
+    cooldown_seconds = float(config.get('detection', 'cooldown_seconds', fallback='8'))
+
+    logger.info("Transcript buffer initialised: depth=%d (%.0fs context)",
+                text_buffer_depth,
+                text_buffer_depth * float(config.get('audio', 'chunk_seconds')))
+
     verses_count = 0
     start_time = time.time()
-    
+
     while is_running or not audio_queue.empty():
         try:
-            window = audio_queue.get(timeout=1.0)
+            chunk = audio_queue.get(timeout=1.0)
         except queue.Empty:
             continue
 
-        # Record timestamp for latency tracking
-        window_enqueue_time = time.time()
+        # ── Step 1: Transcribe new audio ONCE ──────────────────────────────
+        t_start = time.time()
+        new_text = transcribe_chunk(chunk).strip()
+        t_transcribe = time.time() - t_start
 
-        # 1. Transcribe
-        text = transcribe_chunk(window)
-        if not text:
-            print(json.dumps({"triggered": False}))
-            sys.stdout.flush()
+        if not new_text:
+            logger.debug("Empty transcript — skipping")
             continue
 
-        logger.info(f"Transcript: '{text}'")
-        
-        match = None
-        source = None
-        
-        # 2. Regex Detection
-        regex_match = detect_explicit(text)
-        if regex_match:
-            verse_data = get_verse(regex_match['book'], regex_match['chapter'], regex_match['verse'])
-            if verse_data:
-                if not is_in_cooldown(verse_data['book'], verse_data['chapter'], verse_data['verse']):
-                    match = verse_data
-                    source = "regex"
-        
-        # 3. Vector Search (if no regex match)
-        if not match:
-            vector_match = search_paraphrase(text)
-            if vector_match:
-                verse_data = get_verse(vector_match['book'], vector_match['chapter'], vector_match['verse'])
-                if verse_data:
-                    if not is_in_cooldown(verse_data['book'], verse_data['chapter'], verse_data['verse']):
-                        match = verse_data
-                        source = "vector"
-                        match['confidence'] = float(vector_match['score'])
+        logger.info("Transcript: '%s'  (%.2fs)", new_text, t_transcribe)
 
-        # 4. Output Result
-        if match:
-            match['triggered'] = True
-            match['source'] = source
-            if 'confidence' not in match:
-                match['confidence'] = 1.0
-                
-            latency = time.time() - window_enqueue_time
-            print(json.dumps(match))
-            sys.stdout.flush()
-            mark_triggered(match['book'], match['chapter'], match['verse'])
+        # ── Step 2: Add to text buffer ──────────────────────────────────────
+        transcript_buffer.append(new_text)
+
+        # ── Step 3: Combine buffer for detection ───────────────────────────
+        combined_text = ' '.join(transcript_buffer)
+        logger.debug("Combined buffer (%d chunks): '%s'", len(transcript_buffer), combined_text)
+
+        # ── Step 4: Detect ─────────────────────────────────────────────────
+        result = detect_explicit(combined_text)
+        source = 'regex'
+        if result is None:
+            result = search_paraphrase(combined_text)
+            source = 'vector'
+
+        if result is None:
+            print('{"triggered": false}', flush=True)
+            continue
+
+        # ── Step 5: Cooldown check ─────────────────────────────────────────
+        verse_key = (result.get('book', ''), result.get('chapter', 0), result.get('verse', 0))
+        now = time.time()
+        last_trigger = cooldown_tracker.get(verse_key, 0)
+        if now - last_trigger < cooldown_seconds:
+            logger.debug("Cooldown active for %s — suppressing", verse_key)
+            print('{"triggered": false}', flush=True)
+            continue
+
+        # ── Step 6: DB lookup and output ───────────────────────────────────
+        verse_data = get_verse(result['book'], result['chapter'], result.get('verse'))
+        if verse_data:
+            cooldown_tracker[verse_key] = now
+            latency = time.time() - t_start
+            output = {**verse_data, 'triggered': True, 'source': source,
+                      'confidence': result.get('score', 1.0)}
+            print(json.dumps(output), flush=True)
+            logger.info("TRIGGERED: %s %d:%d via %s (latency %.2fs)",
+                        result['book'], result.get('chapter', 0),
+                        result.get('verse', 0), source, latency)
             verses_count += 1
-            logger.info(f"TRIGGERED: {match['book']} {match['chapter']}:{match['verse']} via {source} [LATENCY] {latency:.2f}s")
         else:
-            print(json.dumps({"triggered": False}))
-            sys.stdout.flush()
+            logger.warning("DB lookup failed for %s", result)
+            print('{"triggered": false}', flush=True)
 
     runtime = time.time() - start_time
-    print(json.dumps({"session_end": True, "verses_triggered": verses_count, "runtime_seconds": int(runtime)}))
-    sys.stdout.flush()
+    print(json.dumps({"session_end": True, "verses_triggered": verses_count, "runtime_seconds": int(runtime)}), flush=True)
     logger.info("Transcription thread finished.")
 
 def run_live():
@@ -217,8 +216,6 @@ def run_test_file(file_path):
     ptr = 0
     while ptr + CHUNK_SAMPLES <= len(audio):
         window = audio[ptr : ptr + CHUNK_SAMPLES]
-        # In test mode, we want to process EVERYTHING to verify accuracy.
-        # We use the standard queue.put() which blocks if the queue is full.
         audio_queue.put(window.copy())
         ptr += STEP_SAMPLES
         
