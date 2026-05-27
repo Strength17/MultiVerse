@@ -122,43 +122,30 @@ def detect_explicit(text: str) -> Optional[dict]:
         matches = re.findall(pattern, normalized)
         for match in matches:
             potential_book = match[0].strip()
-            book_parts = potential_book.split()
             
-            # Check suffixes of the potential_book string, longest first
+            # 1. Book-First Validation: Verify book name confidence >= 85%
+            book_parts = potential_book.split()
+            found_book = None
             for i in range(len(book_parts)):
                 sub_book = " ".join(book_parts[i:])
-                
-                # Try exact match first (case-insensitive)
-                if sub_book in books_dict:
-                    matched_book_name = books_dict[sub_book]
-                    book_id = BOOK_NAME_TO_NUMBER[matched_book_name]
-                    canonical_name = BOOK_NUMBER_TO_CANONICAL[book_id]
-                    
-                    chapter = int(match[1])
-                    verse = int(match[2]) if len(match) > 2 else None
-                    return {"book": canonical_name, "chapter": chapter, "verse": verse}
-
-                # Try fuzzy match
                 result = process.extractOne(sub_book, books_list, scorer=fuzz.WRatio)
-                
-                # Check for high confidence fuzzy match
-                if result and result[1] >= (REGEX_THRESHOLD * 100):
-                    matched_name_lower = result[0]
-                    if len(matched_name_lower.split()) > len(sub_book.split()) and result[1] < 90:
-                        continue
-                        
-                    matched_book_name = books_dict[matched_name_lower]
-                    book_id = BOOK_NAME_TO_NUMBER[matched_book_name]
-                    canonical_name = BOOK_NUMBER_TO_CANONICAL[book_id]
-                    
-                    chapter = int(match[1])
-                    verse = int(match[2]) if len(match) > 2 else None
-                    
-                    return {
-                        "book": canonical_name,
-                        "chapter": chapter,
-                        "verse": verse
-                    }
+                if result and result[1] >= 85:
+                    found_book = result[0]
+                    break
+            
+            if not found_book:
+                continue
+
+            # 2. Extract match details
+            matched_book_name = books_dict[found_book]
+            book_id = BOOK_NAME_TO_NUMBER[matched_book_name]
+            canonical_name = BOOK_NUMBER_TO_CANONICAL[book_id]
+            
+            # Match 1 is chapter, match 2 is verse (if pattern has 3 groups)
+            chapter = int(match[1])
+            verse = int(match[2]) if len(match) > 2 else None
+            
+            return {"book": canonical_name, "chapter": chapter, "verse": verse}
                     
     return None
 
