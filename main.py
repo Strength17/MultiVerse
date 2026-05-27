@@ -51,7 +51,7 @@ CHUNK_SAMPLES = int(CHUNK_SECONDS * SAMPLE_RATE)
 STEP_SAMPLES = int((CHUNK_SECONDS - OVERLAP_SECONDS) * SAMPLE_RATE)
 
 # Global state
-audio_queue = queue.Queue()
+audio_queue = queue.Queue(maxsize=MAX_QUEUE_SIZE)
 is_running = True
 
 def signal_handler(sig, frame):
@@ -61,100 +61,71 @@ def signal_handler(sig, frame):
 
 signal.signal(signal.SIGINT, signal_handler)
 
-def _enqueue_window(audio_queue: queue.Queue, window: np.ndarray, max_size: int) -> None:
+def _enqueue_window(audio_queue: queue.Queue, window: np.ndarray) -> None:
     """
     Add a window to the processing queue.
     """
     try:
         audio_queue.put_nowait(window.copy())
     except queue.Full:
-        logger.warning("Queue full — skipping new window, processing backlog first")
+        logger.warning("[QUEUE] Dropped chunk — processing cannot keep up with capture rate")
 
 def process_audio_thread():
     """
-    Main processing loop. Reads audio chunks from the queue, transcribes
-    each chunk exactly once (no audio reprocessing), appends the transcript
-    to a rolling text buffer, and runs detection on the combined buffer text.
-
-    Cross-chunk verse references (e.g. 'Romans' in chunk N, '8:1' in chunk N+1)
-    are caught because the combined buffer contains both chunks as a single string.
-
-    Args:
-        audio_queue:   queue.Queue of numpy float32 audio chunks.
-        config:        ConfigParser object with all settings.
-        running_flag:  threading.Event — clear to stop the loop.
+    Processes audio chunks sequentially in the same thread (transcribe -> detect).
+    Eliminates thread contention on N3530 CPU.
     """
     text_buffer_depth = int(config.get('audio', 'text_buffer_depth', fallback='2'))
     transcript_buffer = deque(maxlen=text_buffer_depth)
     cooldown_tracker = {}
     cooldown_seconds = float(config.get('detection', 'cooldown_seconds', fallback='8'))
 
-    logger.info("Transcript buffer initialised: depth=%d (%.0fs context)",
-                text_buffer_depth,
-                text_buffer_depth * float(config.get('audio', 'chunk_seconds')))
+    logger.info("Transcript buffer initialised: depth=%d", text_buffer_depth)
 
     verses_count = 0
     start_time = time.time()
 
     while is_running or not audio_queue.empty():
         try:
+            # Block until we have a chunk to process
             chunk = audio_queue.get(timeout=1.0)
         except queue.Empty:
             continue
 
-        # ── Step 1: Transcribe new audio ONCE ──────────────────────────────
+        # ── Step 1: Transcribe (Blocks here) ──────────────────────────────
         t_start = time.time()
         new_text = transcribe_chunk(chunk).strip()
-        t_transcribe = time.time() - t_start
-
+        
         if not new_text:
-            logger.debug("Empty transcript — skipping")
             continue
 
-        logger.info("Transcript: '%s'  (%.2fs)", new_text, t_transcribe)
-
-        # ── Step 2: Add to text buffer ──────────────────────────────────────
+        # ── Step 2: Add to text buffer and Detect (Blocks here) ───────────
         transcript_buffer.append(new_text)
-
-        # ── Step 3: Combine buffer for detection ───────────────────────────
         combined_text = ' '.join(transcript_buffer)
-        logger.debug("Combined buffer (%d chunks): '%s'", len(transcript_buffer), combined_text)
 
-        # ── Step 4: Detect ─────────────────────────────────────────────────
         result = detect_explicit(combined_text)
         source = 'regex'
         if result is None:
             result = search_paraphrase(combined_text)
             source = 'vector'
 
-        if result is None:
-            print('{"triggered": false}', flush=True)
-            continue
-
-        # ── Step 5: Cooldown check ─────────────────────────────────────────
-        verse_key = (result.get('book', ''), result.get('chapter', 0), result.get('verse', 0))
-        now = time.time()
-        last_trigger = cooldown_tracker.get(verse_key, 0)
-        if now - last_trigger < cooldown_seconds:
-            logger.debug("Cooldown active for %s — suppressing", verse_key)
-            print('{"triggered": false}', flush=True)
-            continue
-
-        # ── Step 6: DB lookup and output ───────────────────────────────────
-        verse_data = get_verse(result['book'], result['chapter'], result.get('verse'))
-        if verse_data:
-            cooldown_tracker[verse_key] = now
-            latency = time.time() - t_start
-            output = {**verse_data, 'triggered': True, 'source': source,
-                      'confidence': result.get('score', 1.0)}
-            print(json.dumps(output), flush=True)
-            logger.info("TRIGGERED: %s %d:%d via %s (latency %.2fs)",
-                        result['book'], result.get('chapter', 0),
-                        result.get('verse', 0), source, latency)
-            verses_count += 1
-        else:
-            logger.warning("DB lookup failed for %s", result)
-            print('{"triggered": false}', flush=True)
+        if result:
+            # Cooldown/lookup/print logic ...
+            verse_key = (result.get('book', ''), result.get('chapter', 0), result.get('verse', 0))
+            now = time.time()
+            if now - cooldown_tracker.get(verse_key, 0) >= cooldown_seconds:
+                verse_data = get_verse(result['book'], result['chapter'], result.get('verse'))
+                if verse_data:
+                    cooldown_tracker[verse_key] = now
+                    latency = time.time() - t_start
+                    output = {**verse_data, 'triggered': True, 'source': source, 'confidence': result.get('score', 1.0)}
+                    print(json.dumps(output), flush=True)
+                    logger.info("TRIGGERED: %s %d:%d via %s (latency %.2fs)",
+                                result['book'], result.get('chapter', 0),
+                                result.get('verse', 0), source, latency)
+                    verses_count += 1
+        
+        audio_queue.task_done()
 
     runtime = time.time() - start_time
     print(json.dumps({"session_end": True, "verses_triggered": verses_count, "runtime_seconds": int(runtime)}), flush=True)
@@ -193,7 +164,7 @@ def run_live():
             
             if len(audio_buffer) >= CHUNK_SAMPLES:
                 window = audio_buffer[-CHUNK_SAMPLES:]
-                _enqueue_window(audio_queue, window, MAX_QUEUE_SIZE)
+                _enqueue_window(audio_queue, window)
                 # Advance by step
                 audio_buffer = audio_buffer[STEP_SAMPLES:]
         except Exception as e:
