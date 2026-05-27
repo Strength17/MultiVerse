@@ -70,9 +70,12 @@ REGEX_THRESHOLD = float(config.get('detection', 'regex_threshold', fallback=0.75
 def normalize_text(text: str) -> str:
     """
     Normalizes input text: lowercase, converts numbered books (First -> 1),
-    and converts spoken numbers to digits.
+    and converts spoken numbers to digits. Also fixes common mishearings.
     """
     text = text.lower().strip()
+    
+    # Handle common 'verse' mishearings
+    text = re.sub(r'\b(was|worse|wors)\b', 'verse', text)
     
     # Normalize numbered books
     text = re.sub(r'first\s+', '1 ', text)
