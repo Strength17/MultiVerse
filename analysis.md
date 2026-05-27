@@ -26,17 +26,19 @@ The implementation is verified to be consistent and functional on the `feature/t
 
 ---
 
-### Phase 2 Performance: Latency & Stability (Final Optimization)
-*   **Vector Threshold:** 0.70
-*   **Optimizations:** Regex Pre-compilation + Model Warm-up
-*   **Result Summary:** All 4 target verses triggered.
+### Final Performance Verification: Two Consecutive Tests (0.70 Threshold)
 
-| Verse | Triggered | Detection Type | Transcription + Detect Time (s) |
-| :--- | :--- | :--- | :--- |
-| **Romans 8:1** | Yes | Regex | 17.94s |
-| **John 4:24** | Yes | Vector | 35.40s |
-| **Song of Solomon 1:1**| False Pos | Regex | 4.51s |
-| **Genesis 1:27** | Yes | Vector | 3.95s |
+*   **Test Logs:** `logs/structured_test_1.txt`, `logs/structured_test_2.txt`
+*   **Methodology:** Full transcription-to-trigger cycle with model warm-up.
 
-*Latency Note: The N3530 CPU continues to be the dominant bottleneck. Transcription of longer segments (e.g., John 4:24) impacts the detection latency for those specific triggers. The regex optimization for Romans 8:1 shows a marked improvement over previous runs.*
+| Verse Detected | Test 1 Latency (s) | Test 2 Latency (s) | Average Latency (s) | Detection Type |
+| :--- | :--- | :--- | :--- | :--- |
+| **Romans 8:1** | 67.70 | N/A | 67.70 | Regex |
+| **John 4:24** | 37.26 | 17.68 | 27.47 | Vector |
+| **Genesis 1:27** | 4.04 | 3.86 | 3.95 | Vector |
+
+*Note: Song of Solomon false positive is eliminated. The variation in latency is heavily influenced by the background transcription bottleneck of the `tiny.en` model on the N3530 CPU during the detection phase.*
+
+---
+
 
