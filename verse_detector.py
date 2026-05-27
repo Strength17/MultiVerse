@@ -84,9 +84,6 @@ def normalize_text(text: str) -> str:
     """
     text = text.lower().strip()
     
-    # Handle common 'verse' mishearings
-    text = re.sub(r'\b(was|worse|wors)\b', 'verse', text)
-    
     # Normalize numbered books
     text = re.sub(r'first\s+', '1 ', text)
     text = re.sub(r'second\s+', '2 ', text)
@@ -103,6 +100,35 @@ def normalize_text(text: str) -> str:
             normalized_words.append(word)
     
     return " ".join(normalized_words)
+
+def _has_book_context(buffer_text: str, detected_book: str) -> bool:
+    """
+    Validates that the detected book name (or a known alias) actually appears
+    in the transcript text. Prevents digit-only patterns like '1:1' from
+    triggering without an explicit book mention.
+    """
+    if not detected_book:
+        return False
+    text_lower = buffer_text.lower()
+    book_lower = detected_book.lower()
+    if book_lower in text_lower:
+        return True
+    # Simplified alias check for known books
+    BOOK_ALIASES = {
+        "genesis": ["gen"],
+        "exodus": ["exod", "exo"],
+        "psalms": ["psalm", "psa", "ps"],
+        "proverbs": ["prov"],
+        "romans": ["rom"],
+        "revelation": ["rev", "revelations"],
+        "song of solomon": ["song of songs", "song", "solomon"],
+        "matthew": ["mat", "matt"],
+        "philippians": ["phil"],
+    }
+    for alias in BOOK_ALIASES.get(book_lower, []):
+        if alias in text_lower:
+            return True
+    return False
 
 def detect_explicit(text: str) -> Optional[dict]:
     """
@@ -121,10 +147,9 @@ def detect_explicit(text: str) -> Optional[dict]:
     for pattern in COMPILED_PATTERNS:
         matches = pattern.findall(normalized)
         for match in matches:
-            # match is a tuple for multi-group patterns, or a string for single-group
             potential_book = (match[0] if isinstance(match, tuple) else match).strip()
             
-            # 1. Book-First Validation: Verify book name confidence >= 85%
+            # Book-First Validation: Verify book name confidence >= 85%
             book_parts = potential_book.split()
             found_book = None
             for i in range(len(book_parts)):
@@ -137,20 +162,20 @@ def detect_explicit(text: str) -> Optional[dict]:
             if not found_book:
                 continue
 
-            # 2. Extract match details
             matched_book_name = books_dict[found_book]
             book_id = BOOK_NAME_TO_NUMBER[matched_book_name]
             canonical_name = BOOK_NUMBER_TO_CANONICAL[book_id]
             
-            # Parsing numbers from regex groups
             if isinstance(match, tuple):
                 chapter = int(match[1])
                 verse = int(match[2]) if len(match) > 2 else None
             else:
-                # Handle single-group pattern (book + chapter)
-                # Re-parse potential_book to ensure consistency
                 chapter = int(match[1])
                 verse = None
+            
+            # NEW: Context gate
+            if not _has_book_context(normalized, canonical_name):
+                continue
             
             return {"book": canonical_name, "chapter": chapter, "verse": verse}
                     
