@@ -67,6 +67,16 @@ config = configparser.ConfigParser()
 config.read('config.ini')
 REGEX_THRESHOLD = float(config.get('detection', 'regex_threshold', fallback=0.75))
 
+# Patterns compiled at module load time for performance
+COMPILED_PATTERNS = [
+    re.compile(r'(.+?)\s+(\d+)\s*[:]\s*(\d+)'),           # John 3:16
+    re.compile(r'(.+?)\s+chapter\s+(\d+)\s+verse\s+(\d+)'), # John chapter 3 verse 16
+    re.compile(r'(.+?)\s+(\d+)\s*,\s*verse\s+(\d+)'),     # Romans 8, verse 1
+    re.compile(r'(.+?)\s+(\d+)\s+verse\s+(\d+)'),         # Romans 8 verse 1
+    re.compile(r'(.+?)\s+(\d+)\s+(\d+)'),                 # John 3 16
+    re.compile(r'(.+?)\s+(\d+)$')                         # Psalm 23
+]
+
 def normalize_text(text: str) -> str:
     """
     Normalizes input text: lowercase, converts numbered books (First -> 1),
@@ -96,7 +106,7 @@ def normalize_text(text: str) -> str:
 
 def detect_explicit(text: str) -> Optional[dict]:
     """
-    Scans text for Bible verse references using regex and fuzzy book matching.
+    Scans text for Bible verse references using pre-compiled regex and fuzzy book matching.
     Returns dict with book, chapter, verse or None.
     """
     if not text:
@@ -108,20 +118,11 @@ def detect_explicit(text: str) -> Optional[dict]:
     books_dict = {k.lower(): k for k in BOOK_NAME_TO_NUMBER.keys()}
     books_list = list(books_dict.keys())
     
-    # Patterns from project_config.md Section 7
-    patterns = [
-        r'(.+?)\s+(\d+)\s*[:]\s*(\d+)',           # John 3:16
-        r'(.+?)\s+chapter\s+(\d+)\s+verse\s+(\d+)', # John chapter 3 verse 16
-        r'(.+?)\s+(\d+)\s*,\s*verse\s+(\d+)',     # Romans 8, verse 1
-        r'(.+?)\s+(\d+)\s+verse\s+(\d+)',         # Romans 8 verse 1
-        r'(.+?)\s+(\d+)\s+(\d+)',                 # John 3 16
-        r'(.+?)\s+(\d+)$'                         # Psalm 23
-    ]
-    
-    for pattern in patterns:
-        matches = re.findall(pattern, normalized)
+    for pattern in COMPILED_PATTERNS:
+        matches = pattern.findall(normalized)
         for match in matches:
-            potential_book = match[0].strip()
+            # match is a tuple for multi-group patterns, or a string for single-group
+            potential_book = (match[0] if isinstance(match, tuple) else match).strip()
             
             # 1. Book-First Validation: Verify book name confidence >= 85%
             book_parts = potential_book.split()
@@ -141,9 +142,15 @@ def detect_explicit(text: str) -> Optional[dict]:
             book_id = BOOK_NAME_TO_NUMBER[matched_book_name]
             canonical_name = BOOK_NUMBER_TO_CANONICAL[book_id]
             
-            # Match 1 is chapter, match 2 is verse (if pattern has 3 groups)
-            chapter = int(match[1])
-            verse = int(match[2]) if len(match) > 2 else None
+            # Parsing numbers from regex groups
+            if isinstance(match, tuple):
+                chapter = int(match[1])
+                verse = int(match[2]) if len(match) > 2 else None
+            else:
+                # Handle single-group pattern (book + chapter)
+                # Re-parse potential_book to ensure consistency
+                chapter = int(match[1])
+                verse = None
             
             return {"book": canonical_name, "chapter": chapter, "verse": verse}
                     
