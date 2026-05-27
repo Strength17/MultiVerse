@@ -226,6 +226,11 @@ if __name__ == '__main__':
     parser.add_argument("--test-file", help="Path to a WAV file to process instead of live mic")
     args = parser.parse_args()
 
+    # Model warm-up: process a dummy query to pre-load embedding model weights
+    logger.info("Warming up embedding model...")
+    search_paraphrase("In the beginning God created the heavens and the earth.")
+    logger.info("Model warm-up complete.")
+
     # Start processing thread
     proc_thread = threading.Thread(target=process_audio_thread)
     proc_thread.start()
