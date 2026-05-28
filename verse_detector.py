@@ -126,11 +126,14 @@ def _find_book(text: str) -> Optional[str]:
     res = process.extractOne(clean_text, books_list, scorer=fuzz.WRatio)
     if res and res[1] >= 85:
         # CRITICAL: Avoid matching single digits or very short strings to books via fuzzy matching
-        # "1" should not match "1 Chronicles"
+        # "1" or "1 " should not match "1 Chronicles"
         if len(clean_text) <= 2:
             return None
+        # If the string is numeric (after removing spaces), it's probably not a book name
+        if clean_text.replace(" ", "").isdigit():
+            return None
         # If numeric, require very high confidence
-        if clean_text.isdigit() and res[1] < 95:
+        if any(c.isdigit() for c in clean_text) and res[1] < 95:
             return None
         return books_dict[res[0]]
     return None
