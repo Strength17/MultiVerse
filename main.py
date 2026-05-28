@@ -148,5 +148,10 @@ if __name__ == '__main__':
         time.sleep(5)
         is_running = False
     else:
+        print("══════════════════════════════════")
+        print("MultiVerse v2.1.0 — Microphone is LIVE")
+        print("Speak now...")
+        print("══════════════════════════════════")
         run_live()
+
     proc_thread.join()
