@@ -56,7 +56,7 @@ config.read('config.ini')
 
 _last_book = None
 _last_book_time = 0.0
-book_memory_seconds = 5.0
+book_memory_seconds = float(config.get('detection', 'book_memory_seconds', fallback=5.0))
 
 # Aliases
 VERSE_ALIASES = ["was", "vs", "v", "burst", "first", "versus", "birth", "worse", "worst", "verse", "verses"]
