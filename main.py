@@ -70,12 +70,6 @@ def process_audio_thread():
         except queue.Empty:
             continue
 
-        # VAD gate
-        rms = float(np.sqrt(np.mean(window ** 2)))
-        if rms < vad_rms_threshold:
-            audio_queue.task_done()
-            continue
-
         t_start = time.time()
         transcript = transcribe_chunk(window)
         logger.info(f"Transcript: '{transcript}'  ({time.time()-t_start:.2f}s)")
@@ -111,6 +105,17 @@ def run_live():
         if len(audio_buffer) >= CHUNK_SAMPLES:
             window = audio_buffer[:CHUNK_SAMPLES]
             audio_buffer = audio_buffer[CHUNK_SAMPLES:]
+            
+            # VAD gate before queue
+            rms = float(np.sqrt(np.mean(window ** 2)))
+            if rms < vad_rms_threshold:
+                logger.debug(f"VAD: silence skipped (RMS={rms:.4f})")
+                print(json.dumps({
+                    "triggered": False,
+                    "transcript": {"current": "", "tail": "", "full_window": ""}
+                }))
+                continue
+
             try:
                 audio_queue.put_nowait(window)
             except queue.Full:
@@ -127,7 +132,19 @@ def run_test_file(file_path):
     audio, _ = librosa.load(file_path, sr=SAMPLE_RATE, mono=True)
     ptr = 0
     while ptr + CHUNK_SAMPLES <= len(audio):
-        audio_queue.put(audio[ptr : ptr + CHUNK_SAMPLES].copy())
+        window = audio[ptr : ptr + CHUNK_SAMPLES].copy()
+        
+        # VAD gate before queue
+        rms = float(np.sqrt(np.mean(window ** 2)))
+        if rms < vad_rms_threshold:
+            logger.debug(f"VAD: silence skipped (RMS={rms:.4f})")
+            print(json.dumps({
+                "triggered": False,
+                "transcript": {"current": "", "tail": "", "full_window": ""}
+            }))
+        else:
+            audio_queue.put(window)
+            
         ptr += CHUNK_SAMPLES
         
 if __name__ == '__main__':
