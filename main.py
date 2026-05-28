@@ -166,7 +166,7 @@ if __name__ == '__main__':
         is_running = False
     else:
         print("══════════════════════════════════")
-        print("MultiVerse v2.1.0 — Microphone is LIVE")
+        print("MultiVerse v2.3.0 — Microphone is LIVE")
         print("Speak now...")
         print("══════════════════════════════════")
         run_live()

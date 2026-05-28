@@ -1,6 +1,6 @@
 # MultiVerse Repository Manifest (AI-Optimized Context)
 **Objective:** To provide a perfect-fidelity technical and contextual memory of the MultiVerse project for any future AI agent or developer.
-**Commit Version:** v2.2.0-stable (Final Backend Baseline)
+**Commit Version:** v2.3.0-bugfix (Stable Release)
 **Hardware Target:** Intel Pentium N3530 (Atom-class, No AVX, No GPU)
 
 ---
@@ -75,6 +75,7 @@ The system follows a linear pipeline with a rolling buffer:
 ## 5. RECENT HISTORY & OPTIMIZATIONS
 *   **v2.1.0:** Solved the "Zero Memory" bottleneck by implementing INT8 quantization and serializing audio chunks to prevent thread contention.
 *   **v2.2.0:** Rewrote the Regex engine to include "Book Context" gating, which eliminated false positives during general conversation.
+*   **v2.3.0:** Optimized VAD gate positioning, fixed book priority double-fire, and added hyphen separator support.
 *   **Current State:** The backend is verified stable and ready for a Frontend/vMix integration.
 
 ---

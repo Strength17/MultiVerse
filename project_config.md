@@ -9,7 +9,7 @@
 
 | Field | Value |
 |-------|-------|
-| Product | MultiVerse v1.0.0 Backend |
+| Product | MultiVerse v2.3.0 Backend |
 | Purpose | Real-time Bible verse detection from live audio — JSON output |
 | Output | `{"triggered": true/false, "source": "regex"/"vector", ...}` to stdout |
 | Offline | Yes — zero internet dependency after initial package install |
