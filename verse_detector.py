@@ -29,11 +29,27 @@ BOOK_NAME_TO_NUMBER = {
     "Ephesians": 560, "Philippians": 570, "Colossians": 580, "1 Thessalonians": 590,
     "2 Thessalonians": 600, "1 Timothy": 610, "2 Timothy": 620, "Titus": 630,
     "Philemon": 640, "Hebrews": 650, "James": 660, "1 Peter": 670, "2 Peter": 680,
-    "1 John": 690, "2 John": 700, "3 John": 710, "Jude": 720, "Revelation": 730
+    "1 John": 690, "2 John": 700, "3 John": 710, "Jude": 720, "Revelation": 730,
+    "Revelations": 730
 }
 
-BOOK_NUMBER_TO_CANONICAL = {v: k for k, v in BOOK_NAME_TO_NUMBER.items() if k[0].isalpha()}
-# (Minimal mapping for clarity)
+BOOK_NUMBER_TO_CANONICAL = {
+    10: "Genesis", 20: "Exodus", 30: "Leviticus", 40: "Numbers", 50: "Deuteronomy",
+    60: "Joshua", 70: "Judges", 80: "Ruth", 90: "1 Samuel", 100: "2 Samuel",
+    110: "1 Kings", 120: "2 Kings", 130: "1 Chronicles", 140: "2 Chronicles",
+    150: "Ezra", 160: "Nehemiah", 190: "Esther", 220: "Job", 230: "Psalms",
+    240: "Proverbs", 250: "Ecclesiastes", 260: "Song of Solomon", 290: "Isaiah",
+    300: "Jeremiah", 310: "Lamentations", 330: "Ezekiel", 340: "Daniel",
+    350: "Hosea", 360: "Joel", 370: "Amos", 380: "Obadiah", 390: "Jonah",
+    400: "Micah", 410: "Nahum", 420: "Habakkuk", 430: "Zephaniah", 440: "Haggai",
+    450: "Zechariah", 460: "Malachi", 470: "Matthew", 480: "Mark", 490: "Luke",
+    500: "John", 510: "Acts", 520: "Romans", 530: "1 Corinthians",
+    540: "2 Corinthians", 550: "Galatians", 560: "Ephesians", 570: "Philippians",
+    580: "Colossians", 590: "1 Thessalonians", 600: "2 Thessalonians",
+    610: "1 Timothy", 620: "2 Timothy", 630: "Titus", 640: "Philemon",
+    650: "Hebrews", 660: "James", 670: "1 Peter", 680: "2 Peter", 690: "1 John",
+    700: "2 John", 710: "3 John", 720: "Jude", 730: "Revelation",
+}
 
 config = configparser.ConfigParser()
 config.read('config.ini')
@@ -47,8 +63,9 @@ VERSE_ALIASES = ["was", "vs", "v", "burst", "first", "versus", "birth", "worse",
 CHAPTER_ALIASES = ["capture", "chapters", "chap", "chapter"]
 
 COMPILED_PATTERNS = [
-    re.compile(r'(.+?)\s+(\d+)\s*[:]\s*(\d+)'),
     re.compile(r'(.+?)\s+chapter\s+(\d+)\s+verse\s+(\d+)'),
+    re.compile(r'(.+?)\s+(\d+)\s*[:\-]\s*(\d+)'),
+    re.compile(r'(.+?)\s+chapter\s+(\d+)\s*[:\-]?\s*(\d+)?'),
     re.compile(r'(.+?)\s+(\d+)\s*,\s*verse\s+(\d+)'),
     re.compile(r'(.+?)\s+(\d+)\s+verse\s+(\d+)'),
     re.compile(r'(.+?)\s+(\d+)\s+(\d+)'),
@@ -85,30 +102,98 @@ def _has_book_context(buffer_text: str, detected_book: str) -> bool:
     if "book of" in text: return True
     return False
 
+def _find_book(text: str) -> Optional[str]:
+    """
+    Fuzzy match a book name from text. Returns canonical book name if found.
+    """
+    books_dict = {k.lower(): k for k in BOOK_NAME_TO_NUMBER.keys()}
+    books_list = list(books_dict.keys())
+    
+    clean_text = text.strip().lower()
+    if not clean_text: return None
+    
+    # Try exact match first for performance and to avoid '1' matching '1 Chronicles'
+    words = clean_text.split()
+    
+    # Check last word, then last two, then whole string
+    # Patterns usually put book at the start of the 'potential' segment
+    for length in range(min(len(words), 3), 0, -1):
+        candidate = " ".join(words[:length]).strip()
+        if candidate in books_dict:
+            return books_dict[candidate]
+            
+    # Fuzzy match as fallback
+    res = process.extractOne(clean_text, books_list, scorer=fuzz.WRatio)
+    if res and res[1] >= 85:
+        # CRITICAL: Avoid matching single digits or very short strings to books via fuzzy matching
+        # "1" should not match "1 Chronicles"
+        if len(clean_text) <= 2:
+            return None
+        # If numeric, require very high confidence
+        if clean_text.isdigit() and res[1] < 95:
+            return None
+        return books_dict[res[0]]
+    return None
+
 def detect_explicit(text: str) -> Optional[dict]:
     global _last_book, _last_book_time
     if not text: return None
     norm = normalize_text(text)
     
-    books_dict = {k.lower(): k for k in BOOK_NAME_TO_NUMBER.keys()}
-    books_list = list(books_dict.keys())
+    # Try to find a book in the current text FIRST
+    # We look for numeric patterns and extract the 'potential' book part
+    found_book = None
+    match_data = None
     
     for pattern in COMPILED_PATTERNS:
         matches = pattern.findall(norm)
         for match in matches:
             potential = (match[0] if isinstance(match, tuple) else match).strip()
-            res = process.extractOne(potential, books_list, scorer=fuzz.WRatio)
-            if res and res[1] >= 85:
-                found = res[0]
-                _last_book = found
-                _last_book_time = time.time()
-                
-                if not _has_book_context(norm, found): continue
-                
-                chapter = int(match[1]) if isinstance(match, tuple) else int(match)
-                verse = int(match[2]) if isinstance(match, tuple) and len(match) > 2 else None
-                
-                return {"book": books_dict[found], "chapter": chapter, "verse": verse}
+            book = _find_book(potential)
+            if book:
+                found_book = book
+                match_data = match
+                break
+        if found_book: break
+
+    if found_book:
+        # Current text has a book — use it, update memory
+        _last_book = found_book
+        _last_book_time = time.time()
+        book_for_match = found_book
+    elif _last_book and (time.time() - _last_book_time < book_memory_seconds):
+        # No book in current text, but valid memory exists
+        book_for_match = _last_book
+        # We still need to find the numbers in the current text
+        # Since no book was found, we search for patterns but ignore the 'potential' book part
+        # or we assume the whole text contains the numbers.
+        # Actually, if memory is used, we look for patterns with ANY 'potential' book part
+        # and if it doesn't match a different book, we use the numbers.
+        for pattern in COMPILED_PATTERNS:
+            matches = pattern.findall(norm)
+            if matches:
+                # Use the first match that didn't resolve to a different book
+                match_data = matches[0]
+                break
+    else:
+        # No book anywhere — cannot match
+        return None
+
+    if match_data:
+        chapter = int(match_data[1]) if isinstance(match_data, tuple) else int(match_data)
+        verse = None
+        if isinstance(match_data, tuple) and len(match_data) > 2 and match_data[2]:
+            try:
+                verse = int(match_data[2])
+            except (ValueError, TypeError):
+                verse = None
+        
+        # Final context gate check
+        if _has_book_context(norm, book_for_match):
+            # Canonicalize book name before returning
+            canonical_book = BOOK_NUMBER_TO_CANONICAL[BOOK_NAME_TO_NUMBER[book_for_match]]
+            return {"book": canonical_book, "chapter": chapter, "verse": verse}
+            
     return None
 
 if __name__ == '__main__':
