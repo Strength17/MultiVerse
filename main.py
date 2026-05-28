@@ -78,6 +78,7 @@ def process_audio_thread():
 
         t_start = time.time()
         transcript = transcribe_chunk(window)
+        logger.info(f"Transcript: '{transcript}'  ({time.time()-t_start:.2f}s)")
         transcript_buffer.append(transcript)
         text = ' '.join(transcript_buffer)
 
