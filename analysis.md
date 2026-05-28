@@ -26,19 +26,15 @@ The implementation is verified to be consistent and functional on the `feature/t
 
 ---
 
-### Final Performance Verification: Two Consecutive Tests (0.70 Threshold)
+### Final Verification Tests (Two Runs)
+*   **Test Logs:** `logs/final_verification_01.txt`, `logs/final_verification_02.txt`
 
-*   **Test Logs:** `logs/structured_test_1.txt`, `logs/structured_test_2.txt`
-*   **Methodology:** Full transcription-to-trigger cycle with model warm-up.
+| Verse | Test 1 Latency (s) | Test 2 Latency (s) | Detection Type |
+| :--- | :--- | :--- | :--- |
+| **John 4:24** | 4.54 | 4.52 | Vector |
+| **Genesis 1:27** | 3.88 | 3.99 | Vector |
 
-| Verse Detected | Test 1 Latency (s) | Test 2 Latency (s) | Average Latency (s) | Detection Type |
-| :--- | :--- | :--- | :--- | :--- |
-| **Romans 8:1** | 67.70 | N/A | 67.70 | Regex |
-| **John 4:24** | 37.26 | 17.68 | 27.47 | Vector |
-| **Genesis 1:27** | 4.04 | 3.86 | 3.95 | Vector |
-
-*Note: Song of Solomon false positive is eliminated. The variation in latency is heavily influenced by the background transcription bottleneck of the `tiny.en` model on the N3530 CPU during the detection phase.*
-
+*Note: Latency reflects the time from start of transcription to identification trigger.*
 ---
 
 
