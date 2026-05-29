@@ -43,7 +43,7 @@ _last_book_time = 0.0
 book_memory_seconds = 5.0
 
 # Aliases
-VERSE_ALIASES = ["was", "vs", "v", "burst", "first", "versus", "birth", "worse", "worst", "verse", "verses"]
+VERSE_ALIASES = ["vs", "v", "burst", "first", "versus", "birth", "worse", "worst", "verse", "verses"]
 CHAPTER_ALIASES = ["capture", "chapters", "chap", "chapter"]
 
 COMPILED_PATTERNS = [
@@ -88,7 +88,14 @@ def _has_book_context(buffer_text: str, detected_book: str) -> bool:
 def detect_explicit(text: str) -> Optional[dict]:
     global _last_book, _last_book_time
     if not text: return None
-    norm = normalize_text(text)
+    
+    # Normalize cross-chunk punctuation so "chapter 8. Verse 1" matches as "chapter 8 verse 1"
+    import re as _re
+    detection_text = text.lower()
+    detection_text = _re.sub(r'[.!?,;]+', ' ', detection_text)
+    detection_text = _re.sub(r'\s{2,}', ' ', detection_text).strip()
+    
+    norm = normalize_text(detection_text)
     
     books_dict = {k.lower(): k for k in BOOK_NAME_TO_NUMBER.keys()}
     books_list = list(books_dict.keys())
