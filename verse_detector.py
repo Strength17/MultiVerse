@@ -82,7 +82,6 @@ def _has_book_context(buffer_text: str, detected_book: str) -> bool:
     text = buffer_text.lower()
     if detected_book.lower() in text: return True
     if _last_book and (time.time() - _last_book_time < book_memory_seconds): return True
-    if "book of" in text: return True
     return False
 
 def detect_explicit(text: str) -> Optional[dict]:
@@ -104,6 +103,9 @@ def detect_explicit(text: str) -> Optional[dict]:
         matches = pattern.findall(norm)
         for match in matches:
             potential = (match[0] if isinstance(match, tuple) else match).strip()
+            # Only consider the last 3 words as potential book name
+            potential = " ".join(potential.split()[-3:])
+            
             res = process.extractOne(potential, books_list, scorer=fuzz.WRatio)
             if res and res[1] >= 85:
                 found = res[0]
