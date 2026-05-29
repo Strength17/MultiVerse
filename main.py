@@ -89,12 +89,18 @@ def process_audio_thread():
             if match.get('chapter'): context_tracker['last_chapter'] = match['chapter']
         
         if not match:
-            # Simple check for numeric verse if context exists
-            words = text.split()
-            if len(words) == 1 and words[0].isdigit() and context_tracker['last_book'] and context_tracker['last_chapter']:
-                 match = {"book": context_tracker['last_book'], "chapter": context_tracker['last_chapter'], "verse": int(words[0])}
-            else:
-                 match = search_paraphrase(text)
+            # Check for numeric verse if context exists
+            # Look for a number that might be a verse
+            verse_match = re.search(r'\b(\d{1,3})\b', text)
+            if verse_match and context_tracker['last_book'] and context_tracker['last_chapter']:
+                 potential_verse = int(verse_match.group(1))
+                 match = {"book": context_tracker['last_book'], "chapter": context_tracker['last_chapter'], "verse": potential_verse}
+                 # Validate against the DB immediately to ensure it's a real verse
+                 if not get_verse(match['book'], match['chapter'], match['verse']):
+                     match = None
+            
+            if not match:
+                match = search_paraphrase(text)
             
         if match:
             verse = get_verse(match['book'], match['chapter'], match.get('verse'))
