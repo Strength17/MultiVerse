@@ -17,6 +17,7 @@ import json
 import argparse
 import signal
 from collections import deque
+import re
 
 from verse_detector import detect_explicit
 from bible_db import get_verse
@@ -183,7 +184,7 @@ if __name__ == '__main__':
         is_running = False
     else:
         print("══════════════════════════════════")
-        print("MultiVerse v2.1.0 — Microphone is LIVE")
+        print("MultiVerse v2.4.0 — Microphone is LIVE")
         print("Speak now...")
         print("══════════════════════════════════")
         run_live()
