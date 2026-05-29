@@ -1,31 +1,37 @@
-# MultiVerse System Repository Report
+# Project Report: MultiVerse Real-Time Scripture Detection
 
-## 1. System Overview
-MultiVerse is a real-time scripture detection backend designed for offline, local execution on resource-constrained hardware (Intel N3530). It processes audio chunks, transcribes them using `faster-whisper` (or `openai-whisper` fallback), and performs dual-method detection:
-- **Regex Detection:** For explicit scripture references.
-- **Vector Search:** For paraphrased scripture references using FAISS/Sentence-Transformers.
+## 1. Project Identity & Overview
+MultiVerse is an offline, real-time backend system designed to detect Bible verse references from live audio streams or WAV files.
 
-## 2. Completed Enhancements
-- **Transcript Buffer:** Replaced audio-overlap sliding window with a rolling text buffer (`deque`) to bridge cross-chunk verse references.
-- **Regex Robustness:** Implemented "Book-First" validation and alias handling for common transcription errors (e.g., "was"/"worse" -> "verse").
-- **Latency Optimization:** Pre-compiled regex patterns and added embedding model warm-up sequences to minimize initial trigger latency.
-- **Cleanup:** Removed redundant files and legacy documentation to maintain repository hygiene.
+- **Objective:** Capture audio, transcribe it, detect explicit scripture references or paraphrases, look up the verse in a local SQLite database, and output JSON payloads.
+- **Constraints:** Optimized for low-power hardware (Intel Pentium N3530, no AVX). Rigid version pinning for `ctranslate2==3.9.0` and `faster-whisper==1.0.3`.
+- **Operating Mode:** Standalone CLI backend. No UI. JSON output to stdout.
 
-## 3. Current Issues & Anomalies
-- **False Positives:** The regex engine occasionally triggers false positives for "Song of Solomon 1:1" when encountering phrases like "1 was 1" because the regex pattern is still overly permissive with digit sequences.
-- **CPU Bottleneck:** The N3530 CPU is the primary limitation. Transcription and vector embedding generation are compute-heavy, leading to high latency (15s–35s) for detected verses.
-- **Transcript Sensitivity:** The detection accuracy is highly sensitive to transcription quality. Misheard book names or missing "chapter/verse" keywords cause trigger misses.
+## 2. Technical Stack
+- **Transcription:** Whisper (local, offline) via `faster-whisper` (fallback to `openai-whisper` if hardware limitations require).
+- **Detection (Explicit):** Regex-based engine combined with `rapidfuzz` for fuzzy book name matching.
+- **Detection (Paraphrase):** Vector-based semantic search using FAISS and `sentence-transformers` (`all-MiniLM-L6-v2`).
+- **Database:** Local SQLite (`data/nkjv.sqlite3`) containing NKJV translation.
+- **Audio Pipeline:** `pyaudio` capturing at 16kHz mono. Sliding window buffer (configurable `chunk_seconds`, `overlap_seconds`).
 
-## 4. Top 3 Optimization Priorities
-1.  **Strict Regex Contextualization (Accuracy):**
-    - *Plan:* Modify regex to require a specific keyword (e.g., "chapter", "book of") to be present in the *same* or *immediately adjacent* chunks for digits to trigger a regex match. This will eliminate "1 was 1" type false positives.
-2.  **Transcriber Model Distillation (Latency):**
-    - *Plan:* Explore further quantization (int8) or distillation of the `tiny.en` model (if compatible) to reduce CPU load during inference.
-3.  **Vector Search Index Optimization (Latency):**
-    - *Plan:* Optimize FAISS `nprobe` settings to find the optimal balance between search speed and retrieval recall, ensuring vector detection stays under the 5-second target.
+## 3. Data Schema (NKJV SQLite)
+- **Table `verses`**: `book_number` (multiples of 10), `chapter`, `verse`, `text` (contains markup `<pb/>`, `<f>`).
+- **Table `books`**: Mapping for 66 canonical books.
 
-## 5. Inquiry for Future Development
-Given the resource constraints (AVX-less CPU, low RAM), how can we best optimize the pipeline to achieve consistent sub-5s latency? Should we:
-1.  Implement a lightweight "keyword-spotting" layer before Whisper transcription to only trigger transcription when "Bible/Scripture" keywords are heard?
-2.  Shift to a completely different, smaller embedding model?
-3.  Implement a multi-stage detection pipeline where regex is the primary trigger, and vector search is only invoked upon explicit request or failure?
+## 4. The Known Bug & Required Fix
+The system currently implements a sliding window buffer (`transcript_buffer = deque(maxlen=2)`), aiming to concatenate the previous (`n-1`) and current (`n`) chunks of text. 
+
+**The Bug:** The functionality to effectively use the combined text (`n-1` + `n`) for verse lookups is not functioning as intended during live tests. 
+- **Requirement:** A book/chapter might be mentioned in the `n-1` chunk, and the verse number in the `n` chunk. The detection logic must consistently analyze the concatenation to bridge these references.
+- **Goal:** Fix this bridge functionality to ensure accurate detection across chunk boundaries, then commit as `v2.4.0`.
+
+---
+
+## Commit History
+
+| Commit Hash | Message |
+| :--- | :--- |
+| dbbe8fc | fix: cross-chunk punctuation normalization and remove 'was' alias |
+| 41590ad | fix(context): v2.4.0 - implement persistent cross-chunk context tracker |
+
+*Tag created: v2.4.0*
