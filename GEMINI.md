@@ -31,6 +31,7 @@ RULE A-08 | Do not generate code that hardcodes paths, model names, or
             threshold values. Read them from config.ini.
 RULE A-09 | Every Python function must have a docstring.
 RULE A-10 | Every file starts with the file path as a comment on line 1.
+RULE A-11 | When asked any question requiring written explanation and or without execution, write the response in a `reply.md` file in the root. It must always include the question at the top and be overwritten each time. After updating `reply.md` and this rule in `GEMINI.md`, stop and wait for further instructions.
 ```
 
 ---

@@ -1,101 +1,117 @@
 # transcriber.py
-# Sets offline env vars BEFORE any imports.
-# Loads tiny.en with proven parameters from day one.
 
 import os
-os.environ['TRANSFORMERS_OFFLINE'] = '1'
-os.environ['HF_DATASETS_OFFLINE'] = '1'
-
-import numpy as np
-import logging
 import time
+import logging
+import numpy as np
 import configparser
+from typing import Optional
 
+# path/to/GEMINI.md - Section 2: MANDATORY IMPORT GUARD
+try:
+    from faster_whisper import WhisperModel
+    USE_FASTER_WHISPER = True
+except (ImportError, OSError):
+    import whisper as openai_whisper
+    USE_FASTER_WHISPER = False
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-config = configparser.ConfigParser()
-config.read('config.ini')
-
-MODEL_SIZE   = config.get('transcription', 'model_size', fallback='tiny.en')
-BEAM_SIZE    = int(config.get('transcription', 'beam_size', fallback='1'))
-TEMPERATURE  = float(config.get('transcription', 'temperature', fallback='0'))
-CONDITION    = config.getboolean('transcription',
-                   'condition_on_previous_text', fallback=False)
-FP16         = config.getboolean('transcription', 'fp16', fallback=False)
-PROMPT       = config.get('transcription', 'initial_prompt', fallback='')
-
+# Global model instance
 _model = None
 
-def _load():
+def load_model():
+    """
+    Loads the Whisper model based on the active backend.
+    """
     global _model
-    t = time.time()
+    
+    config = configparser.ConfigParser()
+    config.read('config.ini')
+    model_size = config.get('transcription', 'model_size', fallback='tiny.en')
+    device = config.get('transcription', 'device', fallback='cpu')
+    compute_type = config.get('transcription', 'compute_type', fallback='int8')
+    model_dir = config.get('transcription', 'model_dir', fallback=None)
+    local_files_only = config.getboolean('transcription', 'local_files_only', fallback=True)
+
+    start_time = time.time()
+    
+    logger.info(f"Loading Whisper model '{model_size}' using {'faster-whisper' if USE_FASTER_WHISPER else 'openai-whisper'}")
+    
     try:
-        from faster_whisper import WhisperModel
-        _model = WhisperModel(MODEL_SIZE, device='cpu',
-                              compute_type='int8',
-                              local_files_only=True)
-        logger.info(f"Backend: faster-whisper | loaded in {time.time()-t:.2f}s")
-        return
+        if USE_FASTER_WHISPER:
+            _model = WhisperModel(
+                model_size, 
+                device=device, 
+                compute_type=compute_type,
+                download_root=model_dir,
+                local_files_only=local_files_only
+            )
+        else:
+            _model = openai_whisper.load_model(model_size, device=device)
+            
+        load_time = time.time() - start_time
+        logger.info(f"Model loaded in {load_time:.2f}s")
     except Exception as e:
-        logger.warning(f"faster-whisper failed: {e}")
-    
-    import whisper
-    _model = whisper.load_model(MODEL_SIZE)
-    logger.info(f"Backend: openai-whisper | loaded in {time.time()-t:.2f}s")
+        logger.error(f"Failed to load Whisper model: {e}")
 
-_load()
+# Load model at import time
+load_model()
 
-# Log confirmed parameters
-logger.info(f"Whisper params — beam:{BEAM_SIZE} temp:{TEMPERATURE} "
-            f"condition:{CONDITION} fp16:{FP16}")
-
-# Pre-warm model
-_dummy = np.zeros(16000, dtype=np.float32)
-try:
-    if hasattr(_model, 'transcribe') and callable(
-            getattr(_model, 'transcribe')):
-        pass
-except Exception:
-    pass
-logger.info("Whisper pre-warmed")
-
-
-def transcribe_chunk(audio: np.ndarray,
-                     sample_rate: int = 16000) -> str:
+def transcribe_chunk(audio_array: np.ndarray, sample_rate: int = 16000) -> str:
     """
-    Transcribe float32 audio array to text.
-    All parameters read from config.ini.
-    beam_size=1 and temperature=0 enforced for speed.
-    
+    Transcribe a numpy float32 audio array using the configured Whisper model.
+    Passes initial_prompt from config.ini on every call to bias Whisper toward
+    Bible vocabulary, verse notation, and theological terminology.
+
     Args:
-        audio: float32 numpy array
-        sample_rate: must be 16000
+        audio_array: float32 numpy array of audio samples.
+        sample_rate:  sample rate in Hz (default 16000).
+
     Returns:
-        transcribed text string
+        Transcribed text string, stripped of leading/trailing whitespace.
     """
+    config = configparser.ConfigParser()
+    config.read('config.ini')
+    initial_prompt = config.get('transcription', 'initial_prompt', fallback='')
+
     if _model is None:
-        return ''
+        return ""
+        
     try:
-        from faster_whisper import WhisperModel
-        if isinstance(_model, WhisperModel):
-            segs, _ = _model.transcribe(
-                audio,
-                beam_size=BEAM_SIZE,
-                temperature=TEMPERATURE,
-                initial_prompt=PROMPT or None,
+        if USE_FASTER_WHISPER:
+            segments, _ = _model.transcribe(
+                audio_array,
+                beam_size=5,
+                initial_prompt=initial_prompt if initial_prompt else None,
                 language='en',
             )
-            return ' '.join(s.text for s in segs).strip()
-    except Exception:
-        pass
+            return ' '.join(seg.text for seg in segments).strip()
+        else:
+            # openai-whisper fallback
+            result = _model.transcribe(
+                audio_array,
+                initial_prompt=initial_prompt if initial_prompt else None,
+                language='en',
+                fp16=False,
+            )
+            return result['text'].strip()
+    except Exception as e:
+        logger.error(f"Transcription error: {e}")
+        return ""
+
+if __name__ == '__main__':
+    # Performance Benchmark
+    print("Running performance benchmark...")
+    # Create 3 seconds of dummy audio (silence + noise)
+    dummy_audio = np.random.uniform(-0.01, 0.01, 16000 * 3).astype(np.float32)
     
-    result = _model.transcribe(
-        audio,
-        beam_size=BEAM_SIZE,
-        temperature=TEMPERATURE,
-        condition_on_previous_text=CONDITION,
-        initial_prompt=PROMPT or None,
-        fp16=FP16,
-        language='en'
-    )
-    return result.get('text', '').strip()
+    start_time = time.time()
+    result = transcribe_chunk(dummy_audio)
+    end_time = time.time()
+    
+    duration_ms = (end_time - start_time) * 1000
+    print(f"Transcription of 3.0s audio took: {duration_ms:.2f}ms")
+    print(f"Result: '{result}'")
