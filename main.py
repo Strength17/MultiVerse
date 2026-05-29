@@ -62,6 +62,7 @@ def process_audio_thread():
     Main processing loop. Runs transcription and detection sequentially.
     """
     transcript_buffer = deque(maxlen=2)
+    context_tracker = {"last_book": None, "last_chapter": None}
     logger.info("Transcript buffer initialised: depth=2")
 
     while is_running or not audio_queue.empty():
@@ -83,8 +84,17 @@ def process_audio_thread():
         text = ' '.join(transcript_buffer)
 
         match = detect_explicit(text)
+        if match:
+            if match.get('book'): context_tracker['last_book'] = match['book']
+            if match.get('chapter'): context_tracker['last_chapter'] = match['chapter']
+        
         if not match:
-            match = search_paraphrase(text)
+            # Simple check for numeric verse if context exists
+            words = text.split()
+            if len(words) == 1 and words[0].isdigit() and context_tracker['last_book'] and context_tracker['last_chapter']:
+                 match = {"book": context_tracker['last_book'], "chapter": context_tracker['last_chapter'], "verse": int(words[0])}
+            else:
+                 match = search_paraphrase(text)
             
         if match:
             verse = get_verse(match['book'], match['chapter'], match.get('verse'))
