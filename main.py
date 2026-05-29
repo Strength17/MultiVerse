@@ -84,6 +84,24 @@ def process_audio_thread():
         text = ' '.join(transcript_buffer)
 
         match = detect_explicit(text)
+        
+        # FIX: If we have Book/Chapter but no Verse, try to find the verse number
+        if match and match.get('book') and match.get('chapter') and match.get('verse') is None:
+             # Find index of chapter in the text
+             chapter_str = str(match.get('chapter'))
+             chapter_index = text.find(chapter_str)
+             
+             # Look for numbers appearing AFTER the chapter
+             if chapter_index != -1:
+                 remaining_text = text[chapter_index + len(chapter_str):]
+                 verse_candidates = re.findall(r'\b(\d{1,3})\b', remaining_text)
+                 for candidate in verse_candidates:
+                     potential_verse = int(candidate)
+                     # Validate against DB
+                     if get_verse(match['book'], match['chapter'], potential_verse):
+                         match['verse'] = potential_verse
+                         break
+        
         if match:
             if match.get('book'): context_tracker['last_book'] = match['book']
             if match.get('chapter'): context_tracker['last_chapter'] = match['chapter']
