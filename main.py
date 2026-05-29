@@ -21,12 +21,12 @@ logger = logging.getLogger(__name__)
 config = configparser.ConfigParser()
 config.read('config.ini')
 
-SAMPLE_RATE = config.getint('audio', 'sample_rate', 16000)
-CHUNK_SECONDS = config.getfloat('audio', 'chunk_seconds', 3.0)
-OVERLAP_SECONDS = config.getfloat('audio', 'overlap_seconds', 1.5)
+SAMPLE_RATE = config.getint('audio', 'sample_rate', fallback=16000)
+CHUNK_SECONDS = config.getfloat('audio', 'chunk_seconds', fallback=3.0)
+OVERLAP_SECONDS = config.getfloat('audio', 'overlap_seconds', fallback=1.5)
 CHUNK_SAMPLES = int(CHUNK_SECONDS * SAMPLE_RATE)
 STEP_SAMPLES = int((CHUNK_SECONDS - OVERLAP_SECONDS) * SAMPLE_RATE)
-VAD_THRESHOLD = config.getfloat('audio', 'vad_rms_threshold', 0.0005)
+VAD_THRESHOLD = config.getfloat('audio', 'vad_rms_threshold', fallback=0.0005)
 
 audio_queue = queue.Queue(maxsize=1)
 running = True
@@ -64,12 +64,23 @@ def process_audio():
 def run_live():
     import pyaudio
     p = pyaudio.PyAudio()
-    dev = find_best_input_device()
-    stream = p.open(format=pyaudio.paFloat32, channels=1, rate=SAMPLE_RATE, input=True, input_device_index=dev, frames_per_buffer=1024)
+    
+    dev_cfg = config.get('audio', 'input_device_index', fallback='1')
+    device_index = int(dev_cfg)
+    logger.info(f"Using device index: {device_index}")
+    
+    stream = p.open(format=pyaudio.paFloat32, channels=1, rate=SAMPLE_RATE, input=True, input_device_index=device_index, frames_per_buffer=1024)
     buffer = np.array([], dtype=np.float32)
     
     while running:
-        buffer = np.concatenate([buffer, np.frombuffer(stream.read(1024, exception_on_overflow=False), dtype=np.float32)])
+        data = stream.read(1024, exception_on_overflow=False)
+        audio_chunk = np.frombuffer(data, dtype=np.float32)
+        
+        # Check for bad data
+        if np.isnan(audio_chunk).any() or np.isinf(audio_chunk).any():
+            continue
+            
+        buffer = np.concatenate([buffer, audio_chunk])
         while len(buffer) >= CHUNK_SAMPLES:
             window = buffer[:CHUNK_SAMPLES]
             buffer = buffer[STEP_SAMPLES:]
