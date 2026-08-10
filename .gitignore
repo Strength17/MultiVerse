@@ -1,0 +1,51 @@
+# ── Python ──────────────────────────────────────────────────────────────
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ── Secrets / machine-specific config ──────────────────────────────────
+.env
+.env.*
+config/config.local.ini
+
+# ── Runtime data (regenerated locally, not source) ─────────────────────
+data/*.SQLite3
+data/*.sqlite3
+data/*.index
+data/*.pkl
+data/corrections_learned.json
+data/schema_cache.json
+data/range_cache.json
+!data/README_DATA.txt
+!data/.gitkeep
+
+# ── Logs & transcripts ───────────────────────────────────────────────────
+logs/*.log
+logs/transcript_*.log
+!logs/.gitkeep
+
+# ── OS / editor cruft ───────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.swp
+
+# ── Front-end build artifacts (once bundling is introduced) ────────────
+node_modules/
+dist/
+build/
+
+# ── Packaging / misc ─────────────────────────────────────────────────────
+*.spec
+*.zip
+# Old Whisper model file, unused by the WinRT build
+data/*.bin
+*.bin

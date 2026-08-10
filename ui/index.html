@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MultiVerse — Live Service</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:        #0e0f12;
+  --panel:     #16171b;
+  --panel-alt: #1c1e23;
+  --line:      #2a2c33;
+  --line-soft: #232429;
+  --ink:       #eceef1;
+  --ink-60:    #9497a3;
+  --ink-40:    #63656f;
+  --gold:      #c9a86a;
+  --red:       #e05a4e;
+  --green:     #4fae7d;
+  --green-bg:  rgba(79,174,125,.12);
+  --amber:     #d9a441;
+  --amber-bg:  rgba(217,164,65,.12);
+  --blue:      #6fa8dc;
+  --mono:      'IBM Plex Mono', monospace;
+  --serif:     'Source Serif 4', serif;
+  --sans:      'Inter', sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--sans);
+  display: flex;
+  flex-direction: column;
+}
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
+
+/* ── Header ── */
+.header {
+  display: flex; align-items: center; gap: 14px;
+  padding: 0 20px; height: 54px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+  flex-shrink: 0;
+}
+.wordmark { font-family: var(--serif); font-weight: 700; font-size: 19px; letter-spacing: -.02em; }
+.wordmark em { color: var(--gold); font-style: normal; }
+.service-pill {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 11px; border: 1px solid var(--line);
+  border-radius: 6px; font-size: 12px; color: var(--ink-60);
+  background: var(--panel-alt);
+}
+.service-pill b { color: var(--ink); font-weight: 600; }
+.header-spacer { flex: 1; }
+.ai-badge {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; letter-spacing: .04em; color: var(--ink-60);
+  padding: 5px 10px; border: 1px solid var(--line); border-radius: 6px;
+}
+.ai-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--line); }
+.ai-badge .dot.live { background: var(--green); box-shadow: 0 0 0 3px var(--green-bg); animation: pulse 2s infinite; }
+.ai-badge .dot.error { background: var(--red); }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+.engine-chip {
+  font-size: 10.5px; letter-spacing: .05em; text-transform: uppercase;
+  padding: 4px 9px; border-radius: 5px; color: var(--bg);
+  background: linear-gradient(135deg, var(--gold), #e3c68a); font-weight: 600;
+}
+.btn {
+  font-family: var(--sans); font-size: 12.5px; font-weight: 600;
+  padding: 8px 16px; border-radius: 7px; border: 1px solid var(--line);
+  background: var(--panel-alt); color: var(--ink); cursor: pointer;
+  display: flex; align-items: center; gap: 7px;
+}
+.btn:hover:not(:disabled) { border-color: var(--ink-40); }
+.btn:disabled { opacity: .35; cursor: not-allowed; }
+.btn.start { background: var(--red); border-color: var(--red); color: #fff; }
+.btn.start:hover:not(:disabled) { background: #c94a3f; }
+.btn.small { padding: 5px 10px; font-size: 11px; }
+
+/* ── Three-column main grid ── */
+.main {
+  flex: 1; display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 1px; background: var(--line);
+  min-height: 0; overflow: hidden;
+}
+.col {
+  background: var(--bg); display: flex; flex-direction: column; min-height: 0; overflow: hidden;
+}
+.col-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px; border-bottom: 1px solid var(--line-soft); flex-shrink: 0;
+}
+.col-num { font-family: var(--serif); font-size: 20px; color: var(--ink-40); margin-right: 8px; }
+.col-title-wrap { display: flex; align-items: baseline; }
+.col-label { font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-40); display: block; }
+.col-title { font-size: 14px; font-weight: 600; }
+.col-meta { display: flex; align-items: center; gap: 6px; font-size: 10.5px; color: var(--ink-60); }
+.badge-mini {
+  font-size: 9.5px; padding: 2px 6px; border-radius: 4px; border: 1px solid var(--line);
+  color: var(--ink-60); letter-spacing: .04em;
+}
+
+/* ── Col 1: Transcription ── */
+.tx-scroll { flex: 1; overflow-y: auto; min-height: 0; display: flex; flex-direction: column-reverse; }
+.tx-inner { padding: 12px 16px; display: flex; flex-direction: column; }
+.tx-line { padding: 8px 0; border-bottom: 1px dashed var(--line-soft); font-size: 13px; line-height: 1.6; color: var(--ink-60); }
+.tx-line.fresh { color: var(--ink); font-weight: 500; }
+.tx-line.hearing { color: var(--green); font-style: italic; }
+.tx-line.warning { color: var(--red); font-weight: 600; border-bottom-color: var(--red); }
+.tx-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 30px; }
+.mic-ring {
+  width: 52px; height: 52px; border-radius: 50%; border: 1px solid var(--line);
+  display: flex; align-items: center; justify-content: center; font-size: 20px; color: var(--ink-40);
+}
+.tx-empty p { font-size: 12.5px; color: var(--ink-40); text-align: center; line-height: 1.7; }
+.col-footer { padding: 9px 16px; border-top: 1px solid var(--line-soft); font-size: 10.5px; color: var(--ink-40); flex-shrink: 0; }
+
+/* ── Col 2: Engine / Suggestions ── */
+.search-wrap { padding: 12px 16px; border-bottom: 1px solid var(--line-soft); display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; }
+.search-input {
+  width: 100%; padding: 10px 12px; border-radius: 7px; border: 1px solid var(--line);
+  background: var(--panel-alt); color: var(--ink); font-family: var(--sans); font-size: 13px;
+}
+.search-input:focus { outline: none; border-color: var(--gold); }
+.version-select {
+  padding: 8px 10px; border-radius: 7px; border: 1px solid var(--line);
+  background: var(--panel-alt); color: var(--ink-60); font-size: 12px;
+}
+.engine-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.engine-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; }
+.spark { font-size: 20px; color: var(--gold); }
+.engine-empty p { font-size: 12.5px; color: var(--ink-40); text-align: center; line-height: 1.7; }
+
+.verse-card {
+  border: 1px solid var(--line); border-radius: 9px; background: var(--panel);
+  padding: 14px 16px; display: flex; flex-direction: column; gap: 8px;
+}
+.verse-source { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--gold); display: flex; align-items: center; gap: 5px; }
+.verse-ref { font-family: var(--serif); font-size: 19px; font-weight: 700; }
+.verse-text { font-family: var(--serif); font-size: 14px; line-height: 1.55; color: var(--ink); }
+.verse-meta { display: flex; align-items: center; gap: 7px; font-size: 10.5px; color: var(--ink-60); }
+.conf-pill { padding: 2px 7px; border-radius: 10px; font-weight: 700; font-size: 10px; }
+.conf-high   { background: var(--green-bg); color: var(--green); }
+.conf-medium { background: var(--amber-bg); color: var(--amber); }
+.conf-low    { background: rgba(224,90,78,.12); color: var(--red); }
+.meta-sep { color: var(--line); }
+
+/* ── Col 3: Live Output / Broadcast ── */
+.stage-status { display: flex; align-items: center; gap: 6px; font-size: 10.5px; }
+.stage-status .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--line); }
+.stage-status .dot.on { background: var(--red); box-shadow: 0 0 0 3px rgba(224,90,78,.15); }
+.stage {
+  flex: 1; background: #000; display: flex; align-items: center; justify-content: center;
+  flex-direction: column; gap: 6px; padding: 30px; text-align: center; margin: 14px 16px;
+  border-radius: 10px; border: 1px solid var(--line-soft);
+}
+.stage-empty { color: #555; font-size: 12.5px; }
+.stage-ref { font-family: var(--serif); color: var(--gold); font-size: 15px; margin-bottom: 4px; }
+.stage-text { font-family: var(--serif); color: #f5f2ea; font-size: 20px; line-height: 1.5; max-width: 90%; }
+.stage-controls { display: flex; gap: 8px; padding: 0 16px 16px; flex-shrink: 0; }
+.stage-controls .btn { flex: 1; justify-content: center; }
+
+/* ── Bottom tab bar ── */
+.tabbar {
+  display: flex; border-top: 1px solid var(--line); background: var(--panel);
+  flex-shrink: 0; overflow-x: auto;
+}
+.tab {
+  padding: 10px 16px; font-size: 12px; color: var(--ink-60); cursor: pointer;
+  border-bottom: 2px solid transparent; white-space: nowrap; display: flex; align-items: center; gap: 6px;
+}
+.tab:hover { color: var(--ink); }
+.tab.active { color: var(--ink); border-bottom-color: var(--gold); }
+.tab-body { height: 190px; overflow-y: auto; background: var(--bg); border-top: 1px solid var(--line-soft); flex-shrink: 0; }
+.tab-panel { display: none; padding: 14px 20px; }
+.tab-panel.active { display: block; }
+.tab-panel-empty { color: var(--ink-40); font-size: 12px; text-align: center; padding: 30px; }
+
+/* Quick recall list */
+.recall-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 8px 10px; border-radius: 6px; cursor: pointer; font-size: 12.5px;
+}
+.recall-item:hover { background: var(--panel-alt); }
+.recall-ref { font-weight: 600; }
+.recall-snip { color: var(--ink-40); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* JSON log */
+.json-row { font-family: var(--mono); font-size: 11px; line-height: 1.6; color: #c4b48c; white-space: pre; padding: 2px 0; }
+.jk { color: #7db8a4; } .js { color: #d4a070; } .jn { color: #8db8d4; } .jb { color: #b89cd4; }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="wordmark">Multi<em>Verse</em></div>
+  <div class="service-pill">Service <b>Live Sermon</b></div>
+  <div class="header-spacer"></div>
+  <span class="engine-chip" id="engineChip">—</span>
+  <div class="ai-badge"><span class="dot" id="sDot"></span><span id="sTxt">disconnected</span></div>
+  <button class="btn start" id="micBtn">▶ Start</button>
+  <button class="btn" id="stopBtn" disabled>■ Stop</button>
+</header>
+
+<div class="main">
+
+  <!-- COL 1: Transcription -->
+  <div class="col">
+    <div class="col-hdr">
+      <div class="col-title-wrap"><span class="col-num">01</span>
+        <div><span class="col-label">Channel</span><span class="col-title">Transcription</span></div>
+      </div>
+      <span class="badge-mini" id="txCount">0 lines</span>
+    </div>
+    <div class="tx-scroll" id="txScroll">
+      <div class="tx-empty" id="txEmpty">
+        <div class="mic-ring">🎙</div>
+        <p>No transcription yet<br>Click Start to begin</p>
+      </div>
+      <div class="tx-inner" id="txFeed"></div>
+    </div>
+    <div class="col-footer" id="txFooter">Idle — press ▶ Start</div>
+  </div>
+
+  <!-- COL 2: Engine / Suggestions -->
+  <div class="col">
+    <div class="col-hdr">
+      <div class="col-title-wrap"><span class="col-num">02</span>
+        <div><span class="col-label">Engine</span><span class="col-title">Suggestions</span></div>
+      </div>
+      <span class="col-meta"><span id="detCount">0 detections</span></span>
+    </div>
+    <div class="search-wrap">
+      <input class="search-input" id="searchInput" placeholder='Search verses or references… e.g. "the lord is my shepherd"'>
+      <select class="version-select" disabled><option>NKJV</option></select>
+    </div>
+    <div class="engine-body" id="engineBody">
+      <div class="engine-empty" id="engineEmpty">
+        <span class="spark">✦</span>
+        <p>Waiting for input<br>Record speech or search above</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- COL 3: Live Output / Broadcast -->
+  <div class="col">
+    <div class="col-hdr">
+      <div class="col-title-wrap"><span class="col-num">03</span>
+        <div><span class="col-label">Broadcast</span><span class="col-title">Live Output</span></div>
+      </div>
+      <div class="stage-status"><span class="dot" id="liveDot"></span><span id="liveTxt">standby</span></div>
+    </div>
+    <div class="stage" id="stage">
+      <div class="stage-empty">No verse on air</div>
+    </div>
+    <div class="stage-controls">
+      <button class="btn small" id="popoutBtn">⧉ Open Projector Window</button>
+      <button class="btn small" id="clearBtn">Clear Screen</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- Bottom tab bar -->
+<div class="tabbar">
+  <div class="tab active" data-tab="recall">↺ Quick Recall</div>
+  <div class="tab" data-tab="json">{ } JSON Log</div>
+</div>
+<div class="tab-body">
+  <div class="tab-panel active" id="tab-recall">
+    <div class="tab-panel-empty" id="recallEmpty">Recent verses appear here</div>
+    <div id="recallFeed"></div>
+  </div>
+  <div class="tab-panel" id="tab-json">
+    <div id="jsonFeed"></div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const ws = new WebSocket("ws://localhost:8765");
+
+const sDot=$("sDot"), sTxt=$("sTxt"), engineChip=$("engineChip");
+const micBtn=$("micBtn"), stopBtn=$("stopBtn");
+const txFeed=$("txFeed"), txEmpty=$("txEmpty"), txFooter=$("txFooter"), txCount=$("txCount");
+const engineBody=$("engineBody"), engineEmpty=$("engineEmpty"), detCount=$("detCount");
+const searchInput=$("searchInput");
+const stage=$("stage"), liveDot=$("liveDot"), liveTxt=$("liveTxt");
+const popoutBtn=$("popoutBtn"), clearBtn=$("clearBtn");
+const recallFeed=$("recallFeed"), recallEmpty=$("recallEmpty");
+const jsonFeed=$("jsonFeed");
+
+let txLines = 0, dets = 0, projectorWin = null;
+
+// ── Status ──
+function setStatus(state) {
+  sTxt.textContent = state;
+  const isLive = state === "listening";
+  const isErr  = state === "disconnected" || state === "error";
+  sDot.className = "dot" + (isLive ? " live" : isErr ? " error" : "");
+  micBtn.disabled  = isLive || state === "starting";
+  stopBtn.disabled = !isLive;
+  txFooter.textContent = isLive ? "● Listening — saved to logs/transcript_*.log" : "Idle — press ▶ Start";
+}
+
+function renderHardware(p) {
+  engineChip.textContent = p.engine || "—";
+}
+
+// ── Transcript ──
+let hearingEl = null;
+function showHearingIndicator() {
+  if (hearingEl) return;
+  txEmpty.style.display = "none";
+  hearingEl = document.createElement("div");
+  hearingEl.className = "tx-line hearing";
+  hearingEl.textContent = "🎤 …";
+  txFeed.prepend(hearingEl);
+  setTimeout(() => { if (hearingEl) { hearingEl.remove(); hearingEl = null; } }, 5000);
+}
+function appendWarning(text) {
+  // Detection failures that aren't silent anymore (missing DB row, empty
+  // semantic index) surface here in red, inline with the transcript, so
+  // they're seen live instead of only living in a log file.
+  txEmpty.style.display = "none";
+  const el = document.createElement("div");
+  el.className = "tx-line warning";
+  el.textContent = "⚠ " + text;
+  txFeed.prepend(el);
+}
+function appendTranscript(text) {
+  if (!text) return;
+  if (hearingEl) { hearingEl.remove(); hearingEl = null; }
+  txEmpty.style.display = "none";
+  txFeed.querySelectorAll(".tx-line.fresh").forEach(el => el.classList.remove("fresh"));
+  const div = document.createElement("div");
+  div.className = "tx-line fresh";
+  div.textContent = text;
+  txFeed.prepend(div);
+  txLines++;
+  txCount.textContent = `${txLines} line${txLines !== 1 ? "s" : ""}`;
+  while (txFeed.childElementCount > 80) txFeed.removeChild(txFeed.lastChild);
+}
+
+// ── Detection / Engine panel ──
+function renderDetection(d) {
+  dets++;
+  detCount.textContent = `${dets} detection${dets !== 1 ? "s" : ""}`;
+  engineEmpty.style.display = "none";
+  const band = d.confidence_band || "medium";
+  const pct  = Math.round((d.confidence || 0) * 100);
+  const card = document.createElement("div");
+  card.className = "verse-card";
+  card.innerHTML = `
+    <div class="verse-source"><span>✦</span>${(d.source||"detection").toUpperCase()}</div>
+    <div class="verse-ref">${d.book} ${d.chapter}:${d.verse}</div>
+    <div class="verse-text">${d.text}</div>
+    <div class="verse-meta">
+      <span class="conf-pill conf-${band}">${pct}%</span>
+      <span>${band} confidence</span>
+      ${d.latency_ms ? `<span class="meta-sep">·</span><span>${Math.round(d.latency_ms)}ms</span>` : ""}
+      <span class="meta-sep">·</span><span>NKJV</span>
+    </div>`;
+  card.onclick = () => sendToStage(d);
+  engineBody.prepend(card);
+  while (engineBody.childElementCount > 25) engineBody.removeChild(engineBody.lastChild);
+
+  if (d.auto_display) sendToStage(d);
+  addToRecall(d);
+}
+
+// ── Stage / Live Output (col 3) + real pop-out projector window ──
+function sendToStage(d) {
+  stage.innerHTML = `<div class="stage-ref">${d.book} ${d.chapter}:${d.verse}</div><div class="stage-text">${d.text}</div>`;
+  liveDot.classList.add("on");
+  liveTxt.textContent = "on air";
+  if (projectorWin && !projectorWin.closed) {
+    projectorWin.postMessage({ type: "verse", book: d.book, chapter: d.chapter, verse: d.verse, text: d.text }, "*");
+  }
+}
+clearBtn.onclick = () => {
+  stage.innerHTML = `<div class="stage-empty">No verse on air</div>`;
+  liveDot.classList.remove("on");
+  liveTxt.textContent = "standby";
+  if (projectorWin && !projectorWin.closed) projectorWin.postMessage({ type: "clear" }, "*");
+};
+
+// Opens a REAL separate OS window -- drag it onto the projector/second
+// display and fullscreen it (F11). Synced live via postMessage, so it
+// mirrors col 3 exactly, not a copy that can drift out of sync.
+popoutBtn.onclick = () => {
+  if (projectorWin && !projectorWin.closed) { projectorWin.focus(); return; }
+  projectorWin = window.open("", "MultiVerseProjector", "width=1280,height=720");
+  projectorWin.document.write(`<!DOCTYPE html><html><head><title>MultiVerse — Projector</title>
+    <style>
+      body{margin:0;background:#000;color:#f5f2ea;font-family:'Source Serif 4',serif;
+           height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
+           text-align:center;padding:6vw;}
+      .ref{color:#c9a86a;font-size:3vw;margin-bottom:1.4vw;}
+      .txt{font-size:4.2vw;line-height:1.5;max-width:88%;}
+      .empty{color:#333;font-size:2vw;}
+    </style></head><body><div id="root"><div class="empty">No verse on air</div></div>
+    <script>
+      window.addEventListener("message", (e) => {
+        const root = document.getElementById("root");
+        if (e.data.type === "verse") {
+          root.innerHTML = '<div class="ref">'+e.data.book+' '+e.data.chapter+':'+e.data.verse+'</div>'
+                          + '<div class="txt">'+e.data.text+'</div>';
+        } else if (e.data.type === "clear") {
+          root.innerHTML = '<div class="empty">No verse on air</div>';
+        }
+      });
+    <\/script></body></html>`);
+  projectorWin.document.close();
+};
+
+// ── Quick Recall ──
+function addToRecall(d) {
+  recallEmpty.style.display = "none";
+  const row = document.createElement("div");
+  row.className = "recall-item";
+  row.innerHTML = `<span class="recall-ref">${d.book} ${d.chapter}:${d.verse}</span><span class="recall-snip">${d.text}</span>`;
+  row.onclick = () => sendToStage(d);
+  recallFeed.prepend(row);
+  while (recallFeed.childElementCount > 40) recallFeed.removeChild(recallFeed.lastChild);
+}
+
+// ── JSON log ──
+function colorJson(str) {
+  return str
+    .replace(/"([^"]+)":/g, '<span class="jk">"$1"</span>:')
+    .replace(/: "([^"]*)"/g, ': <span class="js">"$1"</span>')
+    .replace(/: (true|false)/g, ': <span class="jb">$1</span>')
+    .replace(/: (-?\d+\.?\d*)/g, ': <span class="jn">$1</span>');
+}
+function appendJson(obj) {
+  const div = document.createElement("div");
+  div.className = "json-row";
+  div.innerHTML = colorJson(JSON.stringify(obj));
+  jsonFeed.prepend(div);
+  while (jsonFeed.childElementCount > 100) jsonFeed.removeChild(jsonFeed.lastChild);
+}
+
+// ── Tabs ──
+document.querySelectorAll(".tab").forEach(tab => {
+  tab.onclick = () => {
+    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+    document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
+    tab.classList.add("active");
+    $("tab-" + tab.dataset.tab).classList.add("active");
+  };
+});
+
+// ── WebSocket ──
+ws.onopen  = () => setStatus("connected");
+ws.onclose = () => setStatus("disconnected");
+ws.onerror = () => setStatus("error");
+
+ws.onmessage = ({ data }) => {
+  let msg;
+  try { msg = JSON.parse(data); } catch { return; }
+  switch (msg.type) {
+    case "hardware_profile": renderHardware(msg); break;
+    case "status": setStatus(msg.state); break;
+    case "speech_started": showHearingIndicator(); break;
+    case "transcript_partial": appendTranscript(msg.text); break;
+    case "detection":
+      renderDetection(msg);
+      appendJson({
+        book: msg.book, chapter: msg.chapter, verse: msg.verse,
+        source: msg.source, confidence: msg.confidence,
+        confidence_band: msg.confidence_band,
+        latency_ms: msg.latency_ms, auto_display: msg.auto_display,
+      });
+      break;
+    case "detection_warning":
+      if (msg.warning === "semantic_index_empty") {
+        appendWarning("Semantic search has no verses loaded — paraphrases won't be detected.");
+      } else if (msg.warning === "matched_reference_missing_from_db") {
+        appendWarning(`Heard "${msg.book} ${msg.chapter}:${msg.verse}" but it's not in the Bible DB.`);
+      } else if (msg.warning === "startup_self_check_failed") {
+        appendWarning(`Startup check: ${msg.detail}`);
+      } else {
+        appendWarning(msg.warning || "Detection warning.");
+      }
+      break;
+    case "manual_search_result":
+      if (msg.result) {
+        renderDetection({ ...msg.result, source: "semantic (manual)", auto_display: true });
+        appendJson(msg.result);
+      } else {
+        engineEmpty.style.display = "flex";
+        engineEmpty.querySelector("p").textContent = "No confident match found for that phrase.";
+      }
+      break;
+  }
+};
+
+// ── Controls ──
+micBtn.onclick  = () => ws.send(JSON.stringify({ action: "start_mic" }));
+stopBtn.onclick = () => ws.send(JSON.stringify({ action: "stop" }));
+searchInput.addEventListener("keydown", e => {
+  if (e.key === "Enter") {
+    const q = searchInput.value.trim();
+    if (q) ws.send(JSON.stringify({ action: "manual_search", query: q }));
+  }
+});
+</script>
+</body>
+</html>

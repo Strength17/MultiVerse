@@ -1,0 +1,29 @@
+# MultiVerse -- Windows-native STT build
+# Install with: pip install -r requirements_winrt.txt --break-system-packages
+#
+# Removed vs. the old build: faster-whisper, pywhispercpp, silero-vad,
+# sounddevice, pyaudio -- mic capture + speech recognition are both handled
+# internally by Windows now, none of that is needed.
+
+# Windows on-device speech recognition (WinRT Python bindings)
+winrt-runtime
+winrt-Windows.Foundation
+winrt-Windows.Media.SpeechRecognition
+winrt-Windows.Storage
+
+# WebSocket bridge to the UI
+websockets
+
+# Semantic/paraphrase verse search -- unrelated to the STT engine, unchanged
+faiss-cpu>=1.7.4
+sentence-transformers>=2.7.0
+
+# Bible-name fuzzy correction (vocab_correction.py) + spoken-number parsing
+rapidfuzz>=3.6.1
+word2number>=1.1
+
+# OSC remote control -- optional, app degrades gracefully without it
+python-osc
+
+numpy>=1.26.4
+tqdm
