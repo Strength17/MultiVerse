@@ -678,6 +678,11 @@ class MultiVerseServer:
             }))
             return
 
+        if self.pipeline and self.pipeline.is_running():
+            restore_state = "idle_paused" if self._idle_paused else "listening"
+        else:
+            restore_state = "ready"
+
         await self._broadcast({"type": "status", "state": "switching_version"})
 
         def _rebuild():
@@ -702,13 +707,15 @@ class MultiVerseServer:
                 "warning": "version_switch_failed",
                 "detail": f"{version} ({language}) failed to build — kept the previous version running",
             })
-            await self._broadcast({"type": "status", "state": "listening"})
+            await self._broadcast({"type": "status", "state": restore_state})
             return
 
         self.orchestrator = new_orchestrator
         self.bible_db = db
         self._current_version = version
         self._current_language = language
+        self._last_displayed = None
+        self._last_display_at = 0.0
         logger.info("Switched active Bible version to %s / %s", version, language)
 
         await self._broadcast({
@@ -720,7 +727,7 @@ class MultiVerseServer:
                 self._current_version, self._current_language),
             "show_secondary": self._show_secondary,
         })
-        await self._broadcast({"type": "status", "state": "listening"})
+        await self._broadcast({"type": "status", "state": restore_state})
 
     # ── OSC broadcast state ───────────────────────────────────────────────────
     def queue_advance(self, direction: int):

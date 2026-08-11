@@ -684,14 +684,18 @@ function openProjector() {
            text-align:center;padding:6vw;}
       .ref{color:#c9a86a;font-size:3vw;margin-bottom:1.4vw;}
       .txt{font-size:4.2vw;line-height:1.5;max-width:88%;}
+      .sec{color:#9497a3;font-style:italic;font-size:3.2vw;line-height:1.5;max-width:88%;margin-top:1.4vw;padding-top:1.4vw;border-top:1px dashed #333;}
       .empty{color:#333;font-size:2vw;}
     </style></head><body><div id="root"><div class="empty">No verse on air</div></div>
     <script>
       window.addEventListener("message", (e) => {
         const root = document.getElementById("root");
         if (e.data.type === "verse") {
+          const sec = e.data.secondary_text
+            ? '<div class="sec">'+e.data.secondary_text+'</div>'
+            : '';
           root.innerHTML = '<div class="ref">'+e.data.book+' '+e.data.chapter+':'+e.data.verse+'</div>'
-                          + '<div class="txt">'+e.data.text+'</div>';
+                          + '<div class="txt">'+e.data.text+'</div>' + sec;
         } else if (e.data.type === "clear") {
           root.innerHTML = '<div class="empty">No verse on air</div>';
         }
@@ -780,16 +784,20 @@ function renderLibrary(msg) {
   }
 }
 
+function wsSend(payload) {
+  if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(payload));
+}
+
 function onVersionChosen(value) {
   const [version, language] = value.split("::");
   if (!version || version === currentVersion && language === currentLanguage) return;
-  ws.send(JSON.stringify({ action: "switch_version", version, language }));
+  wsSend({ action: "switch_version", version, language });
 }
 if (versionSelect) versionSelect.onchange = () => onVersionChosen(versionSelect.value);
 if (settingsVersionSelect) settingsVersionSelect.onchange = () => onVersionChosen(settingsVersionSelect.value);
 if (secondaryToggle) {
   secondaryToggle.onchange = () => {
-    ws.send(JSON.stringify({ action: "set_show_translation", enabled: secondaryToggle.checked }));
+    wsSend({ action: "set_show_translation", enabled: secondaryToggle.checked });
   };
 }
 
@@ -910,12 +918,12 @@ connectWs();
 setStatus("disconnected");
 
 // ── Controls ──
-micBtn.onclick  = () => { if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ action: "start_mic" })); };
-stopBtn.onclick = () => { if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ action: "stop" })); };
+micBtn.onclick  = () => wsSend({ action: "start_mic" });
+stopBtn.onclick = () => wsSend({ action: "stop" });
 searchInput.addEventListener("keydown", e => {
   if (e.key === "Enter") {
     const q = searchInput.value.trim();
-    if (q && ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ action: "manual_search", query: q }));
+    if (q) wsSend({ action: "manual_search", query: q });
   }
 });
 </script>
