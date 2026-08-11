@@ -108,9 +108,11 @@ body {
 }
 
 /* ── Col 1: Transcription ── */
-.tx-scroll { flex: 1; overflow-y: auto; min-height: 0; display: flex; flex-direction: column-reverse; }
+.tx-scroll { flex: 1; overflow-y: auto; min-height: 0; display: flex; flex-direction: column; }
 .tx-inner { padding: 12px 16px; display: flex; flex-direction: column; }
-.tx-line { padding: 8px 0; border-bottom: 1px dashed var(--line-soft); font-size: 13px; line-height: 1.6; color: var(--ink-60); }
+.tx-line { padding: 8px 0; border-bottom: 1px dashed var(--line-soft); font-size: 13px; line-height: 1.6; color: var(--ink-60); display: flex; gap: 10px; align-items: baseline; }
+.tx-ts { flex-shrink: 0; font-family: var(--mono); font-size: 10.5px; color: var(--ink-40); width: 62px; }
+.tx-text { flex: 1; min-width: 0; }
 .tx-line.fresh { color: var(--ink); font-weight: 500; }
 .tx-line.hearing { color: var(--green); font-style: italic; }
 .tx-line.warning { color: var(--red); font-weight: 600; border-bottom-color: var(--red); }
@@ -118,6 +120,16 @@ body {
 .mic-ring {
   width: 52px; height: 52px; border-radius: 50%; border: 1px solid var(--line);
   display: flex; align-items: center; justify-content: center; font-size: 20px; color: var(--ink-40);
+  transition: border-color .3s, color .3s, box-shadow .3s;
+}
+.mic-ring.active {
+  border-color: var(--green); color: var(--green);
+  box-shadow: 0 0 0 4px var(--green-bg);
+  animation: pulse 2s infinite;
+}
+.mic-ring.starting {
+  border-color: var(--amber); color: var(--amber);
+  box-shadow: 0 0 0 4px var(--amber-bg);
 }
 .tx-empty p { font-size: 12.5px; color: var(--ink-40); text-align: center; line-height: 1.7; }
 .col-footer { padding: 9px 16px; border-top: 1px solid var(--line-soft); font-size: 10.5px; color: var(--ink-40); flex-shrink: 0; }
@@ -164,6 +176,7 @@ body {
 .stage-empty { color: #555; font-size: 12.5px; }
 .stage-ref { font-family: var(--serif); color: var(--gold); font-size: 15px; margin-bottom: 4px; }
 .stage-text { font-family: var(--serif); color: #f5f2ea; font-size: 20px; line-height: 1.5; max-width: 90%; }
+.stage-secondary { font-family: var(--serif); color: var(--ink-60); font-style: italic; font-size: 16px; line-height: 1.5; max-width: 90%; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line-soft); }
 .stage-controls { display: flex; gap: 8px; padding: 0 16px 16px; flex-shrink: 0; }
 .stage-controls .btn { flex: 1; justify-content: center; }
 
@@ -195,9 +208,61 @@ body {
 /* JSON log */
 .json-row { font-family: var(--mono); font-size: 11px; line-height: 1.6; color: #c4b48c; white-space: pre; padding: 2px 0; }
 .jk { color: #7db8a4; } .js { color: #d4a070; } .jn { color: #8db8d4; } .jb { color: #b89cd4; }
+
+/* ── Connection-lost banner (fails loud, in red, per design principle) ── */
+.conn-banner {
+  display: none; align-items: center; gap: 8px;
+  padding: 8px 20px; font-size: 12.5px; font-weight: 600;
+  background: rgba(224,90,78,.14); color: var(--red);
+  border-bottom: 1px solid rgba(224,90,78,.35); flex-shrink: 0;
+}
+.conn-banner.show { display: flex; }
+
+/* ── Startup progress bar ── */
+.startup-bar {
+  display: none; flex-direction: column; gap: 6px;
+  padding: 10px 20px; font-size: 12px;
+  background: var(--panel-alt); border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+.startup-bar.show { display: flex; }
+.startup-bar-title { font-weight: 600; color: var(--ink-60); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
+.startup-steps { display: flex; flex-wrap: wrap; gap: 8px 16px; }
+.startup-step {
+  display: flex; align-items: center; gap: 6px; color: var(--ink-40);
+}
+.startup-step.running { color: var(--amber); }
+.startup-step.done { color: var(--green); }
+.startup-step.error { color: var(--red); }
+.startup-step .icon { font-size: 11px; width: 14px; text-align: center; }
+
+/* ── Interim / live-typing transcript line ── */
+.tx-line { transition: color .5s ease, opacity .5s ease; }
+.tx-line.interim { color: var(--blue); font-style: italic; opacity: .85; }
+.tx-line.interim::after { content: "▌"; animation: blink 1s step-end infinite; margin-left: 2px; }
+@keyframes blink { 50% { opacity: 0; } }
+
+/* ── vMix / NDI tab ── */
+.vmix-panel { display: flex; flex-direction: column; gap: 14px; max-width: 720px; }
+.vmix-status-row { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+.vmix-stat { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--ink-60); }
+.vmix-stat .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--line); }
+.vmix-stat .dot.ok { background: var(--green); box-shadow: 0 0 0 3px var(--green-bg); }
+.vmix-stat .dot.bad { background: var(--red); box-shadow: 0 0 0 3px rgba(224,90,78,.15); }
+.vmix-steps { font-size: 12.5px; line-height: 1.75; color: var(--ink-60); }
+.vmix-steps b { color: var(--ink); }
+.vmix-steps code { font-family: var(--mono); background: var(--panel-alt); padding: 1px 6px; border-radius: 4px; color: var(--gold); font-size: 11.5px; }
+.vmix-note { font-size: 11.5px; color: var(--amber); background: var(--amber-bg); border: 1px solid rgba(217,164,65,.3); border-radius: 7px; padding: 8px 11px; }
 </style>
 </head>
 <body>
+
+<div class="conn-banner" id="connBanner">⚠ Lost connection to backend (server.py) — reconnecting…</div>
+
+<div class="startup-bar" id="startupBar">
+  <div class="startup-bar-title" id="startupTitle">Loading backend…</div>
+  <div class="startup-steps" id="startupSteps"></div>
+</div>
 
 <header class="header">
   <div class="wordmark">Multi<em>Verse</em></div>
@@ -207,6 +272,7 @@ body {
   <div class="ai-badge"><span class="dot" id="sDot"></span><span id="sTxt">disconnected</span></div>
   <button class="btn start" id="micBtn">▶ Start</button>
   <button class="btn" id="stopBtn" disabled>■ Stop</button>
+  <button class="btn small" id="saveBtn" title="Download everything transcribed this session as a .txt file">💾 Save Transcript</button>
 </header>
 
 <div class="main">
@@ -239,7 +305,7 @@ body {
     </div>
     <div class="search-wrap">
       <input class="search-input" id="searchInput" placeholder='Search verses or references… e.g. "the lord is my shepherd"'>
-      <select class="version-select" disabled><option>NKJV</option></select>
+      <select class="version-select" id="versionSelect" disabled><option>Loading…</option></select>
     </div>
     <div class="engine-body" id="engineBody">
       <div class="engine-empty" id="engineEmpty">
@@ -272,6 +338,8 @@ body {
 <div class="tabbar">
   <div class="tab active" data-tab="recall">↺ Quick Recall</div>
   <div class="tab" data-tab="json">{ } JSON Log</div>
+  <div class="tab" data-tab="vmix">⛓ vMix / NDI Output</div>
+  <div class="tab" data-tab="settings">⚙ Settings</div>
 </div>
 <div class="tab-body">
   <div class="tab-panel active" id="tab-recall">
@@ -281,11 +349,46 @@ body {
   <div class="tab-panel" id="tab-json">
     <div id="jsonFeed"></div>
   </div>
+  <div class="tab-panel" id="tab-vmix">
+    <div class="vmix-panel">
+      <div class="vmix-status-row">
+        <div class="vmix-stat"><span class="dot" id="vmixWsDot"></span><span id="vmixWsTxt">Backend: disconnected</span></div>
+        <div class="vmix-stat"><span class="dot" id="vmixWinDot"></span><span id="vmixWinTxt">Projector window: closed</span></div>
+        <div class="vmix-stat"><span class="dot" id="vmixDbDot"></span><span id="vmixDbTxt">Bible DB: —</span></div>
+        <button class="btn small" id="vmixOpenBtn">⧉ Open Projector Window</button>
+      </div>
+      <div class="vmix-note">MultiVerse broadcasts the current verse as a real NDI video source — vMix (or any NDI receiver) adds it like a normal camera input. The projector window above is an alternative fallback (via vMix's own Desktop Capture) if you'd rather not install the NDI runtime.</div>
+      <div class="vmix-steps">
+        1. Install the free <b>NDI Runtime</b> (or NDI Tools) from ndi.video once on the machine running MultiVerse.<br>
+        2. <code>pip install cyndilib pillow --break-system-packages</code>, then start MultiVerse as usual — the NDI source starts automatically if <code>[ndi] enabled = true</code> in <code>config/config.ini</code>.<br>
+        3. In vMix: <b>Add Input → NDI</b> — the source named (by default) <code>MultiVerse</code> appears in the list automatically on the same network.<br>
+        4. Add it to a layer/overlay channel as with any other source. It updates automatically whenever a verse is auto-displayed, and clears when you go off-air.<br><br>
+        Full details, troubleshooting, and every config option: see <code>NDI_SETUP.md</code> in the project folder.
+      </div>
+    </div>
+  </div>
+  <div class="tab-panel" id="tab-settings">
+    <div class="vmix-panel">
+      <div class="vmix-status-row">
+        <div class="vmix-stat"><span id="libraryStatusTxt">Scanning for Bible versions…</span></div>
+      </div>
+      <div class="vmix-steps">
+        <b>Bible version</b><br>
+        Detected automatically from the <code>data/</code> folder — drop a new version's database file in there (see <code>NDI_SETUP.md</code> for the folder layout) and it appears here without restarting.<br><br>
+        <select class="version-select" id="settingsVersionSelect" style="margin-top:6px;max-width:280px" disabled><option>Loading…</option></select>
+      </div>
+      <div class="vmix-steps" id="secondaryLangRow" style="display:none">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="secondaryToggle">
+          <span>Also show <b id="secondaryLangName">—</b> translation underneath, when available</span>
+        </label>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
 const $ = id => document.getElementById(id);
-const ws = new WebSocket("ws://localhost:8765");
 
 const sDot=$("sDot"), sTxt=$("sTxt"), engineChip=$("engineChip");
 const micBtn=$("micBtn"), stopBtn=$("stopBtn");
@@ -296,18 +399,108 @@ const stage=$("stage"), liveDot=$("liveDot"), liveTxt=$("liveTxt");
 const popoutBtn=$("popoutBtn"), clearBtn=$("clearBtn");
 const recallFeed=$("recallFeed"), recallEmpty=$("recallEmpty");
 const jsonFeed=$("jsonFeed");
+const saveBtn=$("saveBtn"), connBanner=$("connBanner");
+const startupBar=$("startupBar"), startupTitle=$("startupTitle"), startupSteps=$("startupSteps");
+const micRing=() => txEmpty.querySelector(".mic-ring");
+const micEmptyText=() => txEmpty.querySelector("p");
+const vmixWsDot=$("vmixWsDot"), vmixWsTxt=$("vmixWsTxt");
+const vmixWinDot=$("vmixWinDot"), vmixWinTxt=$("vmixWinTxt");
+const vmixDbDot=$("vmixDbDot"), vmixDbTxt=$("vmixDbTxt");
+const vmixOpenBtn=$("vmixOpenBtn");
+const versionSelect=$("versionSelect"), settingsVersionSelect=$("settingsVersionSelect");
+const secondaryLangRow=$("secondaryLangRow"), secondaryLangName=$("secondaryLangName"), secondaryToggle=$("secondaryToggle");
+const libraryStatusTxt=$("libraryStatusTxt");
 
 let txLines = 0, dets = 0, projectorWin = null;
+let sessionLines = [];          // { ts, text } for every finalized transcript chunk this session
+let everConnected = false;
+let backendReady = false;
+let ws = null;
+let reconnectTimer = null;
+const startupStepEls = {};
 
 // ── Status ──
+function updateMicEmpty(state) {
+  const ring = micRing();
+  const text = micEmptyText();
+  if (!ring || !text) return;
+  ring.classList.remove("active", "starting");
+  if (state === "listening" && txLines === 0) {
+    txEmpty.style.display = "flex";
+    ring.classList.add("active");
+    text.innerHTML = "Microphone is live<br>Speak — words appear here as you talk";
+  } else if (state === "starting") {
+    txEmpty.style.display = "flex";
+    ring.classList.add("starting");
+    text.innerHTML = "Opening microphone…";
+  } else if (txLines === 0) {
+    txEmpty.style.display = "flex";
+    const canStart = backendReady && (state === "ready" || state === "stopped");
+    text.innerHTML = canStart
+      ? "Ready — click ▶ Start to open the microphone"
+      : state === "booting" || state === "connecting"
+        ? "Waiting for backend to finish loading…"
+        : "No transcription yet<br>Click Start to begin";
+  }
+}
+
 function setStatus(state) {
   sTxt.textContent = state;
   const isLive = state === "listening";
   const isErr  = state === "disconnected" || state === "error";
-  sDot.className = "dot" + (isLive ? " live" : isErr ? " error" : "");
-  micBtn.disabled  = isLive || state === "starting";
+  const canStart = backendReady && (state === "ready" || state === "stopped");
+  sDot.className = "dot" + (isLive ? " live" : isErr ? " error" : state === "starting" ? " live" : "");
+  micBtn.disabled  = !canStart || state === "starting" || isLive;
   stopBtn.disabled = !isLive;
-  txFooter.textContent = isLive ? "● Listening — saved to logs/transcript_*.log" : "Idle — press ▶ Start";
+  txFooter.textContent = isLive
+    ? "● Microphone live — speak now (saved to logs/transcript_*.log)"
+    : state === "starting"
+      ? "Opening microphone…"
+    : canStart
+      ? "Ready — press ▶ Start to open the microphone"
+      : state === "booting" || state === "connecting"
+        ? "Waiting for backend to finish loading…"
+        : "Idle — press ▶ Start";
+
+  updateMicEmpty(state);
+
+  // vMix tab + connection banner mirror the same signal, red when it fails
+  vmixWsDot.className = "dot" + (isLive ? " ok" : isErr ? " bad" : backendReady ? " ok" : "");
+  vmixWsTxt.textContent = "Backend: " + state;
+  if (isErr && everConnected) {
+    connBanner.classList.add("show");
+  } else {
+    connBanner.classList.remove("show");
+  }
+  if (!isErr && state !== "connecting") everConnected = true;
+
+  updateStartupBarVisibility(state);
+}
+
+function updateStartupBarVisibility(state) {
+  const show = !backendReady && state !== "disconnected" && state !== "error";
+  startupBar.classList.toggle("show", show);
+  if (backendReady) {
+    startupTitle.textContent = "Backend ready";
+  } else if (state === "connecting") {
+    startupTitle.textContent = "Connecting to backend…";
+  } else {
+    startupTitle.textContent = "Loading backend…";
+  }
+}
+
+function renderStartupStep(step, label, status) {
+  let el = startupStepEls[step];
+  if (!el) {
+    el = document.createElement("div");
+    el.className = "startup-step";
+    el.dataset.step = step;
+    startupStepEls[step] = el;
+    startupSteps.appendChild(el);
+  }
+  el.className = "startup-step " + status;
+  const icon = status === "done" ? "✓" : status === "error" ? "✕" : "…";
+  el.innerHTML = `<span class="icon">${icon}</span><span>${label}</span>`;
 }
 
 function renderHardware(p) {
@@ -316,38 +509,117 @@ function renderHardware(p) {
 
 // ── Transcript ──
 let hearingEl = null;
+let interimEl = null;   // live-typing line, replaced/removed once the chunk finalizes
+
+// "Stick to bottom" pattern: only auto-scroll to the newest line if the
+// user was already at (or near) the bottom before this line arrived. If
+// they've manually scrolled up to re-read something earlier, new lines
+// keep arriving below without yanking their view back down -- they stay
+// in control, and pressing the (added) "jump to latest" affordance isn't
+// needed since scrolling back down to the edge re-engages sticking.
+function isNearBottom() {
+  return txScroll.scrollHeight - txScroll.scrollTop - txScroll.clientHeight < 40;
+}
+function scrollToLatest() {
+  txScroll.scrollTop = txScroll.scrollHeight;
+}
+function tsLabel() {
+  return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+}
+
 function showHearingIndicator() {
   if (hearingEl) return;
+  const stick = isNearBottom();
   txEmpty.style.display = "none";
   hearingEl = document.createElement("div");
   hearingEl.className = "tx-line hearing";
-  hearingEl.textContent = "🎤 …";
-  txFeed.prepend(hearingEl);
+  hearingEl.innerHTML = `<span class="tx-ts">${tsLabel()}</span><span class="tx-text">🎤 …</span>`;
+  txFeed.appendChild(hearingEl);
+  if (stick) scrollToLatest();
   setTimeout(() => { if (hearingEl) { hearingEl.remove(); hearingEl = null; } }, 5000);
 }
 function appendWarning(text) {
   // Detection failures that aren't silent anymore (missing DB row, empty
   // semantic index) surface here in red, inline with the transcript, so
   // they're seen live instead of only living in a log file.
+  const stick = isNearBottom();
   txEmpty.style.display = "none";
   const el = document.createElement("div");
   el.className = "tx-line warning";
-  el.textContent = "⚠ " + text;
-  txFeed.prepend(el);
+  el.innerHTML = `<span class="tx-ts">${tsLabel()}</span><span class="tx-text">⚠ ${text}</span>`;
+  txFeed.appendChild(el);
+  if (stick) scrollToLatest();
 }
-function appendTranscript(text) {
+// Interim hypothesis text -- this is what makes the transcript feel like
+// it's writing itself as the preacher speaks, instead of only updating in
+// visible chunks every few seconds. Server sends "transcript_live" while a
+// chunk is still being recognized; "transcript_partial" replaces it once
+// that chunk is final. If the backend build in use doesn't send
+// transcript_live yet, this simply never fires and appendTranscript alone
+// still works exactly as before.
+function updateInterim(text) {
   if (!text) return;
   if (hearingEl) { hearingEl.remove(); hearingEl = null; }
   txEmpty.style.display = "none";
+  const stick = isNearBottom();
+  if (!interimEl) {
+    interimEl = document.createElement("div");
+    interimEl.className = "tx-line interim";
+    interimEl.innerHTML = `<span class="tx-ts">${tsLabel()}</span><span class="tx-text"></span>`;
+    txFeed.appendChild(interimEl);
+  }
+  interimEl.querySelector(".tx-text").textContent = text;
+  if (stick) scrollToLatest();
+}
+function appendTranscript(text) {
+  if (!text) return;
+  const stick = isNearBottom();
+  if (hearingEl) { hearingEl.remove(); hearingEl = null; }
+  if (interimEl) { interimEl.remove(); interimEl = null; }
+  txEmpty.style.display = "none";
+  // older lines fade from bright "fresh" to the dimmer resting color
+  // (CSS transition on .tx-line handles the actual fade)
   txFeed.querySelectorAll(".tx-line.fresh").forEach(el => el.classList.remove("fresh"));
   const div = document.createElement("div");
   div.className = "tx-line fresh";
-  div.textContent = text;
-  txFeed.prepend(div);
+  div.innerHTML = `<span class="tx-ts">${tsLabel()}</span><span class="tx-text"></span>`;
+  div.querySelector(".tx-text").textContent = text;
+  txFeed.appendChild(div);
   txLines++;
   txCount.textContent = `${txLines} line${txLines !== 1 ? "s" : ""}`;
-  while (txFeed.childElementCount > 80) txFeed.removeChild(txFeed.lastChild);
+  // Oldest line is now the FIRST child (chronological top-to-bottom order),
+  // so trim from the top, not the bottom, once past the cap.
+  while (txFeed.childElementCount > 80) txFeed.removeChild(txFeed.firstChild);
+  if (stick) scrollToLatest();
+
+  sessionLines.push({ ts: new Date().toLocaleTimeString(), text });
 }
+
+// ── Save Transcript ──
+// The backend already appends every chunk to logs/transcript_<date>.log as
+// it happens (see server.py _append_transcript_log) -- that's the
+// crash-proof copy. This button is the operator-facing convenience: a
+// clean, timestamped .txt of exactly this session, downloaded on demand,
+// no extra click-through to the filesystem needed mid-service.
+function saveTranscript() {
+  if (sessionLines.length === 0) {
+    appendWarning("Nothing transcribed yet this session — nothing to save.");
+    return;
+  }
+  const header = `MultiVerse transcript — session started ${sessionLines[0].ts}, saved ${new Date().toLocaleString()}\n${"=".repeat(60)}\n\n`;
+  const body = sessionLines.map(l => `[${l.ts}] ${l.text}`).join("\n");
+  const blob = new Blob([header + body], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  a.href = url;
+  a.download = `MultiVerse_Transcript_${stamp}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+saveBtn.onclick = saveTranscript;
 
 // ── Detection / Engine panel ──
 function renderDetection(d) {
@@ -378,11 +650,15 @@ function renderDetection(d) {
 
 // ── Stage / Live Output (col 3) + real pop-out projector window ──
 function sendToStage(d) {
-  stage.innerHTML = `<div class="stage-ref">${d.book} ${d.chapter}:${d.verse}</div><div class="stage-text">${d.text}</div>`;
+  const secondary = d.secondary_text
+    ? `<div class="stage-secondary">${d.secondary_text}</div>`
+    : "";
+  stage.innerHTML = `<div class="stage-ref">${d.book} ${d.chapter}:${d.verse}</div><div class="stage-text">${d.text}</div>${secondary}`;
   liveDot.classList.add("on");
   liveTxt.textContent = "on air";
   if (projectorWin && !projectorWin.closed) {
-    projectorWin.postMessage({ type: "verse", book: d.book, chapter: d.chapter, verse: d.verse, text: d.text }, "*");
+    projectorWin.postMessage({ type: "verse", book: d.book, chapter: d.chapter, verse: d.verse,
+                                text: d.text, secondary_text: d.secondary_text || null }, "*");
   }
 }
 clearBtn.onclick = () => {
@@ -394,10 +670,13 @@ clearBtn.onclick = () => {
 
 // Opens a REAL separate OS window -- drag it onto the projector/second
 // display and fullscreen it (F11). Synced live via postMessage, so it
-// mirrors col 3 exactly, not a copy that can drift out of sync.
-popoutBtn.onclick = () => {
+// mirrors col 3 exactly, not a copy that can drift out of sync. This is
+// also the exact window vMix's Local Desktop Capture picks up by name
+// (see the vMix / NDI Output tab) -- its title is deliberately fixed and
+// distinctive so it's unambiguous in vMix's window list.
+function openProjector() {
   if (projectorWin && !projectorWin.closed) { projectorWin.focus(); return; }
-  projectorWin = window.open("", "MultiVerseProjector", "width=1280,height=720");
+  projectorWin = window.open("", "MultiVerseProjector", "width=1920,height=1080");
   projectorWin.document.write(`<!DOCTYPE html><html><head><title>MultiVerse — Projector</title>
     <style>
       body{margin:0;background:#000;color:#f5f2ea;font-family:'Source Serif 4',serif;
@@ -419,7 +698,22 @@ popoutBtn.onclick = () => {
       });
     <\/script></body></html>`);
   projectorWin.document.close();
-};
+  vmixWinDot.className = "dot ok";
+  vmixWinTxt.textContent = "Projector window: open — ready for Local Desktop Capture";
+}
+popoutBtn.onclick = openProjector;
+vmixOpenBtn.onclick = openProjector;
+
+// Poll rather than rely on a single open-time flag, since the window can
+// be closed by the operator (or by accident) at any point mid-service --
+// the vMix tab's dot should reflect reality, not just "was opened once".
+setInterval(() => {
+  const open = projectorWin && !projectorWin.closed;
+  vmixWinDot.className = "dot" + (open ? " ok" : " bad");
+  vmixWinTxt.textContent = open
+    ? "Projector window: open — ready for Local Desktop Capture"
+    : "Projector window: closed";
+}, 1000);
 
 // ── Quick Recall ──
 function addToRecall(d) {
@@ -448,6 +742,57 @@ function appendJson(obj) {
   while (jsonFeed.childElementCount > 100) jsonFeed.removeChild(jsonFeed.lastChild);
 }
 
+// ── Bible version / language library ──
+let currentVersion = null, currentLanguage = "English", secondaryLanguage = null;
+
+function renderLibrary(msg) {
+  currentVersion = msg.current_version;
+  currentLanguage = msg.current_language || "English";
+  secondaryLanguage = msg.secondary_language || null;
+
+  const versions = msg.versions || [];
+  const optionsHtml = versions.length
+    ? versions.map(v => v.languages.map(lang =>
+        `<option value="${v.version}::${lang}" ${v.version === currentVersion && lang === currentLanguage ? "selected" : ""}>${v.version}${v.languages.length > 1 ? " — " + lang : ""}</option>`
+      ).join("")).join("")
+    : `<option>No Bible DB found in data/</option>`;
+
+  [versionSelect, settingsVersionSelect].forEach(sel => {
+    if (!sel) return;
+    sel.innerHTML = optionsHtml;
+    sel.disabled = versions.length === 0;
+  });
+
+  if (libraryStatusTxt) {
+    libraryStatusTxt.textContent = versions.length
+      ? `${versions.length} version${versions.length !== 1 ? "s" : ""} detected in data/ — currently on ${currentVersion} (${currentLanguage})`
+      : "No Bible database found under data/ — see NDI_SETUP.md for the expected folder layout.";
+  }
+
+  if (secondaryLangRow) {
+    if (secondaryLanguage) {
+      secondaryLangRow.style.display = "";
+      secondaryLangName.textContent = secondaryLanguage;
+      secondaryToggle.checked = !!msg.show_secondary;
+    } else {
+      secondaryLangRow.style.display = "none";
+    }
+  }
+}
+
+function onVersionChosen(value) {
+  const [version, language] = value.split("::");
+  if (!version || version === currentVersion && language === currentLanguage) return;
+  ws.send(JSON.stringify({ action: "switch_version", version, language }));
+}
+if (versionSelect) versionSelect.onchange = () => onVersionChosen(versionSelect.value);
+if (settingsVersionSelect) settingsVersionSelect.onchange = () => onVersionChosen(settingsVersionSelect.value);
+if (secondaryToggle) {
+  secondaryToggle.onchange = () => {
+    ws.send(JSON.stringify({ action: "set_show_translation", enabled: secondaryToggle.checked }));
+  };
+}
+
 // ── Tabs ──
 document.querySelectorAll(".tab").forEach(tab => {
   tab.onclick = () => {
@@ -458,18 +803,40 @@ document.querySelectorAll(".tab").forEach(tab => {
   };
 });
 
-// ── WebSocket ──
-ws.onopen  = () => setStatus("connected");
-ws.onclose = () => setStatus("disconnected");
-ws.onerror = () => setStatus("error");
+// ── WebSocket (with reconnect — the batch file opens the UI before the
+//    backend may have finished loading the search index) ──
+function scheduleReconnect() {
+  clearTimeout(reconnectTimer);
+  reconnectTimer = setTimeout(connectWs, 2000);
+}
 
-ws.onmessage = ({ data }) => {
+function connectWs() {
+  ws = new WebSocket("ws://localhost:8765");
+  ws.onopen  = () => {
+    backendReady = false;
+    startupSteps.innerHTML = "";
+    for (const k of Object.keys(startupStepEls)) delete startupStepEls[k];
+    setStatus("connecting");
+  };
+  ws.onclose = () => { backendReady = false; setStatus("disconnected"); scheduleReconnect(); };
+  ws.onerror = () => { backendReady = false; setStatus("error"); };
+  ws.onmessage = onWsMessage;
+}
+
+function onWsMessage({ data }) {
   let msg;
   try { msg = JSON.parse(data); } catch { return; }
   switch (msg.type) {
     case "hardware_profile": renderHardware(msg); break;
-    case "status": setStatus(msg.state); break;
+    case "startup_progress":
+      renderStartupStep(msg.step, msg.label, msg.status);
+      break;
+    case "status":
+      if (msg.state === "ready") backendReady = true;
+      setStatus(msg.state);
+      break;
     case "speech_started": showHearingIndicator(); break;
+    case "transcript_live": updateInterim(msg.text); break;
     case "transcript_partial": appendTranscript(msg.text); break;
     case "detection":
       renderDetection(msg);
@@ -479,14 +846,50 @@ ws.onmessage = ({ data }) => {
         confidence_band: msg.confidence_band,
         latency_ms: msg.latency_ms, auto_display: msg.auto_display,
       });
+      vmixDbDot.className = "dot ok";
+      vmixDbTxt.textContent = `Bible DB: responding (${currentVersion || "—"})`;
+      break;
+    case "library":
+      backendReady = true;
+      renderLibrary(msg);
+      if (sTxt.textContent === "connecting" || sTxt.textContent === "booting") {
+        setStatus("ready");
+      }
+      break;
+    case "broadcast_state":
+      // Reflects state pushed by an external OSC controller (e.g. a
+      // Pewbeam-compatible control surface hitting /pew/show, /pew/hide,
+      // /pew/on_air) so the UI never silently disagrees with what's
+      // actually on air.
+      if (typeof msg.on_air === "boolean") {
+        liveDot.classList.toggle("on", msg.on_air);
+        liveTxt.textContent = msg.on_air ? "on air" : "standby";
+        if (!msg.on_air) stage.innerHTML = `<div class="stage-empty">No verse on air</div>`;
+      }
+      if (typeof msg.opacity === "number" && stage) {
+        stage.style.opacity = String(msg.opacity);
+      }
+      if (typeof msg.show_secondary === "boolean") {
+        secondaryToggle.checked = msg.show_secondary;
+      }
       break;
     case "detection_warning":
-      if (msg.warning === "semantic_index_empty") {
+      if (msg.warning === "not_ready") {
+        appendWarning(msg.detail || "Backend is still loading.");
+      } else if (msg.warning === "mic_start_failed") {
+        appendWarning(`Microphone failed to start: ${msg.detail || "unknown error"}`);
+        backendReady = true;
+        setStatus("ready");
+      } else if (msg.warning === "semantic_index_empty") {
         appendWarning("Semantic search has no verses loaded — paraphrases won't be detected.");
       } else if (msg.warning === "matched_reference_missing_from_db") {
         appendWarning(`Heard "${msg.book} ${msg.chapter}:${msg.verse}" but it's not in the Bible DB.`);
+        vmixDbDot.className = "dot bad";
+        vmixDbTxt.textContent = "Bible DB: missing row for last reference";
       } else if (msg.warning === "startup_self_check_failed") {
         appendWarning(`Startup check: ${msg.detail}`);
+        vmixDbDot.className = "dot bad";
+        vmixDbTxt.textContent = "Bible DB: startup check failed";
       } else {
         appendWarning(msg.warning || "Detection warning.");
       }
@@ -501,15 +904,18 @@ ws.onmessage = ({ data }) => {
       }
       break;
   }
-};
+}
+
+connectWs();
+setStatus("disconnected");
 
 // ── Controls ──
-micBtn.onclick  = () => ws.send(JSON.stringify({ action: "start_mic" }));
-stopBtn.onclick = () => ws.send(JSON.stringify({ action: "stop" }));
+micBtn.onclick  = () => { if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ action: "start_mic" })); };
+stopBtn.onclick = () => { if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ action: "stop" })); };
 searchInput.addEventListener("keydown", e => {
   if (e.key === "Enter") {
     const q = searchInput.value.trim();
-    if (q) ws.send(JSON.stringify({ action: "manual_search", query: q }));
+    if (q && ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ action: "manual_search", query: q }));
   }
 });
 </script>

@@ -70,9 +70,14 @@ class VectorSearchEngine:
     and manual "Context mode" search.
     """
 
-    def __init__(self, bible_db, translation: str = "NKJV"):
+    def __init__(self, bible_db, translation: str = "NKJV",
+                 vector_threshold: float = 0.70, min_overlap_ratio: float = 0.25):
         self.bible_db = bible_db
         self.translation = translation
+        # Injected, not hardcoded -- see app_config.py. Changing these in
+        # config.ini changes behavior on next restart with no code edit.
+        self.vector_threshold = vector_threshold
+        self.min_overlap_ratio = min_overlap_ratio
         self._model = None
         self._index = None
         self._verse_lookup: list[VerseCandidate] = []
@@ -221,14 +226,32 @@ class VectorSearchEngine:
         if best is None:
             return None
 
-        # Detection floor: config.ini has always documented this as 0.70
-        # (`[detection] vector_threshold`), but no code ever actually read
-        # that value -- the real floor here was a hardcoded 0.35, which is
-        # why filler/meta speech ("I think you are printing...") was
-        # auto-triggering real verses at 0.60-0.84 confidence. Honor the
-        # documented 0.70 floor for real.
+        # Hard gate: reject outright if too little of the transcript
+        # actually overlaps this candidate's words, regardless of cosine
+        # similarity. Previously overlap only added a small additive bonus
+        # on top of similarity (see combined_score below) and could never
+        # by itself veto a match -- that's why a stray covenant-adjacent
+        # word inside unrelated casual speech could still drag a whole
+        # chunk to 0.70+ similarity. This is a ratio of the QUERY's words,
+        # not the verse's, so a short spoken snippet only needs to
+        # meaningfully overlap what was actually said.
+        query_word_count = max(len(_tokenize(query)), 1)
+        overlap_ratio = best.get("overlap_count", 0) / query_word_count
+        if overlap_ratio < self.min_overlap_ratio:
+            logger.debug(
+                "Semantic candidate rejected by overlap gate: ratio=%.2f < floor=%.2f (%s %s:%s)",
+                overlap_ratio, self.min_overlap_ratio,
+                best.get("book"), best.get("chapter"), best.get("verse"),
+            )
+            return None
+
+        # Detection floor: config.ini documents this as [detection]
+        # vector_threshold, now actually read (see __init__) instead of
+        # hardcoded -- historically the real floor was a hardcoded 0.35,
+        # which let filler/meta speech auto-trigger real verses at
+        # 0.60-0.84 confidence.
         confidence = self._score_to_confidence(best["combined_score"])
-        if confidence < 0.70:
+        if confidence < self.vector_threshold:
             return None
 
         return {
@@ -265,6 +288,7 @@ class VectorSearchEngine:
                 continue
             cand_words = set(_tokenize(cand_text))
             overlap = len(query_words & cand_words)
+            cand["overlap_count"] = overlap
             term_bonus = sum(
                 BIBLICAL_TERM_WEIGHT.get(w, 0) for w in (query_words & cand_words)
             )

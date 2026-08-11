@@ -45,13 +45,11 @@ CONFIDENCE_BANDS = {
     "low":    (0.35, 0.55),
 }
 
-# Semantic/paraphrase search needs enough words to produce a reliable
-# embedding. Short/generic utterances produce noisy vectors that can still
-# land a single high-confidence hit purely by chance (observed: even the
-# phrase "too many false positives" itself matched a fake verse at 0.61).
-# Raised from 4 -> 8 so short filler/meta speech never reaches the
-# (expensive) embedding call at all.
-MIN_SEMANTIC_WORDS = 8
+# NOTE: the semantic-word floor, regex threshold, dedup window, and vector
+# threshold all now live in config.ini [detection] and are injected via
+# DetectionOrchestrator's constructor (see app_config.py) -- no
+# module-level constants here anymore, so there's exactly one place each
+# value can drift from what config.ini documents: nowhere.
 
 
 _NUMBER_WORD_PATTERN = re.compile(
@@ -86,13 +84,32 @@ def confidence_band(confidence: float) -> str:
 
 class DetectionOrchestrator:
     def __init__(self, bible_db, translation: str = "NKJV",
-                 semantic_top_k: int = 8, context_timeout_s: int = 60):
+                 semantic_top_k: int = 8, context_timeout_s: float = 10.0,
+                 regex_threshold: float = 0.75, min_semantic_words: int = 8,
+                 dedup_seconds: float = 6.0,
+                 vector_threshold: float = 0.70, min_overlap_ratio: float = 0.25):
         self.bible_db = bible_db
         self.translation = translation
         self.context = ReferenceContext(timeout_seconds=context_timeout_s)
-        self.vector_engine = VectorSearchEngine(bible_db, translation=translation)
+        self.vector_engine = VectorSearchEngine(
+            bible_db, translation=translation,
+            vector_threshold=vector_threshold, min_overlap_ratio=min_overlap_ratio,
+        )
         self.semantic_top_k = semantic_top_k
+        # Injected from config.ini [detection] (see app_config.py) instead
+        # of a module-level constant, so the value doesn't drift between
+        # what config.ini documents and what actually runs.
+        self.regex_threshold = regex_threshold
+        self.min_semantic_words = min_semantic_words
+        self.dedup_seconds = dedup_seconds
         self._index_built = False
+
+        # Same-verse recent-fire dedup state (see detect()) -- tracks the
+        # last verse actually broadcast and when, independent of the
+        # chunk-idempotency guard below (which only catches literal replays
+        # of the same audio, not two different chunks hitting the same verse).
+        self._last_fired_verse: tuple | None = None
+        self._last_fired_at: float = 0.0
 
         # Session-level verse cache: avoids a DB hit when the same verse is
         # detected again later in the same session (e.g. a preacher repeats
@@ -226,6 +243,33 @@ class DetectionOrchestrator:
             result = self._run_semantic_only(richest_text, latency_ms)
 
         if result.get("triggered"):
+            verse_key = (result.get("book_number"), result.get("chapter"), result.get("verse"))
+            now = time.time()
+            is_recent_repeat = (
+                self._last_fired_verse == verse_key
+                and (now - self._last_fired_at) < self.dedup_seconds
+            )
+            if is_recent_repeat:
+                # Root cause of the double-print: escalation levels are
+                # already deduped (one semantic call per chunk, see class
+                # docstring), but two DIFFERENT adjacent chunks can each
+                # independently detect the same real-world moment a few
+                # hundred ms to a few seconds apart. This is the guard that
+                # was missing -- suppress the re-fire instead of broadcasting
+                # the same verse twice.
+                logger.info(
+                    "Deduped repeat fire of %s %s:%s — %.2fs since last fire (window=%.1fs)",
+                    result.get("book"), result.get("chapter"), result.get("verse"),
+                    now - self._last_fired_at, self.dedup_seconds,
+                )
+                result = {"triggered": False, "deduped": True, **result}
+                self.buffer.clear()
+                self._two_chunk_deque.clear()
+                return result
+
+            self._last_fired_verse = verse_key
+            self._last_fired_at = now
+
             # ── Terminal JSONL detection print (V1 behavior, unconditional) ──
             # Routed through write_line so it can't land mid-way through an
             # open [live] partial-transcript line (see console_output.py).
@@ -272,7 +316,8 @@ class DetectionOrchestrator:
         if not text.strip():
             return None
 
-        direct = detect_direct_reference(text, self.context, bible_db=self.bible_db)
+        direct = detect_direct_reference(text, self.context, bible_db=self.bible_db,
+                                          regex_threshold=self.regex_threshold)
         if direct is None:
             return None
         if direct.get("handled"):
@@ -392,10 +437,10 @@ class DetectionOrchestrator:
             return {"triggered": False}
 
         word_count = len(text.split())
-        if word_count < MIN_SEMANTIC_WORDS:
+        if word_count < self.min_semantic_words:
             logger.debug(
-                "Skipping semantic search — %d word(s), below MIN_SEMANTIC_WORDS=%d: %r",
-                word_count, MIN_SEMANTIC_WORDS, text[:60],
+                "Skipping semantic search — %d word(s), below min_semantic_words=%d: %r",
+                word_count, self.min_semantic_words, text[:60],
             )
             return {"triggered": False}
 

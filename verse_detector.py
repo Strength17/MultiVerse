@@ -295,6 +295,7 @@ def _resolve_ambiguous_number(bible_db, book_number: int, number: int) -> tuple[
 
 def detect_direct_reference(
     text: str, context: ReferenceContext, bible_db=None,
+    regex_threshold: float = 0.75,
 ) -> dict | None:
     """
     Run all detection patterns against transcript text, priority order.
@@ -308,6 +309,13 @@ def detect_direct_reference(
     bible_db: optional. When provided, enables the digit-split fallback
     for an out-of-range bare-number guess (see _resolve_ambiguous_number).
     When None, that step is skipped and behavior is unchanged.
+
+    regex_threshold: 0-1 scale, injected from config.ini [detection]
+    regex_threshold (see app_config.py) -- floor for the fuzzy book-name
+    matcher used as a last-resort fallback in _fuzzy_detect. Previously
+    hardcoded to 70 (on rapidfuzz's 0-100 scale) inline; now converted
+    from this single config-driven value so it can't drift from what
+    config.ini documents.
     """
     if not text or not text.strip():
         return None
@@ -542,10 +550,10 @@ def detect_direct_reference(
             return _result("regex", book_name, book_number, chapter, verse, 0.92, m.group(0))
 
     # 10) Fuzzy fallback -- catches mishearing: "genisis", "revelations", "jon"
-    return _fuzzy_detect(text_norm, context)
+    return _fuzzy_detect(text_norm, context, regex_threshold=regex_threshold)
 
 
-def _fuzzy_detect(text: str, context: ReferenceContext) -> dict | None:
+def _fuzzy_detect(text: str, context: ReferenceContext, regex_threshold: float = 0.75) -> dict | None:
     """
     V1-style rapidfuzz fuzzy book-name matching. Only runs when all strict
     patterns fail. Tolerates OCR/ASR errors in book names.
@@ -554,6 +562,9 @@ def _fuzzy_detect(text: str, context: ReferenceContext) -> dict | None:
         from rapidfuzz import process, fuzz
     except ImportError:
         return None
+    # rapidfuzz's scorer is 0-100; config.ini's regex_threshold is 0-1 to
+    # stay consistent with every other confidence value in this app.
+    score_floor = regex_threshold * 100
 
     books_lower = {k: k for k in NAME_TO_BOOK}
     books_list  = list(books_lower.keys())
@@ -583,7 +594,7 @@ def _fuzzy_detect(text: str, context: ReferenceContext) -> dict | None:
             except ValueError:
                 continue
             res = process.extractOne(potential_book, books_list, scorer=fuzz.ratio)
-            if res and res[1] >= 70 and match.start() > best_start:  # 70% similarity threshold
+            if res and res[1] >= score_floor and match.start() > best_start:  # config-driven similarity floor
                 matched_key = res[0]
                 book_number, book_name = NAME_TO_BOOK[matched_key]
                 best_start = match.start()

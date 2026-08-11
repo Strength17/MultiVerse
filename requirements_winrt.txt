@@ -25,5 +25,12 @@ word2number>=1.1
 # OSC remote control -- optional, app degrades gracefully without it
 python-osc
 
+# NDI video output for vMix (see NDI_SETUP.md). Also requires the free
+# NDI Runtime installed system-wide -- pip alone doesn't provide the
+# actual Processing.NDI.Lib DLL/shared library. App degrades gracefully
+# (NDI just stays off) if either piece is missing.
+cyndilib
+pillow
+
 numpy>=1.26.4
 tqdm

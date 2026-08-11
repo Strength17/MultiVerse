@@ -19,6 +19,8 @@ data/*.SQLite3
 data/*.sqlite3
 data/*.index
 data/*.pkl
+data/*.bin
+*.bin
 data/corrections_learned.json
 data/schema_cache.json
 data/range_cache.json
@@ -28,6 +30,7 @@ data/range_cache.json
 # ── Logs & transcripts ───────────────────────────────────────────────────
 logs/*.log
 logs/transcript_*.log
+logs/multiverse.pid
 !logs/.gitkeep
 
 # ── OS / editor cruft ───────────────────────────────────────────────────
@@ -46,6 +49,3 @@ build/
 # ── Packaging / misc ─────────────────────────────────────────────────────
 *.spec
 *.zip
-# Old Whisper model file, unused by the WinRT build
-data/*.bin
-*.bin

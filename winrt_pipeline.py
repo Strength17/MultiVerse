@@ -75,6 +75,7 @@ class WinRTSpeechPipeline:
         self._stop_event = threading.Event()
         self._utterance_start: float | None = None
         self.last_error: str | None = None
+        self._session_ready = threading.Event()
 
     def push_audio(self, frame):
         # Intentional no-op -- see module docstring.
@@ -83,9 +84,18 @@ class WinRTSpeechPipeline:
     def start(self):
         if self._thread is not None:
             return
+        self.last_error = None
+        self._session_ready.clear()
         self._stop_event.clear()
         self._thread = threading.Thread(target=self._run, daemon=True, name="winrt-speech")
         self._thread.start()
+
+    def wait_session_ready(self, timeout: float = 20.0) -> bool:
+        """Block until WinRT reports the dictation session is running."""
+        return self._session_ready.wait(timeout=timeout)
+
+    def is_running(self) -> bool:
+        return self._thread is not None and self._thread.is_alive()
 
     def stop(self):
         self._stop_event.set()
@@ -98,6 +108,7 @@ class WinRTSpeechPipeline:
         if self._thread is not None:
             self._thread.join(timeout=5)
             self._thread = None
+        self._session_ready.clear()
 
     # ── background thread: owns its own asyncio loop, separate from the
     #    server's main asyncio loop, because pywinrt's async calls need one ──
@@ -109,6 +120,7 @@ class WinRTSpeechPipeline:
         except Exception as e:
             logger.exception("WinRT speech pipeline crashed")
             self.last_error = str(e)
+            self._session_ready.set()
 
     async def _main_async(self):
         import winrt.windows.media.speechrecognition as speech
@@ -125,6 +137,7 @@ class WinRTSpeechPipeline:
         if compilation.status != speech.SpeechRecognitionResultStatus.SUCCESS:
             self.last_error = f"compile_constraints_async failed: {compilation.status}"
             logger.error(self.last_error)
+            self._session_ready.set()
             return
 
         self._recognizer = recognizer
@@ -206,6 +219,7 @@ class WinRTSpeechPipeline:
 
         await recognizer.continuous_recognition_session.start_async()
         logger.info("WinRT continuous on-device dictation session started")
+        self._session_ready.set()
 
         while not self._stop_event.is_set():
             await asyncio.sleep(0.25)

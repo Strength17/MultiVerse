@@ -16,7 +16,8 @@ Terminal output:
 
 WebSocket messages to UI:
   hardware_profile   — once on connect
-  status             — starting/ready/listening/stopped/error/idle_paused
+  startup_progress   — each background boot step (running/done/error)
+  status             — booting/ready/starting/listening/stopped/error/idle_paused
   speech_started     — instant VAD trigger, before transcription finishes
   transcript_partial — every spoken chunk (feeds left panel)
   detection          — verse detection (auto_display true/false)
@@ -64,17 +65,18 @@ logger = logging.getLogger("multiverse.server")
 # log line is silently dropped.
 purge_bad_corrections()
 
+from app_config import load_config
+from bible_library import BibleLibrary
+from ndi_sender import NDISender
+
+APP_CONFIG = load_config()
+
+
 def _load_db_config() -> tuple[str, str]:
-    """Read db_path/translation from config.ini's [database] section,
-    falling back to the old hardcoded default if missing. This is what
-    lets you point MultiVerse at a different Bible DB/translation just
-    by editing config.ini — no code changes needed."""
-    import configparser
-    cfg = configparser.ConfigParser()
-    cfg.read("config/config.ini")
-    db_path = cfg.get("database", "db_path", fallback="data/NKJV.SQLite3")
-    translation = cfg.get("database", "translation", fallback="NKJV")
-    return db_path, translation
+    """db_path/translation now come from the single app_config.py loader
+    (see [database] in config.ini) -- this wrapper is kept so the rest of
+    this module doesn't need to change how it calls it."""
+    return APP_CONFIG.db_path, APP_CONFIG.translation
 
 
 DB_PATH, DEFAULT_TRANSLATION = _load_db_config()
@@ -129,17 +131,21 @@ def _append_transcript_log(text: str) -> None:
         logger.warning("Transcript log write failed: %s", e)
 
 
-IDLE_TIMEOUT_SECONDS = 600
+IDLE_TIMEOUT_SECONDS = APP_CONFIG.app.idle_timeout_seconds
 
+# Per-source minimum gap before auto-displaying a DIFFERENT verse than the
+# one currently shown. Now sourced from config.ini [detection] instead of
+# being hardcoded here -- see app_config.py.
 AUTO_DISPLAY_COOLDOWN = {
-    "regex":     1.5,
-    "semantic":  4.0,
-    "narrative": 5.0,
+    "regex":     APP_CONFIG.detection.cooldown_regex_seconds,
+    "semantic":  APP_CONFIG.detection.cooldown_semantic_seconds,
+    "narrative": APP_CONFIG.detection.cooldown_narrative_seconds,
 }
 
 
 class MultiVerseServer:
     def __init__(self):
+        self.config = APP_CONFIG
         self.orchestrator = None
         self.narrative_tracker = None
         self.pipeline = None
@@ -148,11 +154,25 @@ class MultiVerseServer:
         self._loop: asyncio.AbstractEventLoop | None = None
         self._mic_stream = None
 
+        # ── Bible version/language library (auto-discovered from disk) ──
+        self.library = BibleLibrary(self.config.library.data_root)
+        self.library.rescan()
+        self._current_version: str = DEFAULT_TRANSLATION
+        self._current_language: str = "English"
+        self._show_secondary: bool = self.config.library.show_secondary_translation_by_default
+
+        # ── NDI output (independent subsystem -- see ndi_sender.py; a
+        #    missing NDI runtime or cyndilib install degrades this to a
+        #    no-op instead of touching detection/UI at all) ──
+        self.ndi_sender = NDISender(self.config.ndi)
+
         self._last_speech_at = 0.0
         self._idle_paused = False
         self._last_display_at = 0.0
         self._last_displayed: dict | None = None
         self._startup_warnings: list[str] = []
+        self._startup_steps: dict[str, dict] = {}
+        self._ready = False
 
         # OSC / broadcast state
         self.osc_controller = None
@@ -175,6 +195,16 @@ class MultiVerseServer:
         )
 
     # ── Initialisation ────────────────────────────────────────────────────────
+    def _report_startup(self, step_id: str, label: str, status: str):
+        """Record a boot step and push it to any connected UI (thread-safe)."""
+        self._startup_steps[step_id] = {
+            "step": step_id, "label": label, "status": status,
+        }
+        self._broadcast_threadsafe({
+            "type": "startup_progress",
+            "step": step_id, "label": label, "status": status,
+        })
+
     def initialize(self, db_path: str = DB_PATH,
                    external_faiss_index: str | None = None,
                    external_verse_lookup: str | None = None,
@@ -182,6 +212,7 @@ class MultiVerseServer:
         if not Path(db_path).exists():
             raise FileNotFoundError(f"Bible DB not found at {db_path} — see README.")
 
+        self._report_startup("bible_db", "Loading Bible database", "running")
         # Schema detection happens inside BibleDB.__init__. If the file's
         # table/columns can't be understood, this raises SchemaDetectionError
         # immediately with the details — the server refuses to start rather
@@ -189,48 +220,75 @@ class MultiVerseServer:
         try:
             self.bible_db = BibleDB(db_path, translation=DEFAULT_TRANSLATION)
         except Exception:
+            self._report_startup("bible_db", "Loading Bible database", "error")
             logger.error(
                 "Failed to initialize Bible DB at '%s'. Run "
                 "'python inspect_bible_db.py %s' to diagnose the schema.",
                 db_path, db_path,
             )
             raise
-        self.orchestrator = DetectionOrchestrator(self.bible_db, translation=DEFAULT_TRANSLATION)
+        self._report_startup("bible_db", "Loading Bible database", "done")
+
+        self._report_startup("detection", "Initializing detection engine", "running")
+        self.orchestrator = DetectionOrchestrator(
+            self.bible_db, translation=DEFAULT_TRANSLATION,
+            context_timeout_s=self.config.detection.book_memory_seconds,
+            regex_threshold=self.config.detection.regex_threshold,
+            min_semantic_words=self.config.detection.min_semantic_words,
+            dedup_seconds=self.config.detection.dedup_seconds,
+            vector_threshold=self.config.detection.vector_threshold,
+            min_overlap_ratio=self.config.detection.min_overlap_ratio,
+        )
+        self._report_startup("detection", "Initializing detection engine", "done")
 
         # Fail loud, before anyone's on stage: confirm the DB is actually
         # returning the verses it claims to, not silently wrong ones.
-        self._startup_warnings: list[str] = verify_anchor_verses(self.bible_db)
+        self._report_startup("self_check", "Verifying verse lookups", "running")
+        self._startup_warnings = verify_anchor_verses(self.bible_db)
         if self._startup_warnings:
+            self._report_startup("self_check", "Verifying verse lookups", "error")
             logger.error(
                 "STARTUP SELF-CHECK FAILED — verse lookups may be WRONG for "
                 "this DB file:\n  " + "\n  ".join(self._startup_warnings)
             )
         else:
+            self._report_startup("self_check", "Verifying verse lookups", "done")
             logger.info("Startup self-check passed — anchor verses match expected text")
 
         if external_faiss_index and external_verse_lookup:
             logger.info("Loading pre-built FAISS index — skipping embedding work")
+            self._report_startup("search_index", "Loading search index", "running")
             self.orchestrator.load_external_index(
                 external_faiss_index, external_verse_lookup,
                 lookup_format=external_lookup_format,
             )
         else:
+            self._report_startup("search_index", "Building search index", "running")
             self.orchestrator.build_index()
+        self._report_startup(
+            "search_index",
+            "Loading search index" if external_faiss_index else "Building search index",
+            "done",
+        )
 
+        self._report_startup("narrative", "Starting narrative tracker", "running")
         from narrative_tracker import NarrativeTracker
         self.narrative_tracker = NarrativeTracker(
             embedding_model=self.orchestrator.vector_engine._model,
             bible_db=self.bible_db,
             default_translation="NKJV",
         )
+        self._report_startup("narrative", "Starting narrative tracker", "done")
 
         # ── Wire pipeline: Windows on-device dictation owns the mic directly,
         #    no chunk_seconds/transcriber args needed anymore ───────────────
+        self._report_startup("speech", "Preparing speech pipeline", "running")
         self.pipeline = WinRTSpeechPipeline(
             on_result=self._on_chunk_result,
             on_speech_started=self._on_speech_started,
             on_partial_result=self._on_partial_result,
         )
+        self._report_startup("speech", "Preparing speech pipeline", "done")
         logger.info("Initialization complete.")
 
     # ── VAD instant callback ──────────────────────────────────────────────────
@@ -408,6 +466,27 @@ class MultiVerseServer:
         source  = event.get("source", "semantic")
         min_gap = AUTO_DISPLAY_COOLDOWN.get(source, AUTO_DISPLAY_COOLDOWN["semantic"])
 
+        # Secondary-language lookup: attached whenever a language folder
+        # sits next to the current version's (e.g. data/NKJV/French/...)
+        # and the toggle is on. A missing/broken secondary DB is caught
+        # inside BibleLibrary.get_db and just returns None -- never crashes
+        # the primary (English) detection path.
+        secondary_language = self.library.secondary_language_for(
+            self._current_version, self._current_language
+        )
+        if self._show_secondary and secondary_language and event.get("book_number"):
+            try:
+                sec_db = self.library.get_db(self._current_version, secondary_language)
+                sec_row = sec_db.lookup_verse(
+                    event["book_number"], event["chapter"], event["verse"]
+                ) if sec_db else None
+            except Exception:
+                logger.exception("Secondary-language lookup failed — showing primary only")
+                sec_row = None
+            if sec_row and sec_row.get("text"):
+                event = {**event, "secondary_language": secondary_language,
+                          "secondary_text": sec_row["text"]}
+
         same_verse = (
             self._last_displayed is not None
             and self._last_displayed.get("book")    == event.get("book")
@@ -424,6 +503,17 @@ class MultiVerseServer:
         # Terminal JSONL already printed in orchestrator.detect() — no double-print here.
         await self._broadcast({"type": "detection", **event, "auto_display": True})
 
+        # Mirror to NDI (vMix input) -- isolated try/except so a rendering
+        # or NDI-runtime problem can never take down detection/broadcast.
+        try:
+            self.ndi_sender.update(
+                reference=f"{event.get('book')} {event.get('chapter')}:{event.get('verse')}",
+                text=event.get("text", ""),
+                secondary_text=event.get("secondary_text"),
+            )
+        except Exception:
+            logger.exception("NDI update failed — display pipeline unaffected")
+
     async def _broadcast(self, message: dict):
         if not self._clients:
             return
@@ -438,7 +528,15 @@ class MultiVerseServer:
         # No sounddevice InputStream here: WinRTSpeechPipeline captures the
         # default microphone itself at the OS level. Opening a second
         # consumer on the same device would fight it for the input.
+        if self.pipeline is None:
+            raise RuntimeError("Speech pipeline not initialized")
         self.pipeline.start()
+        if not self.pipeline.wait_session_ready(timeout=20.0):
+            detail = self.pipeline.last_error or "WinRT session did not start in time"
+            raise RuntimeError(detail)
+        if not self.pipeline.is_running():
+            detail = self.pipeline.last_error or "WinRT session stopped unexpectedly"
+            raise RuntimeError(detail)
         logger.info("Mic input started (Windows on-device dictation)")
 
     def stop(self):
@@ -453,38 +551,51 @@ class MultiVerseServer:
         logger.info("Stopped")
 
     # ── WebSocket handling ────────────────────────────────────────────────────
-    async def handle_client(self, websocket):
-        self._clients.add(websocket)
-        logger.info("UI connected (%d total)", len(self._clients))
-        try:
-            await websocket.send(json.dumps({
-                "type": "hardware_profile",
-                "os": "Windows 11",
-                "cpu": None,
-                "cpu_cores": None,
-                "ram_gb": None,
-                "gpus": [],
-                "has_nvidia": False,
-                "nvidia_name": None,
-                "has_other_gpu": False,
-                "other_gpu_name": None,
-                "engine": "Windows on-device dictation (WinRT)",
-                "model_size": "system-managed",
-                "compute_type": "native",
-                "chunk_seconds": "continuous",
-            }))
-            # Mic is already running by the time any UI connects (see run()),
-            # so report "listening" here, not a stale "ready".
-            await websocket.send(json.dumps({"type": "status", "state": "listening"}))
-            # Replay any startup self-check failures so a UI that connects
-            # after boot still sees them -- not just whoever had the
-            # terminal open at launch.
+    async def _send_boot_state(self, websocket):
+        """Everything a newly-connected UI needs to mirror current boot status."""
+        await websocket.send(json.dumps({
+            "type": "hardware_profile",
+            "os": "Windows 11",
+            "cpu": None,
+            "cpu_cores": None,
+            "ram_gb": None,
+            "gpus": [],
+            "has_nvidia": False,
+            "nvidia_name": None,
+            "has_other_gpu": False,
+            "other_gpu_name": None,
+            "engine": "Windows on-device dictation (WinRT)",
+            "model_size": "system-managed",
+            "compute_type": "native",
+            "chunk_seconds": "continuous",
+        }))
+        for step in self._startup_steps.values():
+            await websocket.send(json.dumps({"type": "startup_progress", **step}))
+        state = "ready" if self._ready else "booting"
+        await websocket.send(json.dumps({"type": "status", "state": state}))
+        if self._ready:
             for problem in self._startup_warnings:
                 await websocket.send(json.dumps({
                     "type": "detection_warning",
                     "warning": "startup_self_check_failed",
                     "detail": problem,
                 }))
+            self.library.rescan()
+            await websocket.send(json.dumps({
+                "type": "library",
+                "versions": self.library.list_versions(),
+                "current_version": self._current_version,
+                "current_language": self._current_language,
+                "secondary_language": self.library.secondary_language_for(
+                    self._current_version, self._current_language),
+                "show_secondary": self._show_secondary,
+            }))
+
+    async def handle_client(self, websocket):
+        self._clients.add(websocket)
+        logger.info("UI connected (%d total)", len(self._clients))
+        try:
+            await self._send_boot_state(websocket)
             async for raw in websocket:
                 try:
                     msg = json.loads(raw)
@@ -498,12 +609,29 @@ class MultiVerseServer:
     async def _dispatch(self, msg: dict, websocket):
         action = msg.get("action")
         if action == "start_mic":
-            await websocket.send(json.dumps({"type": "status", "state": "starting"}))
-            await asyncio.to_thread(self.start_mic)
-            await websocket.send(json.dumps({"type": "status", "state": "listening"}))
+            if not self._ready:
+                await websocket.send(json.dumps({
+                    "type": "detection_warning",
+                    "warning": "not_ready",
+                    "detail": "Backend is still loading — wait for all startup steps to finish.",
+                }))
+                return
+            await self._broadcast({"type": "status", "state": "starting"})
+            try:
+                await asyncio.to_thread(self.start_mic)
+            except Exception as exc:
+                logger.exception("start_mic failed")
+                await self._broadcast({
+                    "type": "detection_warning",
+                    "warning": "mic_start_failed",
+                    "detail": str(exc),
+                })
+                await self._broadcast({"type": "status", "state": "ready"})
+                return
+            await self._broadcast({"type": "status", "state": "listening"})
         elif action == "stop":
             await asyncio.to_thread(self.stop)
-            await websocket.send(json.dumps({"type": "status", "state": "stopped"}))
+            await self._broadcast({"type": "status", "state": "ready"})
         elif action == "manual_search":
             query = msg.get("query", "")
             try:
@@ -518,8 +646,81 @@ class MultiVerseServer:
                 "query": query,
                 "result": result,
             }))
+        elif action == "switch_version":
+            await self._switch_version(
+                msg.get("version"), msg.get("language", "English"), websocket
+            )
+        elif action == "set_show_translation":
+            self._show_secondary = bool(msg.get("enabled", False))
+            self._broadcast_threadsafe({
+                "type": "broadcast_state", "show_secondary": self._show_secondary
+            })
         else:
             logger.warning("Unknown action: %s", action)
+
+    async def _switch_version(self, version: str | None, language: str, websocket):
+        """
+        Swaps the active Bible DB + rebuilds the detection index for a
+        different version/language. Runs the (potentially slow, CPU-bound)
+        rebuild in a worker thread so it never blocks the event loop --
+        the transcript/mic keep working while it happens. On any failure
+        the PREVIOUS orchestrator is kept running untouched; nothing about
+        version-switching can leave the app in a broken detection state.
+        """
+        if not version:
+            return
+        db = self.library.get_db(version, language)
+        if db is None:
+            await websocket.send(json.dumps({
+                "type": "detection_warning",
+                "warning": "version_switch_failed",
+                "detail": f"No usable Bible DB found for {version} / {language}",
+            }))
+            return
+
+        await self._broadcast({"type": "status", "state": "switching_version"})
+
+        def _rebuild():
+            new_orch = DetectionOrchestrator(
+                db, translation=version,
+                context_timeout_s=self.config.detection.book_memory_seconds,
+                regex_threshold=self.config.detection.regex_threshold,
+                min_semantic_words=self.config.detection.min_semantic_words,
+                dedup_seconds=self.config.detection.dedup_seconds,
+                vector_threshold=self.config.detection.vector_threshold,
+                min_overlap_ratio=self.config.detection.min_overlap_ratio,
+            )
+            new_orch.build_index()
+            return new_orch
+
+        try:
+            new_orchestrator = await asyncio.to_thread(_rebuild)
+        except Exception:
+            logger.exception("Version switch to %s/%s failed — keeping previous version", version, language)
+            await self._broadcast({
+                "type": "detection_warning",
+                "warning": "version_switch_failed",
+                "detail": f"{version} ({language}) failed to build — kept the previous version running",
+            })
+            await self._broadcast({"type": "status", "state": "listening"})
+            return
+
+        self.orchestrator = new_orchestrator
+        self.bible_db = db
+        self._current_version = version
+        self._current_language = language
+        logger.info("Switched active Bible version to %s / %s", version, language)
+
+        await self._broadcast({
+            "type": "library",
+            "versions": self.library.list_versions(),
+            "current_version": self._current_version,
+            "current_language": self._current_language,
+            "secondary_language": self.library.secondary_language_for(
+                self._current_version, self._current_language),
+            "show_secondary": self._show_secondary,
+        })
+        await self._broadcast({"type": "status", "state": "listening"})
 
     # ── OSC broadcast state ───────────────────────────────────────────────────
     def queue_advance(self, direction: int):
@@ -536,6 +737,11 @@ class MultiVerseServer:
     def set_on_air(self, value: bool):
         self._on_air = value
         self._broadcast_threadsafe({"type": "broadcast_state", "on_air": value})
+        if not value:
+            try:
+                self.ndi_sender.clear()
+            except Exception:
+                logger.exception("NDI clear failed")
 
     def set_opacity(self, value: float):
         self._opacity = max(0.0, min(1.0, value))
@@ -560,21 +766,90 @@ class MultiVerseServer:
             return
         asyncio.run_coroutine_threadsafe(self._broadcast(message), self._loop)
 
+    async def _rescan_library_loop(self):
+        interval = self.config.library.rescan_interval_seconds
+        if interval <= 0:
+            return
+        while True:
+            await asyncio.sleep(interval)
+            before = {v["version"]: v["languages"] for v in self.library.list_versions()}
+            self.library.rescan()
+            after = {v["version"]: v["languages"] for v in self.library.list_versions()}
+            if before != after:
+                logger.info("Bible library changed on disk — notifying connected UIs")
+                await self._broadcast({
+                    "type": "library",
+                    "versions": self.library.list_versions(),
+                    "current_version": self._current_version,
+                    "current_language": self._current_language,
+                    "secondary_language": self.library.secondary_language_for(
+                        self._current_version, self._current_language),
+                    "show_secondary": self._show_secondary,
+                })
+
     # ── Run ───────────────────────────────────────────────────────────────────
-    async def run(self):
+    async def run(self, *, db_path: str = DB_PATH,
+                  external_faiss_index: str | None = None,
+                  external_verse_lookup: str | None = None,
+                  external_lookup_format: str = "pickle"):
         self._loop = asyncio.get_running_loop()
-        from osc_control import OSCController
-        self.osc_controller = OSCController(self)
-        await self.osc_controller.start()
-        # Mic starts automatically here -- the terminal works standalone,
-        # with or without a UI ever connecting. The UI's Start/Stop buttons
-        # (start_mic/stop actions) still work too, but are no longer
-        # required just to get JSON detections printing to this terminal.
-        await asyncio.to_thread(self.start_mic)
+
         async with websockets.serve(self.handle_client, HOST, PORT):
-            logger.info("MultiVerse V3 listening on ws://%s:%d", HOST, PORT)
-            logger.info("Mic already listening -- speak now, UI is optional")
-            await asyncio.Future()
+            logger.info("MultiVerse V3 listening on ws://%s:%d — booting", HOST, PORT)
+            await self._broadcast({"type": "status", "state": "booting"})
+
+            try:
+                await asyncio.to_thread(
+                    self.initialize,
+                    db_path,
+                    external_faiss_index,
+                    external_verse_lookup,
+                    external_lookup_format,
+                )
+            except Exception as exc:
+                logger.exception("Startup failed")
+                await self._broadcast({
+                    "type": "status", "state": "error", "detail": str(exc),
+                })
+                try:
+                    await asyncio.Future()
+                finally:
+                    pass
+                return
+
+            from osc_control import OSCController
+            self.osc_controller = OSCController(self)
+            await self.osc_controller.start()
+
+            self._report_startup("ndi", "Starting NDI output", "running")
+            await asyncio.to_thread(self.ndi_sender.start)
+            self._report_startup("ndi", "Starting NDI output", "done")
+
+            asyncio.create_task(self._rescan_library_loop())
+
+            self._ready = True
+            await self._broadcast({"type": "status", "state": "ready"})
+            for problem in self._startup_warnings:
+                await self._broadcast({
+                    "type": "detection_warning",
+                    "warning": "startup_self_check_failed",
+                    "detail": problem,
+                })
+            self.library.rescan()
+            await self._broadcast({
+                "type": "library",
+                "versions": self.library.list_versions(),
+                "current_version": self._current_version,
+                "current_language": self._current_language,
+                "secondary_language": self.library.secondary_language_for(
+                    self._current_version, self._current_language),
+                "show_secondary": self._show_secondary,
+            })
+            logger.info("Startup complete — press Start in the UI to open the microphone")
+            try:
+                await asyncio.Future()
+            finally:
+                self.ndi_sender.stop()
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
@@ -595,12 +870,11 @@ def main():
     if faiss_index and verse_lookup:
         logger.info("Found pre-built index files — loading automatically")
 
-    server.initialize(
+    asyncio.run(server.run(
         external_faiss_index=faiss_index,
         external_verse_lookup=verse_lookup,
         external_lookup_format=os.environ.get("MULTIVERSE_LOOKUP_FORMAT", "pickle"),
-    )
-    asyncio.run(server.run())
+    ))
 
 
 if __name__ == "__main__":
