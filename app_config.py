@@ -28,10 +28,25 @@ from __future__ import annotations
 import configparser
 import logging
 from dataclasses import dataclass, field
+from pathlib import Path
 
 logger = logging.getLogger("multiverse.config")
 
 DEFAULT_CONFIG_PATH = "config/config.ini"
+
+
+def resolve_config_path(path: str | None = None) -> str:
+    import os
+    if path:
+        return path
+    env = os.environ.get("MULTIVERSE_CONFIG")
+    if env:
+        return env
+    try:
+        from paths import config_path
+        return str(config_path())
+    except Exception:
+        return DEFAULT_CONFIG_PATH
 
 
 # ── Section dataclasses ─────────────────────────────────────────────────────
@@ -63,11 +78,16 @@ class NDIConfig:
     height: int = 1080
     fps: float = 3.0
     font_path: str = ""                    # "" = use a bundled/system default
-    font_size: int = 64
-    reference_font_size: int = 40
-    text_color: tuple[int, int, int] = (255, 255, 255)
+    font_size: int = 56
+    reference_font_size: int = 44
+    secondary_font_size: int = 46
+    text_color: tuple[int, int, int] = (245, 242, 234)       # #f5f2ea — matches .stage-text
+    reference_color: tuple[int, int, int] = (201, 168, 106)  # #c9a86a — matches .stage-ref
+    secondary_color: tuple[int, int, int] = (148, 151, 163)  # #9497a3 — matches .stage-secondary
+    separator_color: tuple[int, int, int] = (35, 36, 41)    # #232429 — matches .line-soft
     background_color: tuple[int, int, int] = (0, 0, 0)
     background_alpha: int = 255            # 0 = fully transparent key, 255 = opaque
+    content_width_ratio: float = 0.90        # matches .stage-text max-width: 90%
     margin: int = 80
 
 
@@ -75,6 +95,7 @@ class NDIConfig:
 class LibraryConfig:
     data_root: str = "data"
     show_secondary_translation_by_default: bool = False
+    secondary_above_primary_by_default: bool = False
     # How often (seconds) the server re-scans data_root for new/removed
     # version or language folders while running, in addition to on every
     # new UI client connection. 0 disables the periodic scan (connect-time
@@ -110,7 +131,7 @@ def _color_tuple(cfg: configparser.ConfigParser, section: str, key: str,
         return default
 
 
-def load_config(path: str = DEFAULT_CONFIG_PATH) -> MultiVerseConfig:
+def load_config(path: str | None = None) -> MultiVerseConfig:
     """
     Reads config/config.ini exactly once and returns a fully-typed,
     validated MultiVerseConfig. Missing keys fall back to the dataclass
@@ -118,6 +139,7 @@ def load_config(path: str = DEFAULT_CONFIG_PATH) -> MultiVerseConfig:
     file or key never crashes startup, but it's always logged so a typo
     is visible instead of silently ignored.
     """
+    path = resolve_config_path(path)
     cfg = configparser.ConfigParser()
     read_files = cfg.read(path)
     if not read_files:
@@ -164,28 +186,45 @@ def load_config(path: str = DEFAULT_CONFIG_PATH) -> MultiVerseConfig:
         font_size=cfg.getint("ndi", "font_size", fallback=ndi_defaults.font_size),
         reference_font_size=cfg.getint("ndi", "reference_font_size",
                                         fallback=ndi_defaults.reference_font_size),
+        secondary_font_size=cfg.getint("ndi", "secondary_font_size",
+                                        fallback=ndi_defaults.secondary_font_size),
         text_color=_color_tuple(cfg, "ndi", "text_color", ndi_defaults.text_color),
+        reference_color=_color_tuple(cfg, "ndi", "reference_color", ndi_defaults.reference_color),
+        secondary_color=_color_tuple(cfg, "ndi", "secondary_color", ndi_defaults.secondary_color),
+        separator_color=_color_tuple(cfg, "ndi", "separator_color", ndi_defaults.separator_color),
         background_color=_color_tuple(cfg, "ndi", "background_color", ndi_defaults.background_color),
         background_alpha=cfg.getint("ndi", "background_alpha", fallback=ndi_defaults.background_alpha),
+        content_width_ratio=cfg.getfloat("ndi", "content_width_ratio",
+                                          fallback=ndi_defaults.content_width_ratio),
         margin=cfg.getint("ndi", "margin", fallback=ndi_defaults.margin),
     )
 
     lib_defaults = LibraryConfig()
+    import os
+    data_root = os.environ.get("MULTIVERSE_DATA_ROOT") or cfg.get(
+        "library", "data_root", fallback=lib_defaults.data_root)
     library = LibraryConfig(
-        data_root=cfg.get("library", "data_root", fallback=lib_defaults.data_root),
+        data_root=data_root,
         show_secondary_translation_by_default=cfg.getboolean(
             "library", "show_secondary_translation_by_default",
             fallback=lib_defaults.show_secondary_translation_by_default),
+        secondary_above_primary_by_default=cfg.getboolean(
+            "library", "secondary_above_primary_by_default",
+            fallback=lib_defaults.secondary_above_primary_by_default),
         rescan_interval_seconds=cfg.getfloat(
             "library", "rescan_interval_seconds",
             fallback=lib_defaults.rescan_interval_seconds),
     )
+
+    db_path = cfg.get("database", "db_path", fallback="data/NKJV.SQLite3")
+    if os.environ.get("MULTIVERSE_DATA_ROOT") and not Path(db_path).is_absolute():
+        db_path = str(Path(os.environ["MULTIVERSE_DATA_ROOT"]) / Path(db_path).name)
 
     return MultiVerseConfig(
         detection=detection,
         app=app,
         ndi=ndi,
         library=library,
-        db_path=cfg.get("database", "db_path", fallback="data/NKJV.SQLite3"),
+        db_path=db_path,
         translation=cfg.get("database", "translation", fallback="NKJV"),
     )

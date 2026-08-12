@@ -32,6 +32,7 @@ import time
 import re
 
 from reference_context import ReferenceContext
+from detection_filters import should_skip_detection
 from verse_detector import detect_direct_reference, _WORD_TO_NUM
 from vector_search import VectorSearchEngine
 from console_output import write_line
@@ -180,6 +181,11 @@ class DetectionOrchestrator:
         """
         if not transcript_chunk or not transcript_chunk.strip():
             return {"triggered": False}
+
+        if should_skip_detection(transcript_chunk):
+            logger.debug("Skipping detection — likely non-English interpreter speech: %r",
+                         transcript_chunk[:80])
+            return {"triggered": False, "skipped": "interpreter_speech"}
 
         self._last_miss = None
 

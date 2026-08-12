@@ -5,34 +5,21 @@ Broadcasts the currently-displayed verse as a live NDI video source, so
 vMix (or any other NDI receiver) can add MultiVerse as a normal input --
 no capture window, no third-party screen-grab tool.
 
-Design principles this follows (per the "no hardcoding, independent
-failure" requirement):
-
-  * Every visual/network setting (resolution, fps, font, colors, sender
-    name) comes from NDIConfig (app_config.py / config.ini [ndi]) --
-    nothing here is a hardcoded literal.
-  * This module is fully independent of the detection pipeline. It only
-    exposes update()/clear()/start()/stop() -- server.py calls those and
-    never reaches into this module's internals. Swapping the renderer or
-    the NDI library later only touches this file.
-  * cyndilib (the NDI SDK wrapper) and the NDI Runtime DLL are optional
-    at import time AND at runtime. If either is missing, start() logs
-    ONE clear warning and every subsequent call becomes a no-op. A
-    missing NDI install can never crash transcription, detection, or the
-    WebSocket UI.
-  * NDI expects a continuously live stream, not a single push -- a
-    background thread re-sends the current frame at the configured fps
-    so receivers never show it as frozen/stale, decoupled from how often
-    verses actually change.
+The frame layout mirrors the Live Output stage in ui/index.html exactly:
+centered black canvas, gold reference, primary verse text, optional dashed
+separator, optional italic secondary translation (above or below primary).
 """
 
 from __future__ import annotations
 
 import logging
+import os
 import threading
 import time
+from pathlib import Path
 
 from app_config import NDIConfig
+from verse_display import DisplaySettings, compute_dynamic_sizes
 
 logger = logging.getLogger("multiverse.ndi")
 
@@ -45,12 +32,17 @@ class NDISender:
         self._video_frame = None
         self._sender = None
         self._lock = threading.Lock()
-        self._frame_bytes = None          # current RGBA numpy buffer to resend
+        self._frame_bytes = None
         self._thread: threading.Thread | None = None
         self._stop_event = threading.Event()
         self._warned = False
         self._font = None
+        self._font_bold = None
         self._ref_font = None
+        self._sec_font = None
+        self._sec_font_bold = None
+        self._display = DisplaySettings()
+        self._backgrounds_dir: Path | None = None
 
     # ------------------------------------------------------------------
     def start(self):
@@ -61,7 +53,7 @@ class NDISender:
             return
 
         try:
-            import numpy as np  # noqa: F401  (fail fast here if missing too)
+            import numpy as np  # noqa: F401
             from cyndilib.wrapper.ndi_structs import FourCC
             from cyndilib.video_frame import VideoSendFrame
             from cyndilib.sender import Sender
@@ -86,9 +78,6 @@ class NDISender:
             self._sender.set_video_frame(self._video_frame)
             self._sender.open()
         except Exception as e:
-            # Most common cause: cyndilib imported fine (pure Python/Cython
-            # wheel installed) but the actual NDI Runtime DLL/shared library
-            # isn't present on this machine.
             self._warn_once(
                 "NDI output unavailable — could not open an NDI sender. This "
                 "usually means the NDI Runtime isn't installed on this machine "
@@ -120,12 +109,22 @@ class NDISender:
                 logger.exception("Error closing NDI sender")
         self._available = False
 
+    def set_backgrounds_dir(self, path: Path | None):
+        self._backgrounds_dir = path
+
+    def set_display(self, display: DisplaySettings):
+        self._display = display
+
     # ------------------------------------------------------------------
-    def update(self, reference: str, text: str, secondary_text: str | None = None):
-        """Render a new verse-card frame and start broadcasting it. No-op
-        (returns immediately) if NDI isn't available."""
+    def update(self, reference: str, text: str, secondary_text: str | None = None,
+               secondary_above: bool | None = None, display: DisplaySettings | None = None):
+        """Render a new verse-card frame and start broadcasting it."""
         if not self._available:
             return
+        if display is not None:
+            self._display = display
+        if secondary_above is not None:
+            self._display.secondary_above = secondary_above
         try:
             frame = self._render_frame(reference, text, secondary_text)
         except Exception:
@@ -152,20 +151,45 @@ class NDISender:
             logger.warning(message)
             self._warned = True
 
+    def _resolve_font_path(self) -> str | None:
+        if self.config.font_path and Path(self.config.font_path).exists():
+            return self.config.font_path
+        win = Path(os.environ.get("WINDIR", r"C:\Windows")) / "Fonts"
+        for name in ("Source Serif 4", "georgia", "times"):
+            for ext in (".ttf", "bd.ttf", "i.ttf"):
+                candidate = win / f"{name}{ext}"
+                if candidate.exists():
+                    return str(candidate)
+        for name in ("georgia.ttf", "times.ttf"):
+            candidate = win / name
+            if candidate.exists():
+                return str(candidate)
+        return None
+
     def _load_fonts(self):
         from PIL import ImageFont
+        cfg = self.config
+        path = self._resolve_font_path()
+        italic_path = None
+        if path:
+            stem = Path(path)
+            for candidate in (stem.parent / f"{stem.stem}i{stem.suffix}",
+                              stem.parent / "georgiai.ttf"):
+                if candidate.exists():
+                    italic_path = str(candidate)
+                    break
         try:
-            if self.config.font_path:
-                self._font = ImageFont.truetype(self.config.font_path, self.config.font_size)
-                self._ref_font = ImageFont.truetype(self.config.font_path, self.config.reference_font_size)
+            if path:
+                self._font = ImageFont.truetype(path, cfg.font_size)
+                self._ref_font = ImageFont.truetype(path, cfg.reference_font_size)
+                self._sec_font = ImageFont.truetype(
+                    italic_path or path, cfg.secondary_font_size)
             else:
-                raise OSError("no font_path configured")
+                raise OSError("no serif font found")
         except Exception:
-            # Falls back to Pillow's built-in bitmap font -- always
-            # available, so a missing/misconfigured font_path never
-            # prevents NDI from working, it just looks plainer.
-            self._font = ImageFont.load_default(size=self.config.font_size)
-            self._ref_font = ImageFont.load_default(size=self.config.reference_font_size)
+            self._font = ImageFont.load_default(size=cfg.font_size)
+            self._ref_font = ImageFont.load_default(size=cfg.reference_font_size)
+            self._sec_font = ImageFont.load_default(size=cfg.secondary_font_size)
 
     def _render_frame(self, reference: str | None, text: str | None,
                        secondary_text: str | None):
@@ -173,50 +197,158 @@ class NDISender:
         from PIL import Image, ImageDraw
 
         cfg = self.config
-        r, g, b = cfg.background_color
-        img = Image.new("RGBA", (cfg.width, cfg.height), (r, g, b, cfg.background_alpha))
+        disp = self._display
+        colors = disp.effective_colors()
+        br, bg, bb = colors["bg"]
+        img = Image.new("RGBA", (cfg.width, cfg.height), (br, bg, bb, colors["bg_alpha"]))
         draw = ImageDraw.Draw(img)
 
-        if text:
-            tr, tg, tb = cfg.text_color
-            max_width = cfg.width - 2 * cfg.margin
+        if disp.background_mode == "image" and disp.background_image and self._backgrounds_dir:
+            bg_path = self._backgrounds_dir / disp.background_image
+            if bg_path.exists():
+                try:
+                    bg = Image.open(bg_path).convert("RGBA").resize((cfg.width, cfg.height))
+                    img = Image.alpha_composite(bg, img)
+                    draw = ImageDraw.Draw(img)
+                except Exception:
+                    logger.exception("Background image load failed: %s", bg_path)
 
-            ref_lines = [reference] if reference else []
-            body_lines = _wrap_text(draw, text, self._font, max_width)
-            secondary_lines = _wrap_text(draw, secondary_text, self._font, max_width) if secondary_text else []
+        if not text:
+            return np.asarray(img, dtype=np.uint8)
 
-            line_gap = int(cfg.font_size * 0.35)
-            ref_h = cfg.reference_font_size + line_gap if ref_lines else 0
-            body_h = len(body_lines) * (cfg.font_size + line_gap)
-            sec_gap = int(cfg.font_size * 0.5) if secondary_lines else 0
-            sec_h = len(secondary_lines) * (int(cfg.font_size * 0.85) + line_gap)
-            total_h = ref_h + body_h + sec_gap + sec_h
+        ref_px, primary_px, sec_px = compute_dynamic_sizes(
+            text, secondary_text,
+            base_ref=cfg.reference_font_size,
+            base_primary=cfg.font_size,
+            base_secondary=cfg.secondary_font_size,
+            text_scale=disp.text_scale,
+            ref_scale=disp.ref_scale,
+            canvas_w=cfg.width,
+            canvas_h=cfg.height,
+        )
+        self._ensure_fonts(primary_px, ref_px, sec_px, disp)
 
-            y = max(cfg.margin, (cfg.height - total_h) // 2)
+        max_width = int(cfg.width * cfg.content_width_ratio)
+        x_center = cfg.width // 2
+        secondary_above = disp.secondary_above
 
-            if ref_lines:
-                draw.text((cfg.margin, y), ref_lines[0], font=self._ref_font, fill=(tr, tg, tb, 255))
-                y += ref_h
+        ref_lines = [reference] if reference else []
+        primary_lines = _wrap_text(draw, text, self._font, max_width)
+        secondary_lines = (
+            _wrap_text(draw, secondary_text, self._sec_font, max_width)
+            if secondary_text else []
+        )
 
-            for line in body_lines:
-                draw.text((cfg.margin, y), line, font=self._font, fill=(tr, tg, tb, 255))
-                y += cfg.font_size + line_gap
+        line_gap_primary = int(primary_px * 0.5)
+        line_gap_secondary = int(sec_px * 0.5)
+        block_gap = 10
+        separator_gap = 10
+        ref_h = (ref_px + 4) if ref_lines else 0
 
+        def block_height(lines, font_size, gap):
+            if not lines:
+                return 0
+            return len(lines) * font_size + max(0, len(lines) - 1) * gap
+
+        primary_h = block_height(primary_lines, primary_px, line_gap_primary)
+        secondary_h = block_height(secondary_lines, sec_px, line_gap_secondary)
+        separator_h = 1 if secondary_lines else 0
+        middle_gap = (block_gap + separator_gap + separator_h + separator_gap) if secondary_lines else 0
+        total_h = ref_h + primary_h + secondary_h + middle_gap
+        y = max(cfg.margin, (cfg.height - total_h) // 2)
+
+        rr, rg, rb = colors["reference"]
+        tr, tg, tb = colors["text"]
+        sr, sg, sb = colors["secondary"]
+        sep = colors["separator"]
+
+        if disp.show_border:
+            pad = 24
+            draw.rectangle(
+                [pad, pad, cfg.width - pad, cfg.height - pad],
+                outline=(rr, rg, rb, 180), width=3,
+            )
+
+        if ref_lines:
+            _draw_centered_line(draw, ref_lines[0], self._ref_font, x_center, y, (rr, rg, rb, 255))
+            y += ref_h
+
+        def draw_primary():
+            nonlocal y
+            font = self._font_bold if disp.primary_bold else self._font
+            for line in primary_lines:
+                _draw_centered_line(draw, line, font, x_center, y, (tr, tg, tb, 255))
+                y += primary_px + line_gap_primary
+
+        def draw_secondary():
+            nonlocal y
+            for line in secondary_lines:
+                _draw_centered_line(draw, line, self._sec_font, x_center, y, (sr, sg, sb, 255))
+                y += sec_px + line_gap_secondary
+
+        def draw_separator():
+            nonlocal y
+            y += block_gap
+            sep_w = max_width
+            sep_x0 = (cfg.width - sep_w) // 2
+            _draw_dashed_line(draw, y, sep_x0, sep_x0 + sep_w, sep + (255,))
+            y += separator_gap + separator_h + separator_gap
+
+        if secondary_lines and secondary_above:
+            draw_secondary()
+            draw_separator()
+            draw_primary()
+        else:
+            draw_primary()
             if secondary_lines:
-                y += sec_gap
-                sec_font = self._font  # same face, drawn a touch smaller via wrap width only
-                for line in secondary_lines:
-                    draw.text((cfg.margin, y), line, font=sec_font, fill=(tr, tg, tb, 200))
-                    y += int(cfg.font_size * 0.85) + line_gap
+                draw_separator()
+                draw_secondary()
 
         return np.asarray(img, dtype=np.uint8)
 
+    def _ensure_fonts(self, primary_px: int, ref_px: int, sec_px: int, disp: DisplaySettings):
+        from PIL import ImageFont
+        path = self._resolve_font_path()
+        sans = Path(os.environ.get("WINDIR", r"C:\Windows")) / "Fonts" / "segoeui.ttf"
+        if disp.font_family == "sans" and sans.exists():
+            path = str(sans)
+        italic_path = None
+        if path:
+            stem = Path(path)
+            for candidate in (stem.parent / f"{stem.stem}i{stem.suffix}",
+                              stem.parent / "segoei.ttf", stem.parent / "georgiai.ttf"):
+                if candidate.exists():
+                    italic_path = str(candidate)
+                    break
+        try:
+            if path:
+                bold_path = path
+                stem = Path(path)
+                for candidate in (stem.parent / f"{stem.stem}bd{stem.suffix}",
+                                  stem.parent / "georgiab.ttf",
+                                  stem.parent / "arialbd.ttf"):
+                    if candidate.exists():
+                        bold_path = str(candidate)
+                        break
+                self._font = ImageFont.truetype(path, primary_px)
+                self._font_bold = ImageFont.truetype(bold_path, primary_px)
+                self._ref_font = ImageFont.truetype(path, ref_px)
+                sec_font_path = italic_path or path
+                if disp.secondary_italic and italic_path:
+                    sec_font_path = italic_path
+                elif not disp.secondary_italic:
+                    sec_font_path = path
+                self._sec_font = ImageFont.truetype(sec_font_path, sec_px)
+            else:
+                raise OSError("no font")
+        except Exception:
+            self._font = ImageFont.load_default(size=primary_px)
+            self._font_bold = self._font
+            self._ref_font = ImageFont.load_default(size=ref_px)
+            self._sec_font = ImageFont.load_default(size=sec_px)
+
     def _resend_loop(self):
-        """NDI wants a continuous stream even when the frame content hasn't
-        changed. Runs independently of how often update() is called."""
         interval = 1.0 / max(self.config.fps, 0.1)
-        # Start with a blank frame so the source is live immediately even
-        # before the first verse triggers.
         with self._lock:
             if self._frame_bytes is None:
                 try:
@@ -240,6 +372,19 @@ class NDISender:
                     logger.exception("NDI frame send failed — will retry next tick")
             elapsed = time.monotonic() - start
             self._stop_event.wait(max(0.0, interval - elapsed))
+
+
+def _draw_centered_line(draw, text: str, font, x_center: int, y: int, fill):
+    w = draw.textlength(text, font=font)
+    draw.text((x_center - w / 2, y), text, font=font, fill=fill)
+
+
+def _draw_dashed_line(draw, y: int, x0: int, x1: int, color):
+    dash, gap = 10, 8
+    x = x0
+    while x < x1:
+        draw.line([(x, y), (min(x + dash, x1), y)], fill=color, width=1)
+        x += dash + gap
 
 
 def _wrap_text(draw, text: str | None, font, max_width: int) -> list[str]:

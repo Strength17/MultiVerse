@@ -84,10 +84,11 @@ def _words_to_number(phrase: str) -> int | None:
 # Scoped to ORDINAL_BOOK_STEMS only, so a stray "one", "two", or "three"
 # elsewhere in a sentence ("verse one hundred") is never touched.
 _STEM_ALT = "|".join(re.escape(s) for s in ORDINAL_BOOK_STEMS)
+_STEM_NO_JOHN = "|".join(re.escape(s) for s in ORDINAL_BOOK_STEMS if s != "john")
 _ORDINAL_WORD_RE = re.compile(rf'\bfirst\s+(?={_STEM_ALT})', re.IGNORECASE)
 _ORDINAL_WORD_RE2 = re.compile(rf'\bsecond\s+(?={_STEM_ALT})', re.IGNORECASE)
 _ORDINAL_WORD_RE3 = re.compile(rf'\bthird\s+(?={_STEM_ALT})', re.IGNORECASE)
-_CARDINAL_ONE_RE = re.compile(rf'\bone\s+(?={_STEM_ALT})', re.IGNORECASE)
+_CARDINAL_ONE_RE = re.compile(rf'\bone\s+(?={_STEM_NO_JOHN})', re.IGNORECASE)
 _CARDINAL_TWO_RE = re.compile(rf'\btwo\s+(?={_STEM_ALT})', re.IGNORECASE)
 _CARDINAL_THREE_RE = re.compile(rf'\bthree\s+(?={_STEM_ALT})', re.IGNORECASE)
 # Numeral+suffix ordinal forms: "1st corinthians" -> "1 corinthians". WinRT
@@ -124,7 +125,9 @@ def _normalize_prefixes(text: str) -> str:
 
 
 def _parse_number_token(token: str) -> int | None:
-    token = token.strip()
+    token = token.strip().lower()
+    if token in ("to", "too"):
+        return 1
     if token.isdigit():
         return int(token)
     return _words_to_number(token)
@@ -227,6 +230,11 @@ _BARE_CHAPTER = re.compile(
 _BOOK_SINGLE_NUMBER = re.compile(
     rf"\b({_BOOK_RE})\s+({_NUM_OR_WORD})\b"
     rf"(?!\s*[:./\-]?\s*(?:{_NUM_OR_WORD})\b)",
+    re.IGNORECASE,
+)
+
+_BOOK_TWO_NUMBERS = re.compile(
+    rf"\b({_BOOK_RE})\s+(\d{{1,3}})\s+(\d{{1,3}})\b(?!\s*[:./])",
     re.IGNORECASE,
 )
 
@@ -390,11 +398,30 @@ def detect_direct_reference(
         key = book_raw.lower()
         if chapter and verse and key in NAME_TO_BOOK:
             book_number, book_name = NAME_TO_BOOK[key]
+            if chapter >= 10 and len(str(chapter)) == 2:
+                d0, d1 = int(str(chapter)[0]), int(str(chapter)[1])
+                if verse == d1 and bible_db and bible_db.validate_reference(
+                    book_number, d0, d1
+                ).get("valid"):
+                    chapter, verse = d0, d1
             context.discard_pending("explicit spoken-form reference matched")
             context.update(book_number, book_name, chapter)
             return _result("regex", book_name, book_number, chapter, verse, 0.95, m.group(0))
 
-    # 3c) Dangling "Book chapter N verse" with nothing after -- the verse
+    # 3d) "John 1 1" — two adjacent numbers, no chapter/verse keywords
+    m = _last_match(_BOOK_TWO_NUMBERS, text_norm)
+    if m:
+        book_raw, c_raw, v_raw = m.groups()
+        chapter = _parse_number_token(c_raw)
+        verse = _parse_number_token(v_raw)
+        key = book_raw.lower()
+        if chapter and verse and key in NAME_TO_BOOK:
+            book_number, book_name = NAME_TO_BOOK[key]
+            context.discard_pending("book N N reference matched")
+            context.update(book_number, book_name, chapter)
+            return _result("regex", book_name, book_number, chapter, verse, 0.94, m.group(0))
+
+    # 3c) Dangling "Book chapter N verse"
     # number hasn't been spoken yet (still coming, or the speaker was cut
     # off). Primes a pending guess on the chapter instead of dropping it,
     # so a later bare "verse N" confirms against THIS chapter rather than
@@ -479,6 +506,16 @@ def detect_direct_reference(
             book_number, book_name = NAME_TO_BOOK[key]
             chapter_guess = _parse_number_token(num_raw)
             if chapter_guess:
+                collapsed = _try_collapsed_chapter_verse(
+                    bible_db, book_number, book_name, chapter_guess, text_norm, context,
+                )
+                if collapsed:
+                    chapter, verse = collapsed
+                    context.discard_pending("collapsed STT chapter:verse matched")
+                    context.update(book_number, book_name, chapter)
+                    return _result(
+                        "regex", book_name, book_number, chapter, verse, 0.91, m.group(0),
+                    )
                 # If the whole number is already a plausible chapter for
                 # this book, keep the existing behavior untouched (still
                 # genuinely ambiguous between "chapter N" and "verse N of
@@ -551,6 +588,28 @@ def detect_direct_reference(
 
     # 10) Fuzzy fallback -- catches mishearing: "genisis", "revelations", "jon"
     return _fuzzy_detect(text_norm, context, regex_threshold=regex_threshold)
+
+
+def _try_collapsed_chapter_verse(
+    bible_db, book_number: int, book_name: str, chapter_guess: int,
+    text_norm: str, context: ReferenceContext,
+) -> tuple[int, int] | None:
+    """STT often collapses 'chapter 1 verse 1' into 'John 11'. Recover when
+    'verse' appears in the same utterance and digit-split validates."""
+    if chapter_guess < 10 or len(str(chapter_guess)) != 2:
+        return None
+    if not re.search(r"\bverse\b", text_norm, re.IGNORECASE):
+        if not context.has_pending():
+            return None
+    digits = str(chapter_guess)
+    ch, ver = int(digits[0]), int(digits[1])
+    if ch < 1 or ver < 1:
+        return None
+    if bible_db is None:
+        return None
+    if bible_db.validate_reference(book_number, ch, ver).get("valid"):
+        return ch, ver
+    return None
 
 
 def _fuzzy_detect(text: str, context: ReferenceContext, regex_threshold: float = 0.75) -> dict | None:

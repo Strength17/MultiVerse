@@ -49,8 +49,8 @@ if not exist "logs\multiverse.pid" (
 echo Waiting for the backend to come online...
 timeout /t 4 /nobreak >nul
 
-echo Opening MultiVerse UI in your browser...
-start "" "%~dp0ui\index.html"
+echo Opening MultiVerse UI...
+start "" "http://127.0.0.1:8766/ui/index.html"
 
 echo.
 echo MultiVerse is running in the background (no visible window -- that's

@@ -33,6 +33,7 @@ import asyncio
 import concurrent.futures
 import json
 import logging
+import os
 import sys
 import time
 from pathlib import Path
@@ -47,15 +48,31 @@ from detection_orchestrator import DetectionOrchestrator
 from winrt_pipeline import WinRTSpeechPipeline
 from vocab_correction import correct_text, purge_bad_corrections
 
-# ── Logging ───────────────────────────────────────────────────────────────────
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(name)s %(levelname)s %(message)s",
-    handlers=[
-        logging.FileHandler("logs/multiverse.log"),
-        logging.StreamHandler(sys.stdout),
-    ],
+from paths import app_root, ensure_user_dirs, resource_root, bootstrap_install
+from verse_display import (
+    DisplaySettings, load_user_display, save_user_display, list_background_images,
 )
+from audio_devices import list_input_devices, set_default_input_device
+from error_catalog import log_entry
+
+# ── Logging ───────────────────────────────────────────────────────────────────
+def _configure_logging():
+    import os
+    log_dir = Path(os.environ.get("MULTIVERSE_LOGS_DIR", "logs"))
+    log_dir.mkdir(parents=True, exist_ok=True)
+    log_file = log_dir / "multiverse.log"
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(name)s %(levelname)s %(message)s",
+        handlers=[
+            logging.FileHandler(log_file),
+            logging.StreamHandler(sys.stdout),
+        ],
+        force=True,
+    )
+
+
+_configure_logging()
 logger = logging.getLogger("multiverse.server")
 
 # One-time self-heal: strip any bad entries (stopwords, digit-containing
@@ -155,16 +172,26 @@ class MultiVerseServer:
         self._mic_stream = None
 
         # ── Bible version/language library (auto-discovered from disk) ──
-        self.library = BibleLibrary(self.config.library.data_root)
+        data_root = os.environ.get("MULTIVERSE_DATA_ROOT", self.config.library.data_root)
+        self.library = BibleLibrary(data_root)
         self.library.rescan()
         self._current_version: str = DEFAULT_TRANSLATION
         self._current_language: str = "English"
         self._show_secondary: bool = self.config.library.show_secondary_translation_by_default
+        self._secondary_above: bool = self.config.library.secondary_above_primary_by_default
 
-        # ── NDI output (independent subsystem -- see ndi_sender.py; a
-        #    missing NDI runtime or cyndilib install degrades this to a
-        #    no-op instead of touching detection/UI at all) ──
+        self._user_dirs = ensure_user_dirs()
+        self._display_path = self._user_dirs["config"] / "display_user.json"
+        self._display = load_user_display(self._display_path)
+        self._display.secondary_above = self._secondary_above
+        self._selected_mic: str = "System Default Microphone"
+        self._session_transcript: list[dict] = []
+        self._ndi_broadcasting = False
+
+        # ── NDI output (independent subsystem — see ndi_sender.py) ──
         self.ndi_sender = NDISender(self.config.ndi)
+        self.ndi_sender.set_backgrounds_dir(self._user_dirs["backgrounds"])
+        self.ndi_sender.set_display(self._display)
 
         self._last_speech_at = 0.0
         self._idle_paused = False
@@ -354,6 +381,11 @@ class MultiVerseServer:
         raw_text = chunk_result.text
         corrected_text = correct_text(raw_text)
 
+        self._session_transcript.append({
+            "ts": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "text": raw_text,
+        })
+
         # ── Transcript: terminal + log file + WebSocket, ALL immediate ────────
         # This must never wait on detection. Detection (below) includes a
         # semantic/embedding fallback that can take real time, and used to
@@ -438,8 +470,7 @@ class MultiVerseServer:
             # is running with an empty index -- not a "detection" (nothing
             # to display), but not nothing either. Surface it to the UI
             # instead of collapsing into an indistinguishable heartbeat.
-            logger.warning("Detection warning: %s", event)
-            await self._broadcast({"type": "detection_warning", **event})
+            await self._emit_system_log_from_event(event)
 
         if narrative_event is not None:
             # Terminal JSONL print (mirrors the unconditional print that
@@ -503,16 +534,69 @@ class MultiVerseServer:
         # Terminal JSONL already printed in orchestrator.detect() — no double-print here.
         await self._broadcast({"type": "detection", **event, "auto_display": True})
 
-        # Mirror to NDI (vMix input) -- isolated try/except so a rendering
-        # or NDI-runtime problem can never take down detection/broadcast.
         try:
-            self.ndi_sender.update(
-                reference=f"{event.get('book')} {event.get('chapter')}:{event.get('verse')}",
-                text=event.get("text", ""),
-                secondary_text=event.get("secondary_text"),
-            )
+            self._push_ndi(event)
         except Exception:
             logger.exception("NDI update failed — display pipeline unaffected")
+
+    def _push_ndi(self, event: dict):
+        if not self._display.ndi_output_enabled:
+            return
+        self._display.secondary_above = self._secondary_above
+        self.ndi_sender.set_display(self._display)
+        self.ndi_sender.update(
+            reference=f"{event.get('book')} {event.get('chapter')}:{event.get('verse')}",
+            text=event.get("text", ""),
+            secondary_text=event.get("secondary_text"),
+        )
+        self._ndi_broadcasting = True
+        self._broadcast_threadsafe({
+            "type": "ndi_state",
+            "enabled": True,
+            "broadcasting": True,
+            "available": self.ndi_sender._available,
+        })
+
+    async def _emit_system_log(self, code: str, message: str, fix: str | None = None):
+        entry = log_entry(code, message, fix)
+        entry["ts"] = time.strftime("%H:%M:%S")
+        await self._broadcast(entry)
+
+    async def _emit_system_log_from_event(self, event: dict):
+        from error_catalog import CATALOG
+        warning = event.get("warning", "generic")
+        code = warning if warning in CATALOG else "generic"
+        detail = event.get("detail") or event.get("reason") or ""
+        book = event.get("book")
+        ch, v = event.get("chapter"), event.get("verse")
+        if book and ch and v:
+            msg = f"Heard {book} {ch}:{v}" + (f" — {detail}" if detail else "")
+        else:
+            msg = detail or str(warning)
+        await self._emit_system_log(code, msg)
+
+    def _search_query(self, query: str) -> dict | None:
+        """Regex first, then semantic paraphrase — same priority as live detection."""
+        if not query or not query.strip():
+            return None
+        corrected = correct_text(query.strip())
+        regex_hit = self.orchestrator._run_regex_only(corrected)
+        if regex_hit and regex_hit.get("triggered"):
+            return regex_hit
+        if not self.orchestrator._index_built:
+            return None
+        return self.orchestrator.vector_engine.search_paraphrase(corrected)
+
+    def _mic_progress(self, step: str, percent: int):
+        self._broadcast_threadsafe({
+            "type": "mic_startup_progress", "step": step, "percent": percent,
+        })
+
+    def _refresh_ndi_display(self):
+        """Re-push the current on-air verse to NDI (e.g. after layout toggle)."""
+        if not self._last_displayed:
+            return
+        self._push_ndi(self._last_displayed)
 
     async def _broadcast(self, message: dict):
         if not self._clients:
@@ -525,18 +609,20 @@ class MultiVerseServer:
 
     # ── Mic / file control ────────────────────────────────────────────────────
     def start_mic(self):
-        # No sounddevice InputStream here: WinRTSpeechPipeline captures the
-        # default microphone itself at the OS level. Opening a second
-        # consumer on the same device would fight it for the input.
         if self.pipeline is None:
             raise RuntimeError("Speech pipeline not initialized")
+        self._mic_progress("starting_mic", 0)
+        set_default_input_device(self._selected_mic)
+        self._mic_progress("setting_device", 33)
         self.pipeline.start()
+        self._mic_progress("opening_session", 66)
         if not self.pipeline.wait_session_ready(timeout=20.0):
             detail = self.pipeline.last_error or "WinRT session did not start in time"
             raise RuntimeError(detail)
         if not self.pipeline.is_running():
             detail = self.pipeline.last_error or "WinRT session stopped unexpectedly"
             raise RuntimeError(detail)
+        self._mic_progress("ready", 100)
         logger.info("Mic input started (Windows on-device dictation)")
 
     def stop(self):
@@ -549,6 +635,32 @@ class MultiVerseServer:
         # concurrent.futures registers its own atexit handler, so the
         # worker thread is still joined cleanly when the process exits.
         logger.info("Stopped")
+
+    def _save_session_transcript(self) -> str | None:
+        if not self._session_transcript:
+            return None
+        out_dir = self._user_dirs["transcription"]
+        stamp = time.strftime("%Y-%m-%d_%H-%M-%S")
+        path = out_dir / f"MultiVerse_{stamp}.txt"
+        lines = [
+            f"MultiVerse session — saved {time.strftime('%Y-%m-%d %H:%M:%S')}",
+            "=" * 60,
+            "",
+        ]
+        for row in self._session_transcript:
+            lines.append(f"[{row['ts']}] {row['text']}")
+        path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        logger.info("Session transcript saved to %s", path)
+        return str(path)
+
+    def _apply_display_patch(self, patch: dict):
+        for key, val in patch.items():
+            if hasattr(self._display, key):
+                setattr(self._display, key, val)
+        self._display.secondary_above = self._secondary_above
+        save_user_display(self._display_path, self._display)
+        self.ndi_sender.set_display(self._display)
+        self._refresh_ndi_display()
 
     # ── WebSocket handling ────────────────────────────────────────────────────
     async def _send_boot_state(self, websocket):
@@ -575,11 +687,7 @@ class MultiVerseServer:
         await websocket.send(json.dumps({"type": "status", "state": state}))
         if self._ready:
             for problem in self._startup_warnings:
-                await websocket.send(json.dumps({
-                    "type": "detection_warning",
-                    "warning": "startup_self_check_failed",
-                    "detail": problem,
-                }))
+                await self._emit_system_log("startup_self_check_failed", problem)
             self.library.rescan()
             await websocket.send(json.dumps({
                 "type": "library",
@@ -589,6 +697,27 @@ class MultiVerseServer:
                 "secondary_language": self.library.secondary_language_for(
                     self._current_version, self._current_language),
                 "show_secondary": self._show_secondary,
+                "secondary_above": self._secondary_above,
+            }))
+            await websocket.send(json.dumps({
+                "type": "display_state",
+                "settings": self._display.to_ui_dict(),
+                "backgrounds": list_background_images(self._user_dirs["backgrounds"]),
+            }))
+            await websocket.send(json.dumps({
+                "type": "ndi_state",
+                "enabled": self._display.ndi_output_enabled,
+                "broadcasting": False,
+                "available": getattr(self.ndi_sender, "_available", False),
+            }))
+            if self.config.ndi.enabled and not getattr(self.ndi_sender, "_available", False):
+                await self._emit_system_log(
+                    "ndi_unavailable",
+                    "NDI output is enabled but the runtime is not installed.",
+                )
+            await websocket.send(json.dumps({
+                "type": "audio_devices",
+                "devices": list_input_devices(),
             }))
 
     async def handle_client(self, websocket):
@@ -610,34 +739,42 @@ class MultiVerseServer:
         action = msg.get("action")
         if action == "start_mic":
             if not self._ready:
-                await websocket.send(json.dumps({
-                    "type": "detection_warning",
-                    "warning": "not_ready",
-                    "detail": "Backend is still loading — wait for all startup steps to finish.",
-                }))
+                await self._emit_system_log(
+                    "not_ready",
+                    "Backend is still loading — wait for all startup steps to finish.",
+                )
                 return
             await self._broadcast({"type": "status", "state": "starting"})
             try:
                 await asyncio.to_thread(self.start_mic)
             except Exception as exc:
                 logger.exception("start_mic failed")
-                await self._broadcast({
-                    "type": "detection_warning",
-                    "warning": "mic_start_failed",
-                    "detail": str(exc),
-                })
+                await self._emit_system_log("mic_start_failed", str(exc))
                 await self._broadcast({"type": "status", "state": "ready"})
                 return
             await self._broadcast({"type": "status", "state": "listening"})
         elif action == "stop":
+            saved = await asyncio.to_thread(self._save_session_transcript)
             await asyncio.to_thread(self.stop)
             await self._broadcast({"type": "status", "state": "ready"})
+            if saved:
+                await self._emit_system_log(
+                    "transcript_saved", f"Session saved to {saved}",
+                )
+        elif action == "search_verse":
+            query = msg.get("query", "")
+            try:
+                result = await asyncio.to_thread(self._search_query, query)
+            except Exception:
+                logger.exception("Search failed for query %r", query)
+                result = None
+            await websocket.send(json.dumps({
+                "type": "search_result", "query": query, "result": result,
+            }))
         elif action == "manual_search":
             query = msg.get("query", "")
             try:
-                result = await asyncio.to_thread(
-                    self.orchestrator.vector_engine.search_paraphrase, query
-                )
+                result = await asyncio.to_thread(self._search_query, query)
             except Exception:
                 logger.exception("Manual search failed for query %r", query)
                 result = None
@@ -655,6 +792,61 @@ class MultiVerseServer:
             self._broadcast_threadsafe({
                 "type": "broadcast_state", "show_secondary": self._show_secondary
             })
+            self._refresh_ndi_display()
+        elif action == "set_secondary_order":
+            self._secondary_above = bool(msg.get("above", False))
+            self._display.secondary_above = self._secondary_above
+            save_user_display(self._display_path, self._display)
+            self._broadcast_threadsafe({
+                "type": "broadcast_state", "secondary_above": self._secondary_above
+            })
+            self._refresh_ndi_display()
+        elif action == "set_display":
+            self._apply_display_patch(msg.get("settings") or {})
+            await self._broadcast({
+                "type": "display_state",
+                "settings": self._display.to_ui_dict(),
+                "backgrounds": list_background_images(self._user_dirs["backgrounds"]),
+            })
+        elif action == "get_audio_devices":
+            devices = await asyncio.to_thread(list_input_devices)
+            await websocket.send(json.dumps({"type": "audio_devices", "devices": devices}))
+        elif action == "set_mic":
+            self._selected_mic = msg.get("name") or "System Default Microphone"
+        elif action == "set_ndi_enabled":
+            self._display.ndi_output_enabled = bool(msg.get("enabled", True))
+            save_user_display(self._display_path, self._display)
+            if not self._display.ndi_output_enabled:
+                try:
+                    self.ndi_sender.clear()
+                except Exception:
+                    pass
+                self._ndi_broadcasting = False
+            await self._broadcast({
+                "type": "ndi_state",
+                "enabled": self._display.ndi_output_enabled,
+                "broadcasting": self._ndi_broadcasting,
+                "available": getattr(self.ndi_sender, "_available", False),
+            })
+        elif action == "ndi_preview":
+            sec_lang = self.library.secondary_language_for(
+                self._current_version, self._current_language)
+            secondary = None
+            if self._show_secondary and sec_lang:
+                secondary = (
+                    f"[{sec_lang} sample] Car Dieu a tant aimé le monde "
+                    "qu'il a donné son Fils unique."
+                )
+            try:
+                self.ndi_sender.set_display(self._display)
+                self.ndi_sender.update(
+                    reference="John 3:16",
+                    text="For God so loved the world, that he gave his only begotten Son.",
+                    secondary_text=secondary,
+                )
+            except Exception:
+                logger.exception("NDI preview failed")
+            await websocket.send(json.dumps({"type": "ndi_preview_sent"}))
         else:
             logger.warning("Unknown action: %s", action)
 
@@ -671,11 +863,10 @@ class MultiVerseServer:
             return
         db = self.library.get_db(version, language)
         if db is None:
-            await websocket.send(json.dumps({
-                "type": "detection_warning",
-                "warning": "version_switch_failed",
-                "detail": f"No usable Bible DB found for {version} / {language}",
-            }))
+            await self._emit_system_log(
+                "db_schema_error",
+                f"No usable Bible DB found for {version} / {language}",
+            )
             return
 
         if self.pipeline and self.pipeline.is_running():
@@ -702,11 +893,10 @@ class MultiVerseServer:
             new_orchestrator = await asyncio.to_thread(_rebuild)
         except Exception:
             logger.exception("Version switch to %s/%s failed — keeping previous version", version, language)
-            await self._broadcast({
-                "type": "detection_warning",
-                "warning": "version_switch_failed",
-                "detail": f"{version} ({language}) failed to build — kept the previous version running",
-            })
+            await self._emit_system_log(
+                "db_schema_error",
+                f"{version} ({language}) failed to build — kept the previous version running",
+            )
             await self._broadcast({"type": "status", "state": restore_state})
             return
 
@@ -726,6 +916,7 @@ class MultiVerseServer:
             "secondary_language": self.library.secondary_language_for(
                 self._current_version, self._current_language),
             "show_secondary": self._show_secondary,
+            "secondary_above": self._secondary_above,
         })
         await self._broadcast({"type": "status", "state": restore_state})
 
@@ -792,6 +983,7 @@ class MultiVerseServer:
                     "secondary_language": self.library.secondary_language_for(
                         self._current_version, self._current_language),
                     "show_secondary": self._show_secondary,
+                    "secondary_above": self._secondary_above,
                 })
 
     # ── Run ───────────────────────────────────────────────────────────────────
@@ -800,6 +992,12 @@ class MultiVerseServer:
                   external_verse_lookup: str | None = None,
                   external_lookup_format: str = "pickle"):
         self._loop = asyncio.get_running_loop()
+
+        from static_server import start_static_server, HTTP_PORT
+        ui_root = resource_root() / "ui"
+        if not ui_root.exists():
+            ui_root = app_root() / "ui"
+        start_static_server(ui_root, self._user_dirs["backgrounds"], port=HTTP_PORT)
 
         async with websockets.serve(self.handle_client, HOST, PORT):
             logger.info("MultiVerse V3 listening on ws://%s:%d — booting", HOST, PORT)
@@ -837,11 +1035,7 @@ class MultiVerseServer:
             self._ready = True
             await self._broadcast({"type": "status", "state": "ready"})
             for problem in self._startup_warnings:
-                await self._broadcast({
-                    "type": "detection_warning",
-                    "warning": "startup_self_check_failed",
-                    "detail": problem,
-                })
+                await self._emit_system_log("startup_self_check_failed", problem)
             self.library.rescan()
             await self._broadcast({
                 "type": "library",
@@ -851,7 +1045,24 @@ class MultiVerseServer:
                 "secondary_language": self.library.secondary_language_for(
                     self._current_version, self._current_language),
                 "show_secondary": self._show_secondary,
+                "secondary_above": self._secondary_above,
             })
+            await self._broadcast({
+                "type": "display_state",
+                "settings": self._display.to_ui_dict(),
+                "backgrounds": list_background_images(self._user_dirs["backgrounds"]),
+            })
+            await self._broadcast({
+                "type": "ndi_state",
+                "enabled": self._display.ndi_output_enabled,
+                "broadcasting": False,
+                "available": getattr(self.ndi_sender, "_available", False),
+            })
+            if self.config.ndi.enabled and not getattr(self.ndi_sender, "_available", False):
+                await self._emit_system_log(
+                    "ndi_unavailable",
+                    "NDI output is enabled but the runtime is not installed.",
+                )
             logger.info("Startup complete — press Start in the UI to open the microphone")
             try:
                 await asyncio.Future()
@@ -866,18 +1077,42 @@ DEFAULT_LOOKUP = "data/bible_verse_map.pkl"
 
 def main():
     import os
+    os.chdir(app_root())
+    bootstrap_install()
+    global APP_CONFIG, DB_PATH, DEFAULT_TRANSLATION
+    APP_CONFIG = load_config()
+    DB_PATH, DEFAULT_TRANSLATION = _load_db_config()
+
     server = MultiVerseServer()
 
     faiss_index  = os.environ.get("MULTIVERSE_FAISS_INDEX")
     verse_lookup = os.environ.get("MULTIVERSE_VERSE_LOOKUP")
 
-    if not faiss_index  and Path(DEFAULT_FAISS).exists():  faiss_index  = DEFAULT_FAISS
-    if not verse_lookup and Path(DEFAULT_LOOKUP).exists():  verse_lookup = DEFAULT_LOOKUP
+    data_root = Path(os.environ.get("MULTIVERSE_DATA_ROOT", APP_CONFIG.library.data_root))
+    default_faiss = data_root / "bible_vectors.index"
+    default_lookup = data_root / "bible_verse_map.pkl"
+    if not faiss_index and default_faiss.exists():
+        faiss_index = str(default_faiss)
+    if not verse_lookup and default_lookup.exists():
+        verse_lookup = str(default_lookup)
+
+    db_path = DB_PATH
+    if not Path(db_path).exists():
+        server.library.rescan()
+        for version, entry in server.library._versions.items():
+            for lang, path in entry.languages.items():
+                if Path(path).exists():
+                    db_path = str(path)
+                    logger.info("Using discovered Bible DB: %s (%s/%s)", path, version, lang)
+                    break
+            if Path(db_path).exists():
+                break
 
     if faiss_index and verse_lookup:
         logger.info("Found pre-built index files — loading automatically")
 
     asyncio.run(server.run(
+        db_path=db_path,
         external_faiss_index=faiss_index,
         external_verse_lookup=verse_lookup,
         external_lookup_format=os.environ.get("MULTIVERSE_LOOKUP_FORMAT", "pickle"),

@@ -37,6 +37,7 @@ logger = logging.getLogger("multiverse.reference_context")
 @dataclass
 class ReferenceContext:
     timeout_seconds: int = 60
+    bare_verse_max_age: int = 8
 
     # -- Confirmed context (resolves bare "verse N") --
     last_book: str | None = None
@@ -126,6 +127,15 @@ class ReferenceContext:
                     "Bare 'verse %d' heard -- book is known (%s) but chapter is NOT -- "
                     "say the chapter number first",
                     verse_number, self.last_book,
+                )
+            return None
+        age = time.time() - self.last_update
+        if age > self.bare_verse_max_age and not self.has_pending():
+            if self._should_log_bare_verse_warning(verse_number):
+                logger.warning(
+                    "Bare 'verse %d' ignored — %s %s context is %.0fs old (max %ds for bare verse)",
+                    verse_number, self.last_book, self.last_chapter,
+                    age, self.bare_verse_max_age,
                 )
             return None
         return {

@@ -1,5 +1,19 @@
 Place your existing NKJV.SQLite3, bible_vectors.index, and bible_verse_map.pkl here (see README step 2). corrections_learned.json will be created automatically after your first session.
 
+INSTALLED DESKTOP APP: use Documents\MultiVerse\data\ instead (same layout below).
+
+Expected folder layout for multiple versions/languages:
+
+    data/
+      NKJV/
+        English/NKJV.sqlite3
+        French/LSG.sqlite3          <- any language folder name works
+      ASV/
+        English/ASV.sqlite3
+
+Background images for verse display: data/backgrounds/  (.jpg, .png, .webp)
+Pick them in Settings → Verse appearance → Background image.
+
 Before pointing config.ini at any new/different Bible SQLite file, run:
     python inspect_bible_db.py data/YourFile.SQLite3 --sample
 This checks the file's actual table/column names (no more guessing) and
