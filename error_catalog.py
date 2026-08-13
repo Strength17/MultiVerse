@@ -4,7 +4,7 @@ from __future__ import annotations
 CATALOG: dict[str, dict[str, str]] = {
     "mic_start_failed": {
         "level": "error",
-        "fix": "Sidebar → Microphone: pick the correct device. Windows Settings → Privacy → Microphone → allow access.",
+        "fix": "If the message mentions winrt or globalization, run: pip install -r requirements_winrt.txt --break-system-packages — then restart. Otherwise: Sidebar → Microphone → pick the correct device; Windows Settings → Privacy → Microphone → allow access.",
     },
     "not_ready": {
         "level": "warn",
@@ -29,6 +29,10 @@ CATALOG: dict[str, dict[str, str]] = {
     "ndi_unavailable": {
         "level": "warn",
         "fix": "Install the free NDI Runtime from ndi.video, then restart Window Verse.",
+    },
+    "winrt_deps_missing": {
+        "level": "error",
+        "fix": "Run: pip install -r requirements_winrt.txt --break-system-packages — then restart Window Verse.",
     },
     "db_schema_error": {
         "level": "error",

@@ -43,7 +43,38 @@ import threading
 import time
 from dataclasses import dataclass
 
-logger = logging.getLogger("multiverse.winrt_pipeline")
+logger = logging.getLogger("windowverse.winrt_pipeline")
+
+_WINRT_MODULES = (
+    "winrt.windows.foundation",
+    "winrt.windows.media.speechrecognition",
+    "winrt.windows.storage",
+    "winrt.windows.globalization",
+)
+
+
+def verify_winrt_dependencies() -> list[str]:
+    """Return pip package names that are missing (empty list = OK)."""
+    missing: list[str] = []
+    for mod in _WINRT_MODULES:
+        try:
+            __import__(mod)
+        except ImportError:
+            missing.append(
+                "winrt-Windows." + mod.rsplit(".", 1)[-1].title().replace("Speechrecognition", "SpeechRecognition")
+            )
+    return missing
+
+
+def winrt_install_hint(missing: list[str] | None = None) -> str:
+    pkgs = missing or verify_winrt_dependencies()
+    if not pkgs:
+        return ""
+    extra = f" ({', '.join(pkgs)})" if pkgs else ""
+    return (
+        f"Install Windows speech packages{extra}: "
+        "pip install -r requirements_winrt.txt --break-system-packages — then restart Window Verse."
+    )
 
 
 @dataclass
@@ -123,6 +154,16 @@ class WinRTSpeechPipeline:
             self._session_ready.set()
 
     async def _main_async(self):
+        missing = verify_winrt_dependencies()
+        if missing:
+            self.last_error = f"No module named 'winrt.windows.globalization'" if any(
+                "Globalization" in p for p in missing
+            ) else f"Missing WinRT packages: {', '.join(missing)}"
+            logger.error("%s — %s", self.last_error, winrt_install_hint(missing))
+            self._session_ready.set()
+            return
+
+        import winrt.windows.globalization  # noqa: F401 — required by SpeechRecognizer
         import winrt.windows.media.speechrecognition as speech
 
         recognizer = speech.SpeechRecognizer()

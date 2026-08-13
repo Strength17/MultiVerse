@@ -48,8 +48,8 @@ async def main():
         import winrt.windows.media.speechrecognition as speech
     except ImportError:
         print("\nFAILED: winrt speech module not installed.")
-        print("Run: pip install winrt-Windows.Media.SpeechRecognition "
-              "winrt-Windows.Foundation winrt-runtime --break-system-packages")
+        print("Run: pip install -r requirements_winrt.txt --break-system-packages")
+        print("  (includes winrt-Windows.Globalization)")
         sys.exit(1)
 
     recognizer = speech.SpeechRecognizer()

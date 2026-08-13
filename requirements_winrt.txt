@@ -10,6 +10,7 @@ winrt-runtime
 winrt-Windows.Foundation
 winrt-Windows.Media.SpeechRecognition
 winrt-Windows.Storage
+winrt-Windows.Globalization
 
 # WebSocket bridge to the UI
 websockets

@@ -23,7 +23,7 @@ a = Analysis(
         'websockets', 'websockets.legacy', 'websockets.legacy.server',
         'winrt', 'winrt.runtime', 'winrt._winrt',
         'winrt.windows.foundation', 'winrt.windows.media.speechrecognition',
-        'winrt.windows.storage',
+        'winrt.windows.storage', 'winrt.windows.globalization',
         'faiss', 'sentence_transformers', 'rapidfuzz', 'word2number',
         'pythonosc', 'cyndilib', 'PIL', 'numpy', 'tqdm',
         'torch', 'transformers', 'sklearn', 'scipy',

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MultiVerse — Live Service</title>
+<title>Window Verse — Live Service</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -317,28 +317,45 @@ body {
 
 /* ── Startup progress bar ── */
 .startup-bar {
-  display: none; flex-direction: column; gap: 6px;
-  padding: 10px 20px; font-size: 12px;
+  display: none; flex-direction: column; gap: 8px;
+  padding: 10px 20px 12px; font-size: 12px;
   background: var(--panel-alt); border-bottom: 1px solid var(--line);
   flex-shrink: 0;
 }
 .startup-bar.show { display: flex; }
+.startup-bar-header {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+}
 .startup-bar-track {
   height: 4px; background: var(--line); border-radius: 2px; overflow: hidden;
 }
 .startup-bar-fill {
   height: 100%; width: 0%; background: linear-gradient(90deg, var(--gold), var(--green));
-  transition: width .3s ease;
+  transition: width .35s ease;
 }
-.startup-bar-title { font-weight: 600; color: var(--ink-60); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
-.startup-steps { display: flex; flex-wrap: wrap; gap: 8px 16px; }
-.startup-step {
-  display: flex; align-items: center; gap: 6px; color: var(--ink-40);
+.startup-bar-title {
+  font-weight: 600; color: var(--ink-60); font-size: 11px;
+  letter-spacing: .06em; text-transform: uppercase;
 }
-.startup-step.running { color: var(--amber); }
-.startup-step.done { color: var(--green); }
-.startup-step.error { color: var(--red); }
-.startup-step .icon { font-size: 11px; width: 14px; text-align: center; }
+.startup-bar-pct {
+  font-family: var(--mono); font-size: 11px; color: var(--ink-60); flex-shrink: 0;
+}
+.startup-msg-area {
+  position: relative; height: 22px; overflow: hidden;
+}
+.startup-msg-current {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  color: var(--ink-60); font-size: 12px; line-height: 1.4;
+}
+.startup-msg-float {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  color: var(--ink-60); font-size: 12px; line-height: 1.4; pointer-events: none;
+  animation: startupFloatUp 2s ease forwards;
+}
+@keyframes startupFloatUp {
+  0%   { transform: translateY(0);   opacity: 1; }
+  100% { transform: translateY(-22px); opacity: 0; }
+}
 
 /* ── Interim / live-typing transcript line ── */
 .tx-line { transition: color .5s ease, opacity .5s ease; }
@@ -457,15 +474,21 @@ body {
 
 <div class="workspace">
 <div class="startup-bar" id="startupBar">
-  <div class="startup-bar-title" id="startupTitle">Loading…</div>
+  <div class="startup-bar-header">
+    <div class="startup-bar-title" id="startupTitle">Loading…</div>
+    <div class="startup-bar-pct" id="startupPct">0%</div>
+  </div>
   <div class="startup-bar-track"><div class="startup-bar-fill" id="startupProgressBar"></div></div>
-  <div class="startup-steps" id="startupSteps"></div>
+  <div class="startup-msg-area">
+    <div class="startup-msg-stage" id="startupMsgStage"></div>
+    <div class="startup-msg-current" id="startupCurrentMsg"></div>
+  </div>
 </div>
 
 <header class="header">
   <button class="btn small" id="menuToggle" title="Toggle menu">☰</button>
   <span class="header-log-dot" id="headerLogDot" title="Errors logged — open Logs"></span>
-  <div class="wordmark">Multi<em>Verse</em></div>
+  <div class="wordmark">Window<em>Verse</em></div>
   <div class="service-pill">Service <b>Live Sermon</b></div>
   <span class="version-pill" id="versionPill">NKJV</span>
   <div class="header-spacer"></div>
@@ -705,8 +728,9 @@ const popoutBtn=$("popoutBtn"), clearBtn=$("clearBtn");
 const recallFeed=$("recallFeed"), recallEmpty=$("recallEmpty");
 const jsonFeed=$("jsonFeed");
 const saveBtn=$("saveBtn"), connBanner=$("connBanner"), actionToast=$("actionToast");
-const startupBar=$("startupBar"), startupTitle=$("startupTitle"), startupSteps=$("startupSteps");
-const startupProgressBar=$("startupProgressBar");
+const startupBar=$("startupBar"), startupTitle=$("startupTitle");
+const startupProgressBar=$("startupProgressBar"), startupPct=$("startupPct");
+const startupMsgStage=$("startupMsgStage"), startupCurrentMsg=$("startupCurrentMsg");
 const micStatusPill=$("micStatusPill");
 const liveBottomDock=$("liveBottomDock");
 const micRing=() => txEmpty.querySelector(".mic-ring");
@@ -739,7 +763,7 @@ let logCount = 0;
 let ndiEnabled = true;
 let toastTimer = null;
 let selectedMic = "";
-const startupStepEls = {};
+let startupStepStatus = {};
 const COL_ORDER_KEY = "mvColOrder";
 const COL_WIDTHS_KEY = "mvColWidths";
 const DOCK_HEIGHT_KEY = "mvDockHeight";
@@ -825,27 +849,46 @@ function updateStartupBarVisibility(state) {
   }
 }
 
-function updateStartupProgress() {
-  const steps = Object.values(startupStepEls);
-  if (!steps.length || !startupProgressBar) return;
-  const done = steps.filter(el => el.classList.contains("done")).length;
-  const pct = Math.round((done / steps.length) * 100);
-  startupProgressBar.style.width = pct + "%";
+function setStartupPercent(pct) {
+  const n = Math.max(0, Math.min(100, Math.round(pct || 0)));
+  if (startupProgressBar) startupProgressBar.style.width = n + "%";
+  if (startupPct) startupPct.textContent = n + "%";
 }
 
-function renderStartupStep(step, label, status) {
-  let el = startupStepEls[step];
-  if (!el) {
-    el = document.createElement("div");
-    el.className = "startup-step";
-    el.dataset.step = step;
-    startupStepEls[step] = el;
-    startupSteps.appendChild(el);
+function floatStartupMessage(label) {
+  if (!startupMsgStage || !label) return;
+  const el = document.createElement("div");
+  el.className = "startup-msg-float";
+  el.textContent = label;
+  startupMsgStage.appendChild(el);
+  el.addEventListener("animationend", () => el.remove());
+}
+
+function resetStartupBar() {
+  startupStepStatus = {};
+  if (startupMsgStage) startupMsgStage.innerHTML = "";
+  if (startupCurrentMsg) startupCurrentMsg.textContent = "";
+  setStartupPercent(0);
+}
+
+function renderStartupStep(step, label, status, percent) {
+  if (typeof percent === "number") setStartupPercent(percent);
+  const prev = startupStepStatus[step];
+  startupStepStatus[step] = status;
+
+  if (status === "running") {
+    if (startupCurrentMsg) startupCurrentMsg.textContent = label;
+    return;
   }
-  el.className = "startup-step " + status;
-  const icon = status === "done" ? "✓" : status === "error" ? "✕" : "…";
-  el.innerHTML = `<span class="icon">${icon}</span><span>${label}</span>`;
-  updateStartupProgress();
+  if (status === "done" || status === "error") {
+    if (startupCurrentMsg) startupCurrentMsg.textContent = "";
+    floatStartupMessage(label);
+    return;
+  }
+  if (prev === "running" && startupCurrentMsg?.textContent) {
+    floatStartupMessage(startupCurrentMsg.textContent);
+    startupCurrentMsg.textContent = "";
+  }
 }
 
 function showToast(msg) {
@@ -1611,8 +1654,7 @@ function connectWs() {
   ws = new WebSocket("ws://localhost:8765");
   ws.onopen  = () => {
     backendReady = false;
-    startupSteps.innerHTML = "";
-    for (const k of Object.keys(startupStepEls)) delete startupStepEls[k];
+    resetStartupBar();
     setStatus("connecting");
   };
   ws.onclose = () => { backendReady = false; setStatus("disconnected"); scheduleReconnect(); };
@@ -1625,10 +1667,13 @@ function onWsMessage({ data }) {
   try { msg = JSON.parse(data); } catch { return; }
   switch (msg.type) {
     case "startup_progress":
-      renderStartupStep(msg.step, msg.label, msg.status);
+      renderStartupStep(msg.step, msg.label, msg.status, msg.percent);
       break;
     case "status":
-      if (msg.state === "ready") backendReady = true;
+      if (msg.state === "ready") {
+        backendReady = true;
+        setStartupPercent(100);
+      }
       setStatus(msg.state);
       break;
     case "speech_started": showHearingIndicator(); break;

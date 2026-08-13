@@ -45,7 +45,7 @@ from console_output import mark_live_line_open, write_line
 
 from bible_db import BibleDB
 from detection_orchestrator import DetectionOrchestrator
-from winrt_pipeline import WinRTSpeechPipeline
+from winrt_pipeline import WinRTSpeechPipeline, verify_winrt_dependencies, winrt_install_hint
 from vocab_correction import correct_text, purge_bad_corrections
 
 from paths import app_root, ensure_user_dirs, resource_root, bootstrap_install
@@ -353,6 +353,9 @@ class WindowVerseServer:
         # ── Wire pipeline: Windows on-device dictation owns the mic directly,
         #    no chunk_seconds/transcriber args needed anymore ───────────────
         self._report_startup("speech", "Preparing speech pipeline", "running")
+        self._winrt_missing = verify_winrt_dependencies()
+        if self._winrt_missing:
+            logger.error("WinRT speech packages missing: %s", ", ".join(self._winrt_missing))
         self.pipeline = WinRTSpeechPipeline(
             on_result=self._on_chunk_result,
             on_speech_started=self._on_speech_started,
@@ -800,7 +803,11 @@ class WindowVerseServer:
                 await asyncio.to_thread(self.start_mic)
             except Exception as exc:
                 logger.exception("start_mic failed")
-                await self._emit_system_log("mic_start_failed", str(exc))
+                fix = None
+                err = str(exc).lower()
+                if "winrt" in err or "globalization" in err or "no module named" in err:
+                    fix = winrt_install_hint()
+                await self._emit_system_log("mic_start_failed", str(exc), fix=fix)
                 await self._broadcast({"type": "status", "state": "ready"})
                 return
             await self._broadcast({"type": "status", "state": "listening"})
@@ -1179,6 +1186,11 @@ class WindowVerseServer:
                 await self._emit_system_log(
                     "ndi_unavailable",
                     "NDI output is enabled but the runtime is not installed.",
+                )
+            if getattr(self, "_winrt_missing", None):
+                await self._emit_system_log(
+                    "winrt_deps_missing",
+                    f"Missing packages: {', '.join(self._winrt_missing)}",
                 )
             logger.info("Startup complete — press Start in the UI to open the microphone")
             try:
