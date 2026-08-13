@@ -129,7 +129,7 @@ class VectorSearchEngine:
             if not allow_download:
                 os.environ.pop("HF_HUB_OFFLINE", None)  # don't leak this into unrelated code
 
-    def build_index(self):
+    def build_index(self, progress_callback=None):
         """
         Embeds every verse in the Bible DB once and builds a FAISS index.
         Call this once at startup (or load a cached index from disk if
@@ -139,12 +139,25 @@ class VectorSearchEngine:
         import faiss
 
         rows = self.bible_db.fetch_all_verses(self.translation)
-        logger.info("Embedding %d verses for semantic search index...", len(rows))
+        total = len(rows)
+        logger.info("Embedding %d verses for semantic search index...", total)
 
         texts = [r["text"] for r in rows]
-        embeddings = self._model.encode(
-            texts, batch_size=64, show_progress_bar=False, normalize_embeddings=True
-        ).astype("float32")
+        batch_size = 128
+        chunks = []
+        for start in range(0, total, batch_size):
+            batch = texts[start:start + batch_size]
+            chunks.append(
+                self._model.encode(
+                    batch, batch_size=64, show_progress_bar=False, normalize_embeddings=True
+                ).astype("float32")
+            )
+            if progress_callback and total:
+                done = min(start + len(batch), total)
+                progress_callback(int(100 * done / total))
+
+        import numpy as np
+        embeddings = np.vstack(chunks) if chunks else np.zeros((0, 384), dtype="float32")
 
         dim = embeddings.shape[1]
         index = faiss.IndexFlatIP(dim)  # inner product on normalized vectors == cosine similarity
@@ -181,7 +194,8 @@ class VectorSearchEngine:
         return np.frombuffer(raw, dtype="float32").reshape(1, -1)
 
     # ------------------------------------------------------------------
-    def search_paraphrase(self, query: str, top_k: int = 8) -> dict | None:
+    def search_paraphrase(self, query: str, top_k: int = 8,
+                          anchor_text: str | None = None) -> dict | None:
         """
         Main entry point — used by both the live detection pipeline and
         manual Context-mode search. Embeds the query, retrieves top_k
@@ -226,15 +240,7 @@ class VectorSearchEngine:
         if best is None:
             return None
 
-        # Hard gate: reject outright if too little of the transcript
-        # actually overlaps this candidate's words, regardless of cosine
-        # similarity. Previously overlap only added a small additive bonus
-        # on top of similarity (see combined_score below) and could never
-        # by itself veto a match -- that's why a stray covenant-adjacent
-        # word inside unrelated casual speech could still drag a whole
-        # chunk to 0.70+ similarity. This is a ratio of the QUERY's words,
-        # not the verse's, so a short spoken snippet only needs to
-        # meaningfully overlap what was actually said.
+        # Overlap gate: ratio of query words found in the candidate verse.
         query_word_count = max(len(_tokenize(query)), 1)
         overlap_ratio = best.get("overlap_count", 0) / query_word_count
         if overlap_ratio < self.min_overlap_ratio:
@@ -244,6 +250,20 @@ class VectorSearchEngine:
                 best.get("book"), best.get("chapter"), best.get("verse"),
             )
             return None
+
+        # When anchor_text is the live mic chunk, also require the match to
+        # overlap what was JUST spoken — stops stale 12s-window words from
+        # steering a paraphrase toward an unrelated verse.
+        if anchor_text and anchor_text.strip().lower() != query.strip().lower():
+            anchor_words = set(_tokenize(anchor_text))
+            cand_words = set(_tokenize(best.get("text") or ""))
+            anchor_overlap = len(anchor_words & cand_words) / max(len(anchor_words), 1)
+            if anchor_overlap < self.min_overlap_ratio:
+                logger.debug(
+                    "Semantic candidate rejected by anchor overlap: ratio=%.2f (%s %s:%s)",
+                    anchor_overlap, best.get("book"), best.get("chapter"), best.get("verse"),
+                )
+                return None
 
         # Detection floor: config.ini documents this as [detection]
         # vector_threshold, now actually read (see __init__) instead of

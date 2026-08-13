@@ -38,7 +38,7 @@ class OSCController:
     """
     Wraps python-osc's async UDP server. Call `start()` once during
     server startup from within a running asyncio loop, passing a
-    reference to the MultiVerseServer instance so OSC commands drive
+    reference to the WindowVerseServer instance so OSC commands drive
     the same queue/display state as the WebSocket UI.
     """
 

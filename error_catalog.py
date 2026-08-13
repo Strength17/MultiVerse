@@ -12,7 +12,7 @@ CATALOG: dict[str, dict[str, str]] = {
     },
     "semantic_index_empty": {
         "level": "warn",
-        "fix": "Copy bible_vectors.index and bible_verse_map.pkl into Documents\\MultiVerse\\data\\.",
+        "fix": "Copy bible_vectors.index and bible_verse_map.pkl into Documents\\WindowVerse\\data\\.",
     },
     "matched_reference_missing_from_db": {
         "level": "error",
@@ -28,7 +28,7 @@ CATALOG: dict[str, dict[str, str]] = {
     },
     "ndi_unavailable": {
         "level": "warn",
-        "fix": "Install the free NDI Runtime from ndi.video, then restart MultiVerse.",
+        "fix": "Install the free NDI Runtime from ndi.video, then restart Window Verse.",
     },
     "db_schema_error": {
         "level": "error",
@@ -40,11 +40,11 @@ CATALOG: dict[str, dict[str, str]] = {
     },
     "disconnected": {
         "level": "error",
-        "fix": "Backend stopped or lost connection — restart MultiVerse.",
+        "fix": "Backend stopped or lost connection — restart Window Verse.",
     },
     "generic": {
         "level": "warn",
-        "fix": "See Documents\\MultiVerse\\logs\\multiverse.log for details.",
+        "fix": "See Documents\\WindowVerse\\logs\\windowverse.log for details.",
     },
 }
 

@@ -278,12 +278,51 @@ class NarrativeTracker:
             "narrative_passage": passage.title,
             "narrative_passage_id": passage.id,
             "book": passage.book,
+            "book_number": passage.book_number,
             "chapter": passage.start_chapter,
             "verse": verse_number,
             "text": verse_row["text"],
             "confidence": round(self.state.confidence, 3),
             "confidence_band": "narrative",
             "is_new_anchor": is_new_anchor,
+            "latency_ms": None,
+        }
+
+    def search_query(self, query: str, min_score: float = 0.38) -> dict | None:
+        """One-shot story lookup for manual search (does not change tracker state)."""
+        text = (query or "").strip()
+        if len(text.split()) < 3:
+            return None
+        if self._passage_embeddings is None or self._passage_embeddings.shape[0] == 0:
+            return None
+        query_vec = self._model.encode(
+            [text], normalize_embeddings=True, show_progress_bar=False,
+        ).astype("float32")[0]
+        scores = self._passage_embeddings @ query_vec
+        best_idx = int(np.argmax(scores))
+        best_score = float(scores[best_idx])
+        if best_score < min_score:
+            return None
+        passage = self.passages[best_idx]
+        verse_row = self.bible_db.lookup_verse(
+            passage.book_number, passage.start_chapter, passage.start_verse,
+            translation=self.default_translation,
+        )
+        if verse_row is None:
+            return None
+        return {
+            "triggered": True,
+            "source": "narrative",
+            "narrative_passage": passage.title,
+            "narrative_passage_id": passage.id,
+            "book": passage.book,
+            "book_number": passage.book_number,
+            "chapter": passage.start_chapter,
+            "verse": passage.start_verse,
+            "text": verse_row["text"],
+            "confidence": round(best_score, 3),
+            "confidence_band": "narrative",
+            "is_new_anchor": True,
             "latency_ms": None,
         }
 

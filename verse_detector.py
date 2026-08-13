@@ -41,7 +41,13 @@ import re
 import logging
 from typing import Optional
 
-from bible_books import ALL_NAMES_SORTED, NAME_TO_BOOK, SINGLE_CHAPTER_BOOKS, ORDINAL_BOOK_STEMS
+from bible_books import (
+    ALL_NAMES_SORTED,
+    NAME_TO_BOOK,
+    ORDINAL_BOOK_STEMS,
+    SINGLE_CHAPTER_BOOKS,
+    apply_stt_book_aliases,
+)
 from reference_context import ReferenceContext
 
 logger = logging.getLogger("multiverse.verse_detector")
@@ -102,6 +108,19 @@ _CARDINAL_THREE_RE = re.compile(rf'\bthree\s+(?={_STEM_ALT})', re.IGNORECASE)
 _ORDINAL_SUFFIX_1_RE = re.compile(rf'\b1st\s+(?={_STEM_ALT})', re.IGNORECASE)
 _ORDINAL_SUFFIX_2_RE = re.compile(rf'\b2nd\s+(?={_STEM_ALT})', re.IGNORECASE)
 _ORDINAL_SUFFIX_3_RE = re.compile(rf'\b3rd\s+(?={_STEM_ALT})', re.IGNORECASE)
+
+
+_NUM_TOKEN = r"\d{1,3}|[a-z]+(?:[\s\-][a-z]+){0,2}"
+_CHAPTER_THE_VERSE = re.compile(
+    rf"\bchapter\s+({_NUM_TOKEN})\s+the\s+({_NUM_TOKEN})\b",
+    re.IGNORECASE,
+)
+
+
+def _normalize_stt_artifacts(text: str) -> str:
+    """Fix common WinRT shape errors before regex matching."""
+    text = _CHAPTER_THE_VERSE.sub(r"chapter \1 verse \2", text)
+    return text
 
 
 def _normalize_prefixes(text: str) -> str:
@@ -209,6 +228,13 @@ _BOOK_ONLY = re.compile(
     re.IGNORECASE,
 )
 
+# "book of John", "in the book of Romans" — common spoken lead-in before
+# a chapter/verse reference, often split across STT chunks.
+_BOOK_OF = re.compile(
+    rf"\b(?:in\s+the\s+)?book\s+of\s+({_BOOK_RE})\b(?!\s*[\d:.]|\s+chapter)",
+    re.IGNORECASE,
+)
+
 _BARE_VERSE = re.compile(
     rf"\bverse\s+({_NUM_OR_WORD})\b(?=[\s,.!?]|$)",
     re.IGNORECASE,
@@ -219,6 +245,13 @@ _BARE_VERSE = re.compile(
 # context already has a book (see step 4c) -- otherwise meaningless.
 _BARE_CHAPTER = re.compile(
     rf"\bchapter\s+({_NUM_OR_WORD})\b(?!\s*{_JOINER.strip()}\s*verse)",
+    re.IGNORECASE,
+)
+
+# Bare chapter+verse when the book is already known from context — covers
+# STT splits like "turn to John" / "chapter 3 verse 16".
+_BARE_CHAPTER_VERSE = re.compile(
+    rf"\bchapter\s+({_NUM_OR_WORD}){_JOINER}verse\s+({_NUM_OR_WORD})\b",
     re.IGNORECASE,
 )
 
@@ -335,6 +368,8 @@ def detect_direct_reference(
 
     # Normalize spoken prefixes (ordinal AND cardinal) before any matching
     text_norm = _normalize_prefixes(text.strip())
+    text_norm = _normalize_stt_artifacts(text_norm)
+    text_norm = apply_stt_book_aliases(text_norm)
 
     # 1) Standard notation: "John 3:16"
     m = _last_match(_STANDARD_NOTATION, text_norm)
@@ -457,6 +492,16 @@ def detect_direct_reference(
             context.discard_pending("explicit book-only reference matched")
             context.update_book_only(book_number, book_name)
 
+    # 4b2) "book of John" priming — same intent as turn/go/open-to.
+    m = _last_match(_BOOK_OF, text_norm)
+    if m:
+        book_raw = m.group(1)
+        key = book_raw.lower()
+        if key in NAME_TO_BOOK:
+            book_number, book_name = NAME_TO_BOOK[key]
+            context.discard_pending("book-of priming matched")
+            context.update_book_only(book_number, book_name)
+
     # 4c) Bare chapter number, no book name: "chapter 8" filling in a
     # book that's already known (from book-only priming, or simply still
     # confirmed from a moment ago) but had no chapter yet.
@@ -466,6 +511,19 @@ def detect_direct_reference(
         if chapter:
             context.discard_pending("bare chapter number matched")
             context.update(context.last_book_number, context.last_book, chapter)
+
+    # 4d) Bare chapter+verse when book already known: "chapter 3 verse 16"
+    m = _last_match(_BARE_CHAPTER_VERSE, text_norm)
+    if m and context.last_book_number is not None:
+        chapter = _parse_number_token(m.group(1))
+        verse = _parse_number_token(m.group(2))
+        if chapter and verse:
+            context.discard_pending("bare chapter+verse with book context")
+            context.update(context.last_book_number, context.last_book, chapter)
+            return _result(
+                "regex", context.last_book, context.last_book_number,
+                chapter, verse, 0.92, m.group(0),
+            )
 
     # 5) Bare verse RANGE resolved via confirmed context: "verses 16 to 18"
     m = _last_match(_BARE_VERSE_RANGE, text_norm)
@@ -586,6 +644,16 @@ def detect_direct_reference(
             context.update(book_number, book_name, chapter)
             return _result("regex", book_name, book_number, chapter, verse, 0.92, m.group(0))
 
+    # 9b) Standalone book name as the entire chunk (common STT split:
+    # "John" ... "chapter 3 verse 16"). Only when nothing else matched and
+    # the utterance IS just the book name — not embedded in a sentence.
+    stripped_key = text_norm.strip().strip(".,;:!?\"'").lower()
+    if stripped_key in NAME_TO_BOOK:
+        book_number, book_name = NAME_TO_BOOK[stripped_key]
+        context.discard_pending("standalone book name primes context")
+        context.update_book_only(book_number, book_name)
+        return {"triggered": False, "handled": "book_primed", "book": book_name}
+
     # 10) Fuzzy fallback -- catches mishearing: "genisis", "revelations", "jon"
     return _fuzzy_detect(text_norm, context, regex_threshold=regex_threshold)
 
@@ -628,6 +696,7 @@ def _fuzzy_detect(text: str, context: ReferenceContext, regex_threshold: float =
     books_lower = {k: k for k in NAME_TO_BOOK}
     books_list  = list(books_lower.keys())
 
+    _spoken_num = r"(\d+|[a-z]+(?:[\s\-][a-z]+){0,2})"
     patterns = [
         # NOTE: the chapter/verse separator here is a MANDATORY colon/dot
         # (not optional+zero-width) or mandatory whitespace -- an optional
@@ -636,7 +705,7 @@ def _fuzzy_detect(text: str, context: ReferenceContext, regex_threshold: float =
         # exactly the false-positive this whole file's pending-state
         # machine exists to prevent. Never make this separator optional.
         re.compile(r'(.+?)\s+(\d+)\s*[:\.]\s*(\d+)'),        # book chapter:verse / chapter.verse
-        re.compile(r'(.+?)\s+chapter\s+(\d+)\s+verse\s+(\d+)'),
+        re.compile(rf'(.+?)\s+chapter\s+{_spoken_num}\s+verse\s+{_spoken_num}', re.IGNORECASE),
         re.compile(r'(.+?)\s+(\d+)\s+(\d+)'),                # book chapter verse (whitespace-separated)
     ]
     for pattern in patterns:
@@ -647,10 +716,9 @@ def _fuzzy_detect(text: str, context: ReferenceContext, regex_threshold: float =
             if len(groups) < 3:
                 continue
             potential_book = groups[0].strip().lower()
-            try:
-                chap  = int(groups[1])
-                verse = int(groups[2])
-            except ValueError:
+            chap = _parse_number_token(groups[1])
+            verse = _parse_number_token(groups[2])
+            if not chap or not verse:
                 continue
             res = process.extractOne(potential_book, books_list, scorer=fuzz.ratio)
             if res and res[1] >= score_floor and match.start() > best_start:  # config-driven similarity floor

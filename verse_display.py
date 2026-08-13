@@ -6,13 +6,52 @@ from __future__ import annotations
 
 import json
 import logging
-from copy import deepcopy
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
-logger = logging.getLogger("multiverse.display")
+from bible_books import french_book_name
+
+logger = logging.getLogger("windowverse.display")
 
 USER_DISPLAY_FILE = "display_user.json"
+
+PRIMARY_VERSION_LABEL = "[NKJV]"
+SECONDARY_VERSION_LABEL = "[LSG]"
+
+
+def bilingual_reference(book: str, chapter: int, verse: int, book_french: str | None = None) -> str:
+    """French book • English book chapter:verse — e.g. Romains • Romans 8:1"""
+    fr = book_french or french_book_name(book)
+    return f"{fr} • {book} {chapter}:{verse}"
+
+
+def estimate_wrapped_lines(text: str, chars_per_line: int) -> int:
+    if not text or not text.strip():
+        return 0
+    words = text.split()
+    lines = 1
+    current = 0
+    for word in words:
+        wlen = len(word)
+        if current and current + 1 + wlen > chars_per_line:
+            lines += 1
+            current = wlen
+        elif current:
+            current += 1 + wlen
+        else:
+            current = wlen
+    return max(1, lines)
+
+
+@dataclass
+class ScreenLayout:
+    ref_px: int
+    body_px: int
+    version_px: int
+    block_gap: int
+    line_gap: int
+    pad_v: int
+    pad_h: int
 
 
 @dataclass
@@ -37,7 +76,7 @@ class DisplaySettings:
                 "bg_alpha": 255,
                 "text": (20, 20, 24),
                 "reference": (140, 100, 40),
-                "secondary": (80, 82, 90),
+                "secondary": (20, 20, 24),
                 "separator": (200, 200, 205),
             }
         return {
@@ -45,12 +84,57 @@ class DisplaySettings:
             "bg_alpha": 255,
             "text": (245, 242, 234),
             "reference": (201, 168, 106),
-            "secondary": (148, 151, 163),
+            "secondary": (245, 242, 234),
             "separator": (35, 36, 41),
         }
 
     def to_ui_dict(self) -> dict:
         return asdict(self)
+
+
+def compute_screen_layout(
+    primary_lines: int,
+    secondary_lines: int,
+    canvas_w: int,
+    canvas_h: int,
+    text_scale: float = 1.0,
+    ref_scale: float = 1.0,
+) -> ScreenLayout:
+    """Scale fonts to fill vertical space with even gaps between blocks."""
+    has_sec = secondary_lines > 0
+    pad_v = max(28, int(canvas_h * 0.045))
+    pad_h = max(36, int(canvas_w * 0.045))
+    avail_h = max(120, canvas_h - 2 * pad_v)
+
+    body_px = max(28, int(58 * text_scale))
+
+    def measure(px: int) -> tuple[int, ScreenLayout]:
+        version_px = max(16, int(px * 0.46))
+        ref_px = max(20, int(px * 0.58 * ref_scale))
+        block_gap = max(12, int(px * 0.48))
+        line_gap = max(6, int(px * 0.38))
+        version_block = version_px + int(px * 0.2)
+        primary_h = primary_lines * px + max(0, primary_lines - 1) * line_gap + version_block
+        secondary_h = (
+            secondary_lines * px + max(0, secondary_lines - 1) * line_gap + version_block
+            if has_sec else 0
+        )
+        ref_block = ref_px + block_gap
+        between = block_gap if has_sec else 0
+        total = ref_block + primary_h + between + secondary_h
+        layout = ScreenLayout(ref_px, px, version_px, block_gap, line_gap, pad_v, pad_h)
+        return total, layout
+
+    for _ in range(32):
+        total, layout = measure(body_px)
+        if total > avail_h:
+            body_px = max(22, int(body_px * 0.93))
+        elif total < avail_h * 0.88:
+            body_px = int(body_px * min(1.14, avail_h / max(total, 1)))
+        else:
+            break
+
+    return layout
 
 
 def compute_dynamic_sizes(
@@ -64,33 +148,12 @@ def compute_dynamic_sizes(
     canvas_w: int = 1920,
     canvas_h: int = 1080,
 ) -> tuple[int, int, int]:
-    """Return (ref_px, primary_px, secondary_px) scaled to fit content."""
-    has_sec = bool(secondary_text and secondary_text.strip())
-    total_chars = len(primary_text or "") + (len(secondary_text or "") if has_sec else 0)
-    line_estimate = max(1, total_chars // 42 + (2 if has_sec else 0))
-
-    # Single language + short text → larger
-    scale = text_scale
-    if not has_sec:
-        if total_chars < 90:
-            scale *= 1.35
-        elif total_chars < 150:
-            scale *= 1.15
-    else:
-        if total_chars < 120:
-            scale *= 1.2
-        elif total_chars > 280:
-            scale *= 0.82
-
-    if line_estimate > 6:
-        scale *= max(0.55, 6 / line_estimate)
-    elif line_estimate > 4:
-        scale *= 0.88
-
-    ref_px = max(28, int(base_ref * ref_scale * min(1.2, scale + 0.05)))
-    primary_px = max(32, int(base_primary * scale))
-    secondary_px = max(28, int(base_secondary * scale * 0.92))
-    return ref_px, primary_px, secondary_px
+    """Legacy helper — returns (ref_px, primary_px, secondary_px)."""
+    chars = max(24, int(canvas_w * 0.88 / (base_primary * 0.55)))
+    p_lines = estimate_wrapped_lines(primary_text or "", chars)
+    s_lines = estimate_wrapped_lines(secondary_text or "", chars) if secondary_text else 0
+    layout = compute_screen_layout(p_lines, s_lines, canvas_w, canvas_h, text_scale, ref_scale)
+    return layout.ref_px, layout.body_px, layout.body_px
 
 
 def load_user_display(path: Path) -> DisplaySettings:

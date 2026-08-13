@@ -83,6 +83,37 @@ def confidence_band(confidence: float) -> str:
     return "low"
 
 
+def _regex_needs_escalation(result: dict | None) -> bool:
+    """True when regex on the current chunk didn't produce a final hit."""
+    if result is None:
+        return True
+    if result.get("triggered"):
+        return False
+    return bool(result.get("handled"))
+
+
+def _match_anchored_in_fresh_chunk(direct: dict, matched_text: str,
+                                    fresh_chunk: str) -> bool:
+    """Allow merged-buffer regex hits when the newest chunk contributed the
+    reference tail (chapter/verse), not only when the full match substring
+    appears verbatim in the fresh chunk."""
+    matched = (matched_text or "").strip().lower()
+    fresh = fresh_chunk.strip().lower()
+    if not matched:
+        return True
+    if matched in fresh:
+        return True
+    if re.search(r"\b(chapter|verse)\b", fresh, re.IGNORECASE):
+        chap, ver = direct.get("chapter"), direct.get("verse")
+        chap_s = str(chap) if chap is not None else ""
+        ver_s = str(ver) if ver is not None else ""
+        if chap_s and ver_s and chap_s in fresh and ver_s in fresh:
+            return True
+        if ver_s and ver_s in fresh and matched.startswith("verse"):
+            return True
+    return False
+
+
 class DetectionOrchestrator:
     def __init__(self, bible_db, translation: str = "NKJV",
                  semantic_top_k: int = 8, context_timeout_s: float = 10.0,
@@ -138,14 +169,18 @@ class DetectionOrchestrator:
         self._semantic_empty_warned = False
 
     # ── Index management ──────────────────────────────────────────────────────
-    def build_index(self, cache_dir: str = "data/index_cache"):
+    def build_index(self, cache_dir: str | None = None, progress_callback=None):
         from index_cache import load_or_build_index
+        from paths import ensure_user_dirs
+        if cache_dir is None:
+            cache_dir = str(ensure_user_dirs()["data"] / "index_cache")
         t0 = time.time()
         load_or_build_index(
             self.vector_engine,
             db_path=self.bible_db.db_path,
             cache_dir=cache_dir,
             translation=self.translation,
+            progress_callback=progress_callback,
         )
         self._index_built = True
         logger.info("Semantic index ready in %.1fs", time.time() - t0)
@@ -237,16 +272,20 @@ class DetectionOrchestrator:
         # before, because those words individually also appear in the new
         # chunk. Contiguous-substring verification is what actually blocks it.
         chunk_has_signal = _chunk_has_reference_signal(transcript_chunk)
-        if result is None and chunk_has_signal and two_chunk_text != transcript_chunk.strip():
+        if _regex_needs_escalation(result) and chunk_has_signal and two_chunk_text != transcript_chunk.strip():
             result = self._run_regex_only(two_chunk_text, fresh_chunk=transcript_chunk.strip())
-        if result is None and chunk_has_signal and window_text != two_chunk_text:
+        if _regex_needs_escalation(result) and chunk_has_signal and window_text != two_chunk_text:
             result = self._run_regex_only(window_text, fresh_chunk=transcript_chunk.strip())
 
         if result is not None:
             result["latency_ms"] = latency_ms
         else:
-            richest_text = window_text.strip() or two_chunk_text.strip() or transcript_chunk.strip()
-            result = self._run_semantic_only(richest_text, latency_ms)
+            semantic_queries = self._pick_semantic_queries(
+                transcript_chunk.strip(), two_chunk_text.strip(), window_text.strip(),
+            )
+            result = self._run_semantic_only(
+                semantic_queries, latency_ms, anchor_chunk=transcript_chunk.strip(),
+            )
 
         if result.get("triggered"):
             verse_key = (result.get("book_number"), result.get("chapter"), result.get("verse"))
@@ -327,20 +366,16 @@ class DetectionOrchestrator:
         if direct is None:
             return None
         if direct.get("handled"):
-            # Already fully handled inside detect_direct_reference (e.g. a
-            # pending guess was just primed) -- there's nothing to resolve
-            # into a verse. Returning this dict (instead of None) is what
-            # actually matters: it stops process_chunk's two-chunk/window
-            # escalation from re-running detection against the same still-
-            # ambiguous text and re-priming (and re-logging) the same guess.
             return direct
 
         if fresh_chunk is not None:
-            matched_text = (direct.get("matched_text") or "").strip().lower()
-            if matched_text and matched_text not in fresh_chunk.lower():
+            matched_text = (direct.get("matched_text") or "").strip()
+            if matched_text and not _match_anchored_in_fresh_chunk(
+                direct, matched_text, fresh_chunk,
+            ):
                 logger.info(
                     "Discarding stale fallback match %s %s:%s -- matched text %r "
-                    "isn't actually in the newest chunk, only in older buffered text",
+                    "isn't anchored in the newest chunk",
                     direct["book"], direct["chapter"], direct["verse"], matched_text,
                 )
                 return None
@@ -422,6 +457,7 @@ class DetectionOrchestrator:
             "triggered": True,
             "source": "regex",
             "book": direct["book"],
+            "book_number": book_number,
             "chapter": chapter,
             "verse": verse,
             "text": verse_text,
@@ -435,33 +471,74 @@ class DetectionOrchestrator:
             result["bare_number_confirmed"] = True
         return result
 
-    def _run_semantic_only(self, text: str, latency_ms: float | None) -> dict:
-        """Paraphrase/embedding fallback. Runs at most once per chunk (see
-        detect()), against the richest text available, and only when there's
-        enough text to produce a reliable embedding."""
+    @staticmethod
+    def _split_semantic_clauses(text: str) -> list[str]:
+        """Split a transcript span into clause-sized pieces for embedding.
+        Prevents a trailing unrelated sentence ('and the Lord gives rain…')
+        from steering a beatitude/paraphrase toward the wrong verse."""
         if not text.strip():
+            return []
+        parts = re.split(
+            r"(?:\.\s+|\s+and\s+(?:the|he|she|they|who|whoever|it|we|you)\s+)",
+            text,
+            flags=re.IGNORECASE,
+        )
+        return [p.strip() for p in parts if p.strip()]
+
+    def _pick_semantic_queries(self, chunk: str, two_chunk: str, window: str) -> list[str]:
+        """Build ordered semantic query spans — freshest speech first, never
+        the full 12s rolling window (regex needs that; embeddings don't)."""
+        seen: set[str] = set()
+        queries: list[str] = []
+
+        def add(q: str) -> None:
+            q = q.strip()
+            if not q or q in seen:
+                return
+            seen.add(q)
+            queries.append(q)
+
+        # Clauses first — a trailing unrelated sentence must not beat the
+        # beatitude/paraphrase in the same mic chunk.
+        for candidate in (chunk, two_chunk):
+            for clause in self._split_semantic_clauses(candidate):
+                if len(clause.split()) >= self.min_semantic_words:
+                    add(clause)
+
+        for candidate in (chunk, two_chunk):
+            if len(candidate.split()) >= self.min_semantic_words:
+                add(candidate)
+
+        words = window.strip().split()
+        if len(words) >= self.min_semantic_words:
+            tail = " ".join(words[-24:])
+            if len(tail.split()) >= self.min_semantic_words:
+                add(tail)
+                for clause in self._split_semantic_clauses(tail):
+                    if len(clause.split()) >= self.min_semantic_words:
+                        add(clause)
+
+        if not queries:
+            add(window.strip() or two_chunk or chunk)
+        return queries
+
+    def _run_semantic_only(self, queries: list[str] | str, latency_ms: float | None,
+                           anchor_chunk: str = "") -> dict:
+        """Paraphrase/embedding fallback. Tries each query span and keeps
+        the highest-confidence hit above the detection floor."""
+        if isinstance(queries, str):
+            queries = [queries]
+        queries = [q.strip() for q in queries if q and q.strip()]
+        if not queries:
             return {"triggered": False}
 
-        word_count = len(text.split())
-        if word_count < self.min_semantic_words:
-            logger.debug(
-                "Skipping semantic search — %d word(s), below min_semantic_words=%d: %r",
-                word_count, self.min_semantic_words, text[:60],
-            )
-            return {"triggered": False}
+        anchor = (anchor_chunk or queries[0]).strip()
 
         if not self._index_built:
             logger.warning("Semantic index not built yet — skipping semantic search")
             return {"triggered": False}
 
         if not self.vector_engine._verse_lookup:
-            # A fully-empty lookup table (e.g. an external index whose
-            # pickle keys didn't match any known alias -- see
-            # index_cache.load_external_index) means semantic search is
-            # silently a no-op for the rest of the session. That already
-            # gets one loud ERROR at load time; repeat it once here too, at
-            # the point queries actually start failing, since load time and
-            # "first spoken paraphrase" can be far apart and easy to miss.
             if not self._semantic_empty_warned:
                 logger.error(
                     "Semantic search has 0 usable verses loaded — every "
@@ -471,17 +548,26 @@ class DetectionOrchestrator:
                 self._semantic_empty_warned = True
             return {"triggered": False, "warning": "semantic_index_empty"}
 
+        best = None
         try:
-            semantic = self.vector_engine.search_paraphrase(text, top_k=self.semantic_top_k)
+            for q in queries:
+                if len(q.split()) < self.min_semantic_words:
+                    continue
+                hit = self.vector_engine.search_paraphrase(
+                    q, top_k=self.semantic_top_k, anchor_text=anchor,
+                )
+                if hit and (best is None or hit["confidence"] > best["confidence"]):
+                    best = hit
         except Exception:
             logger.exception(
-                "Semantic search failed for text %r — returning no-hit", text[:80]
+                "Semantic search failed for queries %r — returning no-hit", queries[:3],
             )
             return {"triggered": False, "error": "semantic_search_failed"}
 
-        if semantic is None:
+        if best is None:
             return {"triggered": False}
 
+        semantic = best
         self.context.update(semantic["book_number"], semantic["book"], semantic["chapter"])
         logger.info(
             "DETECTED [semantic] %s %s:%s (confidence=%.2f)",
@@ -491,6 +577,7 @@ class DetectionOrchestrator:
             "triggered": True,
             "source": "semantic",
             "book": semantic["book"],
+            "book_number": semantic["book_number"],
             "chapter": semantic["chapter"],
             "verse": semantic["verse"],
             "text": semantic["text"],

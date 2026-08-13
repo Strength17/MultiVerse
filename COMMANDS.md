@@ -1,4 +1,4 @@
-# MultiVerse — Command Cheat Sheet
+# Window Verse — Command Cheat Sheet
 
 Quick reference for the Bible-DB schema detection workflow. Keep this
 handy so you don't have to remember flags.
@@ -50,7 +50,7 @@ schema automatically.
 
 ## Force a re-scan of a file you edited in place
 
-Normally MultiVerse only re-scans when the file's content hash changes.
+Normally Window Verse only re-scans when the file's content hash changes.
 If you're not sure it noticed a change (e.g. you edited it in a way
 that didn't change size/edges), force it:
 

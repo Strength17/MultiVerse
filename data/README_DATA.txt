@@ -1,6 +1,6 @@
 Place your existing NKJV.SQLite3, bible_vectors.index, and bible_verse_map.pkl here (see README step 2). corrections_learned.json will be created automatically after your first session.
 
-INSTALLED DESKTOP APP: use Documents\MultiVerse\data\ instead (same layout below).
+INSTALLED DESKTOP APP: use Documents\WindowVerse\data\ instead (same layout below).
 
 Expected folder layout for multiple versions/languages:
 

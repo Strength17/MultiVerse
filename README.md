@@ -1,4 +1,4 @@
-# MultiVerse — Windows-Native STT Build
+# Window Verse — Windows-Native STT Build
 
 Speech-to-text now comes entirely from Windows 11's own on-device dictation
 engine (WinRT `SpeechRecognizer`, continuous DICTATION mode) — no Whisper,

@@ -1,5 +1,5 @@
 """
-MultiVerse desktop entry point — single window (WebView2), embedded server, clean shutdown.
+Window Verse desktop entry point — single window (WebView2), embedded server, clean shutdown.
 """
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from paths import app_root, bootstrap_install, resource_root
 from static_server import HTTP_PORT
 
 PORT = 8765
-logger = logging.getLogger("multiverse.desktop")
+logger = logging.getLogger("windowverse.desktop")
 
 
 def _wait_for_port(host: str = "127.0.0.1", port: int = PORT, timeout: float = 120.0) -> bool:
@@ -38,7 +38,7 @@ def _run_server():
 
 def main():
     bootstrap_install()
-    t = threading.Thread(target=_run_server, daemon=True, name="multiverse-server")
+    t = threading.Thread(target=_run_server, daemon=True, name="windowverse-server")
     t.start()
     if not _wait_for_port(port=PORT):
         print("Backend failed to start on port", PORT, file=sys.stderr)
@@ -49,17 +49,21 @@ def main():
     import webview
 
     url = f"http://127.0.0.1:{HTTP_PORT}/ui/index.html"
-    icon = resource_root() / "assets" / "multiverse.ico"
+    icon = resource_root() / "assets" / "windowverse.ico"
+    if not icon.exists():
+        icon = app_root() / "assets" / "windowverse.ico"
+    if not icon.exists():
+        icon = resource_root() / "assets" / "multiverse.ico"
     if not icon.exists():
         icon = app_root() / "assets" / "multiverse.ico"
 
     window = webview.create_window(
-        "MultiVerse — Live Service",
+        "Window Verse — Live Service",
         url=url,
         width=1440,
         height=900,
         min_size=(1100, 700),
-        background_color="#0e0f12",
+        background_color="#0a0c14",
     )
     webview.start(debug=False)
 

@@ -3,7 +3,7 @@ bible_books.py
 
 Canonical book list with common abbreviations, used by verse_detector.py
 for direct-reference regex matching. Multiples-of-10 numbering kept
-consistent with MultiVerse's existing schema (per the original README's
+consistent with Window Verse's existing schema (per the original README's
 bible_db.py / data/NKJV.SQLite3 convention).
 
 IMPORTANT -- this app detects references from SPOKEN transcripts, never
@@ -87,7 +87,80 @@ BOOKS = [
     (660, "Revelation", ["rev", "re", "revelations"]),
 ]
 
-# Flat lookup: any name/abbreviation (lowercased) -> (book_number, canonical_name)
+# French book names (Louis Segond) keyed by canonical English name.
+FRENCH_BOOK_NAMES: dict[str, str] = {
+    "Genesis": "Genèse",
+    "Exodus": "Exode",
+    "Leviticus": "Lévitique",
+    "Numbers": "Nombres",
+    "Deuteronomy": "Deutéronome",
+    "Joshua": "Josué",
+    "Judges": "Juges",
+    "Ruth": "Ruth",
+    "1 Samuel": "1 Samuel",
+    "2 Samuel": "2 Samuel",
+    "1 Kings": "1 Rois",
+    "2 Kings": "2 Rois",
+    "1 Chronicles": "1 Chroniques",
+    "2 Chronicles": "2 Chroniques",
+    "Ezra": "Esdras",
+    "Nehemiah": "Néhémie",
+    "Esther": "Esther",
+    "Job": "Job",
+    "Psalms": "Psaumes",
+    "Proverbs": "Proverbes",
+    "Ecclesiastes": "Ecclésiaste",
+    "Song of Solomon": "Cantique des Cantiques",
+    "Isaiah": "Ésaïe",
+    "Jeremiah": "Jérémie",
+    "Lamentations": "Lamentations",
+    "Ezekiel": "Ézéchiel",
+    "Daniel": "Daniel",
+    "Hosea": "Osée",
+    "Joel": "Joël",
+    "Amos": "Amos",
+    "Obadiah": "Abdias",
+    "Jonah": "Jonas",
+    "Micah": "Michée",
+    "Nahum": "Nahum",
+    "Habakkuk": "Habakuk",
+    "Zephaniah": "Sophonie",
+    "Haggai": "Aggée",
+    "Zechariah": "Zacharie",
+    "Malachi": "Malachie",
+    "Matthew": "Matthieu",
+    "Mark": "Marc",
+    "Luke": "Luc",
+    "John": "Jean",
+    "Acts": "Actes",
+    "Romans": "Romains",
+    "1 Corinthians": "1 Corinthiens",
+    "2 Corinthians": "2 Corinthiens",
+    "Galatians": "Galates",
+    "Ephesians": "Éphésiens",
+    "Philippians": "Philippiens",
+    "Colossians": "Colossiens",
+    "1 Thessalonians": "1 Thessaloniciens",
+    "2 Thessalonians": "2 Thessaloniciens",
+    "1 Timothy": "1 Timothée",
+    "2 Timothy": "2 Timothée",
+    "Titus": "Tite",
+    "Philemon": "Philémon",
+    "Hebrews": "Hébreux",
+    "James": "Jacques",
+    "1 Peter": "1 Pierre",
+    "2 Peter": "2 Pierre",
+    "1 John": "1 Jean",
+    "2 John": "2 Jean",
+    "3 John": "3 Jean",
+    "Jude": "Jude",
+    "Revelation": "Apocalypse",
+}
+
+
+def french_book_name(english_name: str) -> str:
+    return FRENCH_BOOK_NAMES.get(english_name, english_name)
+
 NAME_TO_BOOK: dict[str, tuple[int, str]] = {}
 for num, name, abbrevs in BOOKS:
     NAME_TO_BOOK[name.lower()] = (num, name)
@@ -150,3 +223,55 @@ ORDINAL_BOOK_STEMS = [
     "samuel", "kings", "chronicles", "corinthians", "thessalonians",
     "timothy", "peter", "john",
 ]
+
+# High-confidence WinRT mishears — applied only when the next token signals
+# a Bible reference (chapter / verse / digit), so ordinary English like
+# "a romance story" is never rewritten.
+STT_BOOK_ALIASES: dict[str, str] = {
+    "romance": "Romans",
+    "ecclesiastics": "Ecclesiastes",
+    "ecclesiastic": "Ecclesiastes",
+    "revelations": "Revelation",
+    "genisis": "Genesis",
+    "mathew": "Matthew",
+}
+
+_REF_SIGNAL_WORDS = frozenset({
+    "chapter", "chapters", "ch", "ch.", "verse", "verses", "ver", "ver.",
+})
+
+
+def is_reference_signal(token: str) -> bool:
+    """True when a token plausibly continues a spoken Bible reference."""
+    if not token:
+        return False
+    t = token.lower().strip(".,;:!?\"'")
+    if t in _REF_SIGNAL_WORDS:
+        return True
+    if t.isdigit():
+        return True
+    return False
+
+
+def resolve_stt_book_alias(token: str, next_token: str | None = None) -> str | None:
+    """Return canonical book name for a known STT mishear, or None."""
+    key = token.lower().strip(".,;:!?\"'")
+    canonical = STT_BOOK_ALIASES.get(key)
+    if not canonical:
+        return None
+    if next_token is None or is_reference_signal(next_token):
+        return canonical
+    return None
+
+
+def apply_stt_book_aliases(text: str) -> str:
+    """Rewrite known misheard book tokens when followed by reference signal."""
+    words = text.split()
+    if not words:
+        return text
+    out: list[str] = []
+    for i, word in enumerate(words):
+        nxt = words[i + 1] if i + 1 < len(words) else None
+        alias = resolve_stt_book_alias(word, nxt)
+        out.append(alias if alias else word)
+    return " ".join(out)

@@ -1,27 +1,27 @@
-# MultiVerse — NDI Output & Bible Library Setup
+# Window Verse — NDI Output & Bible Library Setup
 
 ## 1. NDI output (connect to vMix)
 
-**What changed:** MultiVerse now broadcasts the current verse as a real
+**What changed:** Window Verse now broadcasts the current verse as a real
 NDI video source (Route A from the original plan — a Python sender using
 `cyndilib`, driven directly by the existing detection events). No capture
 window, no third-party screen-grab tool.
 
-**Install (once, on the machine running MultiVerse):**
+**Install (once, on the machine running Window Verse):**
 
 1. Install the free **NDI Runtime** — download from https://ndi.video/tools/
    (pick "NDI Tools" or just the standalone "NDI Runtime" if offered).
    This installs `Processing.NDI.Lib.x64.dll`, which `cyndilib` needs at
    runtime — `pip` alone cannot provide it.
-2. In the MultiVerse folder:
+2. In the Window Verse folder:
    ```
    pip install -r requirements_winrt.txt --break-system-packages
    ```
    (this now includes `cyndilib` and `pillow`).
-3. Start MultiVerse as usual (`Start MultiVerse.bat` or `python server.py`).
+3. Start Window Verse as usual (`Start Window Verse.bat` or `python server.py`).
    You'll see in the terminal:
    ```
-   NDI sender 'MultiVerse' started (1920x1080 @ 3.0fps)
+   NDI sender 'Window Verse' started (1920x1080 @ 3.0fps)
    ```
    If instead you see a warning about NDI being unavailable, re-check
    steps 1–2 — everything else in the app still runs fine either way.
@@ -29,7 +29,7 @@ window, no third-party screen-grab tool.
 **In vMix:**
 
 1. **Add Input → NDI**
-2. The source named `MultiVerse` (same name as `config/config.ini`'s
+2. The source named `Window Verse` (same name as `config/config.ini`'s
    `[ndi] sender_name`) appears automatically — same network, no IP
    entry needed.
 3. Add it to a layer/overlay channel like any other input.

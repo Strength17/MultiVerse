@@ -2,7 +2,7 @@
 ndi_sender.py
 
 Broadcasts the currently-displayed verse as a live NDI video source, so
-vMix (or any other NDI receiver) can add MultiVerse as a normal input --
+vMix (or any other NDI receiver) can add Window Verse as a normal input --
 no capture window, no third-party screen-grab tool.
 
 The frame layout mirrors the Live Output stage in ui/index.html exactly:
@@ -19,9 +19,9 @@ import time
 from pathlib import Path
 
 from app_config import NDIConfig
-from verse_display import DisplaySettings, compute_dynamic_sizes
+from verse_display import DisplaySettings, compute_screen_layout
 
-logger = logging.getLogger("multiverse.ndi")
+logger = logging.getLogger("windowverse.ndi")
 
 
 class NDISender:
@@ -61,7 +61,7 @@ class NDISender:
             self._warn_once(
                 "NDI output unavailable — 'cyndilib' (or a dependency) isn't installed. "
                 "Run: pip install cyndilib pillow --break-system-packages  "
-                f"({e}). The rest of MultiVerse is unaffected."
+                f"({e}). The rest of Window Verse is unaffected."
             )
             return
 
@@ -216,51 +216,66 @@ class NDISender:
         if not text:
             return np.asarray(img, dtype=np.uint8)
 
-        ref_px, primary_px, sec_px = compute_dynamic_sizes(
-            text, secondary_text,
-            base_ref=cfg.reference_font_size,
-            base_primary=cfg.font_size,
-            base_secondary=cfg.secondary_font_size,
-            text_scale=disp.text_scale,
-            ref_scale=disp.ref_scale,
-            canvas_w=cfg.width,
-            canvas_h=cfg.height,
+        from verse_display import (
+            PRIMARY_VERSION_LABEL, SECONDARY_VERSION_LABEL, compute_screen_layout,
         )
-        self._ensure_fonts(primary_px, ref_px, sec_px, disp)
 
-        max_width = int(cfg.width * cfg.content_width_ratio)
+        max_width = int(cfg.width * (1 - 0.09))
         x_center = cfg.width // 2
         secondary_above = disp.secondary_above
+        body_px = max(28, int(cfg.font_size * disp.text_scale))
 
-        ref_lines = [reference] if reference else []
+        for _ in range(28):
+            self._ensure_fonts(body_px, body_px, body_px, disp)
+            primary_lines = _wrap_text(draw, text, self._font, max_width)
+            secondary_lines = (
+                _wrap_text(draw, secondary_text, self._font, max_width)
+                if secondary_text else []
+            )
+            layout = compute_screen_layout(
+                len(primary_lines), len(secondary_lines),
+                cfg.width, cfg.height, disp.text_scale, disp.ref_scale,
+            )
+            if layout.body_px < body_px - 1:
+                body_px = layout.body_px
+                continue
+            if layout.body_px > body_px + 1:
+                body_px = layout.body_px
+                continue
+            break
+
+        self._ensure_fonts(layout.body_px, layout.ref_px, layout.body_px, disp)
         primary_lines = _wrap_text(draw, text, self._font, max_width)
         secondary_lines = (
-            _wrap_text(draw, secondary_text, self._sec_font, max_width)
+            _wrap_text(draw, secondary_text, self._font, max_width)
             if secondary_text else []
         )
 
-        line_gap_primary = int(primary_px * 0.5)
-        line_gap_secondary = int(sec_px * 0.5)
-        block_gap = 10
-        separator_gap = 10
-        ref_h = (ref_px + 4) if ref_lines else 0
+        ref_px = layout.ref_px
+        primary_px = layout.body_px
+        sec_px = layout.body_px
+        block_gap = layout.block_gap
+        line_gap = layout.line_gap
+        version_label_px = layout.version_px
+        version_gap = int(primary_px * 0.2)
+        pad_v = layout.pad_v
 
-        def block_height(lines, font_size, gap):
+        def block_height(lines, font_size):
             if not lines:
                 return 0
-            return len(lines) * font_size + max(0, len(lines) - 1) * gap
+            return len(lines) * font_size + max(0, len(lines) - 1) * line_gap
 
-        primary_h = block_height(primary_lines, primary_px, line_gap_primary)
-        secondary_h = block_height(secondary_lines, sec_px, line_gap_secondary)
-        separator_h = 1 if secondary_lines else 0
-        middle_gap = (block_gap + separator_gap + separator_h + separator_gap) if secondary_lines else 0
-        total_h = ref_h + primary_h + secondary_h + middle_gap
-        y = max(cfg.margin, (cfg.height - total_h) // 2)
+        version_block = version_label_px + version_gap
+        primary_h = block_height(primary_lines, primary_px) + version_block
+        secondary_h = block_height(secondary_lines, sec_px) + version_block if secondary_lines else 0
+        ref_block = ref_px + block_gap if reference else 0
+        between = block_gap if secondary_lines else 0
+        total_h = ref_block + primary_h + between + secondary_h
+        y = pad_v + max(0, (cfg.height - 2 * pad_v - total_h) // 2)
 
         rr, rg, rb = colors["reference"]
         tr, tg, tb = colors["text"]
         sr, sg, sb = colors["secondary"]
-        sep = colors["separator"]
 
         if disp.show_border:
             pad = 24
@@ -269,39 +284,41 @@ class NDISender:
                 outline=(rr, rg, rb, 180), width=3,
             )
 
-        if ref_lines:
-            _draw_centered_line(draw, ref_lines[0], self._ref_font, x_center, y, (rr, rg, rb, 255))
-            y += ref_h
+        if reference:
+            _draw_centered_line(draw, reference, self._ref_font_bold, x_center, y, (rr, rg, rb, 255))
+            y += ref_px + block_gap
+
+        def draw_version_label(label: str):
+            nonlocal y
+            _draw_centered_line(draw, label, self._ref_font, x_center, y, (rr, rg, rb, 255))
+            y += version_label_px + version_gap
 
         def draw_primary():
             nonlocal y
             font = self._font_bold if disp.primary_bold else self._font
             for line in primary_lines:
                 _draw_centered_line(draw, line, font, x_center, y, (tr, tg, tb, 255))
-                y += primary_px + line_gap_primary
+                y += primary_px + line_gap
 
         def draw_secondary():
             nonlocal y
+            font = self._sec_font if disp.secondary_italic else self._font
             for line in secondary_lines:
-                _draw_centered_line(draw, line, self._sec_font, x_center, y, (sr, sg, sb, 255))
-                y += sec_px + line_gap_secondary
-
-        def draw_separator():
-            nonlocal y
-            y += block_gap
-            sep_w = max_width
-            sep_x0 = (cfg.width - sep_w) // 2
-            _draw_dashed_line(draw, y, sep_x0, sep_x0 + sep_w, sep + (255,))
-            y += separator_gap + separator_h + separator_gap
+                _draw_centered_line(draw, line, font, x_center, y, (sr, sg, sb, 255))
+                y += sec_px + line_gap
 
         if secondary_lines and secondary_above:
+            draw_version_label(SECONDARY_VERSION_LABEL)
             draw_secondary()
-            draw_separator()
+            y += block_gap
+            draw_version_label(PRIMARY_VERSION_LABEL)
             draw_primary()
         else:
+            draw_version_label(PRIMARY_VERSION_LABEL)
             draw_primary()
             if secondary_lines:
-                draw_separator()
+                y += block_gap
+                draw_version_label(SECONDARY_VERSION_LABEL)
                 draw_secondary()
 
         return np.asarray(img, dtype=np.uint8)
@@ -333,6 +350,7 @@ class NDISender:
                 self._font = ImageFont.truetype(path, primary_px)
                 self._font_bold = ImageFont.truetype(bold_path, primary_px)
                 self._ref_font = ImageFont.truetype(path, ref_px)
+                self._ref_font_bold = ImageFont.truetype(bold_path, ref_px)
                 sec_font_path = italic_path or path
                 if disp.secondary_italic and italic_path:
                     sec_font_path = italic_path
@@ -345,6 +363,7 @@ class NDISender:
             self._font = ImageFont.load_default(size=primary_px)
             self._font_bold = self._font
             self._ref_font = ImageFont.load_default(size=ref_px)
+            self._ref_font_bold = self._ref_font
             self._sec_font = ImageFont.load_default(size=sec_px)
 
     def _resend_loop(self):

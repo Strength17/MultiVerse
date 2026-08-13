@@ -1,7 +1,7 @@
 """
 app_config.py
 
-Single source of truth for every tunable value in MultiVerse. Nothing in
+Single source of truth for every tunable value in Window Verse. Nothing in
 the detection, display, or NDI pipeline should hardcode a threshold,
 timeout, color, or size directly -- it should be read from here, and here
 alone reads config/config.ini.
@@ -30,7 +30,7 @@ import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 
-logger = logging.getLogger("multiverse.config")
+logger = logging.getLogger("windowverse.config")
 
 DEFAULT_CONFIG_PATH = "config/config.ini"
 
@@ -39,7 +39,7 @@ def resolve_config_path(path: str | None = None) -> str:
     import os
     if path:
         return path
-    env = os.environ.get("MULTIVERSE_CONFIG")
+    env = os.environ.get("WINDOWVERSE_CONFIG") or os.environ.get("MULTIVERSE_CONFIG")
     if env:
         return env
     try:
@@ -53,7 +53,7 @@ def resolve_config_path(path: str | None = None) -> str:
 
 @dataclass(frozen=True)
 class DetectionConfig:
-    vector_threshold: float = 0.70
+    vector_threshold: float = 0.80
     regex_threshold: float = 0.75          # 0-1 scale; fuzzy book-name match floor
     min_overlap_ratio: float = 0.25        # hard gate: overlap-words / query-words
     cooldown_regex_seconds: float = 1.5
@@ -73,7 +73,7 @@ class AppConfig:
 @dataclass(frozen=True)
 class NDIConfig:
     enabled: bool = True
-    sender_name: str = "MultiVerse"
+    sender_name: str = "WindowVerse"
     width: int = 1920
     height: int = 1080
     fps: float = 3.0
@@ -82,8 +82,8 @@ class NDIConfig:
     reference_font_size: int = 44
     secondary_font_size: int = 46
     text_color: tuple[int, int, int] = (245, 242, 234)       # #f5f2ea — matches .stage-text
-    reference_color: tuple[int, int, int] = (201, 168, 106)  # #c9a86a — matches .stage-ref
-    secondary_color: tuple[int, int, int] = (148, 151, 163)  # #9497a3 — matches .stage-secondary
+    reference_color: tuple[int, int, int] = (126, 184, 255)  # ice blue — matches Window Verse UI
+    secondary_color: tuple[int, int, int] = (245, 242, 234)  # same visibility as primary
     separator_color: tuple[int, int, int] = (35, 36, 41)    # #232429 — matches .line-soft
     background_color: tuple[int, int, int] = (0, 0, 0)
     background_alpha: int = 255            # 0 = fully transparent key, 255 = opaque
@@ -94,7 +94,7 @@ class NDIConfig:
 @dataclass(frozen=True)
 class LibraryConfig:
     data_root: str = "data"
-    show_secondary_translation_by_default: bool = False
+    show_secondary_translation_by_default: bool = True
     secondary_above_primary_by_default: bool = False
     # How often (seconds) the server re-scans data_root for new/removed
     # version or language folders while running, in addition to on every
@@ -104,7 +104,7 @@ class LibraryConfig:
 
 
 @dataclass(frozen=True)
-class MultiVerseConfig:
+class WindowVerseConfig:
     detection: DetectionConfig = field(default_factory=DetectionConfig)
     app: AppConfig = field(default_factory=AppConfig)
     ndi: NDIConfig = field(default_factory=NDIConfig)
@@ -131,10 +131,10 @@ def _color_tuple(cfg: configparser.ConfigParser, section: str, key: str,
         return default
 
 
-def load_config(path: str | None = None) -> MultiVerseConfig:
+def load_config(path: str | None = None) -> WindowVerseConfig:
     """
     Reads config/config.ini exactly once and returns a fully-typed,
-    validated MultiVerseConfig. Missing keys fall back to the dataclass
+    validated WindowVerseConfig. Missing keys fall back to the dataclass
     defaults above (which match what config.ini documents) -- a missing
     file or key never crashes startup, but it's always logged so a typo
     is visible instead of silently ignored.
@@ -220,7 +220,7 @@ def load_config(path: str | None = None) -> MultiVerseConfig:
     if os.environ.get("MULTIVERSE_DATA_ROOT") and not Path(db_path).is_absolute():
         db_path = str(Path(os.environ["MULTIVERSE_DATA_ROOT"]) / Path(db_path).name)
 
-    return MultiVerseConfig(
+    return WindowVerseConfig(
         detection=detection,
         app=app,
         ndi=ndi,

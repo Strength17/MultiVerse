@@ -58,9 +58,9 @@ from error_catalog import log_entry
 # ── Logging ───────────────────────────────────────────────────────────────────
 def _configure_logging():
     import os
-    log_dir = Path(os.environ.get("MULTIVERSE_LOGS_DIR", "logs"))
+    log_dir = Path(os.environ.get("WINDOWVERSE_LOGS_DIR") or os.environ.get("MULTIVERSE_LOGS_DIR", "logs"))
     log_dir.mkdir(parents=True, exist_ok=True)
-    log_file = log_dir / "multiverse.log"
+    log_file = log_dir / "windowverse.log"
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(name)s %(levelname)s %(message)s",
@@ -73,7 +73,7 @@ def _configure_logging():
 
 
 _configure_logging()
-logger = logging.getLogger("multiverse.server")
+logger = logging.getLogger("windowverse.server")
 
 # One-time self-heal: strip any bad entries (stopwords, digit-containing
 # keys) that were saved to data/corrections_learned.json before these
@@ -160,7 +160,7 @@ AUTO_DISPLAY_COOLDOWN = {
 }
 
 
-class MultiVerseServer:
+class WindowVerseServer:
     def __init__(self):
         self.config = APP_CONFIG
         self.orchestrator = None
@@ -172,7 +172,9 @@ class MultiVerseServer:
         self._mic_stream = None
 
         # ── Bible version/language library (auto-discovered from disk) ──
-        data_root = os.environ.get("MULTIVERSE_DATA_ROOT", self.config.library.data_root)
+        data_root = os.environ.get("WINDOWVERSE_DATA_ROOT") or os.environ.get(
+            "MULTIVERSE_DATA_ROOT", self.config.library.data_root
+        )
         self.library = BibleLibrary(data_root)
         self.library.rescan()
         self._current_version: str = DEFAULT_TRANSLATION
@@ -183,6 +185,7 @@ class MultiVerseServer:
         self._user_dirs = ensure_user_dirs()
         self._display_path = self._user_dirs["config"] / "display_user.json"
         self._display = load_user_display(self._display_path)
+        self._secondary_above = self._display.secondary_above
         self._display.secondary_above = self._secondary_above
         self._selected_mic: str = "System Default Microphone"
         self._session_transcript: list[dict] = []
@@ -218,19 +221,44 @@ class MultiVerseServer:
         # keeps the transcript real-time even when a verse match takes a
         # few hundred ms of embedding work to resolve.
         self._detection_executor = concurrent.futures.ThreadPoolExecutor(
-            max_workers=1, thread_name_prefix="multiverse-detect"
+            max_workers=1, thread_name_prefix="windowverse-detect"
         )
 
     # ── Initialisation ────────────────────────────────────────────────────────
-    def _report_startup(self, step_id: str, label: str, status: str):
+    def _report_startup(self, step_id: str, label: str, status: str, sub_percent: int | None = None):
         """Record a boot step and push it to any connected UI (thread-safe)."""
+        pct = self._startup_percent(step_id, status, sub_percent)
         self._startup_steps[step_id] = {
-            "step": step_id, "label": label, "status": status,
+            "step": step_id, "label": label, "status": status, "percent": pct,
         }
-        self._broadcast_threadsafe({
+        payload = {
             "type": "startup_progress",
-            "step": step_id, "label": label, "status": status,
-        })
+            "step": step_id, "label": label, "status": status, "percent": pct,
+        }
+        if sub_percent is not None:
+            payload["sub_percent"] = sub_percent
+        self._broadcast_threadsafe(payload)
+
+    @staticmethod
+    def _startup_percent(step_id: str, status: str, sub_percent: int | None) -> int:
+        """Map step + optional sub-progress to overall 0–100."""
+        bands = {
+            "bible_db": (0, 8),
+            "detection": (8, 12),
+            "self_check": (12, 18),
+            "search_index": (18, 82),
+            "narrative": (82, 88),
+            "speech": (88, 94),
+            "ndi": (94, 100),
+        }
+        lo, hi = bands.get(step_id, (0, 100))
+        if status == "done":
+            return hi
+        if status == "error":
+            return lo
+        if sub_percent is not None:
+            return lo + int((hi - lo) * max(0, min(100, sub_percent)) / 100)
+        return lo
 
     def initialize(self, db_path: str = DB_PATH,
                    external_faiss_index: str | None = None,
@@ -278,25 +306,39 @@ class MultiVerseServer:
                 "STARTUP SELF-CHECK FAILED — verse lookups may be WRONG for "
                 "this DB file:\n  " + "\n  ".join(self._startup_warnings)
             )
-        else:
-            self._report_startup("self_check", "Verifying verse lookups", "done")
-            logger.info("Startup self-check passed — anchor verses match expected text")
+            raise RuntimeError(
+                "English NKJV database failed verification. Place NKJV.sqlite3 in "
+                "Documents\\WindowVerse\\data\\NKJV\\English\\ — not the French file."
+            )
+        self._report_startup("self_check", "Verifying verse lookups", "done")
+        logger.info("Startup self-check passed — anchor verses match expected text")
 
-        if external_faiss_index and external_verse_lookup:
+        index_cache = str(self._user_dirs["data"] / "index_cache")
+        progress_cb = lambda p: self._report_startup(
+            "search_index", "Preparing search index", "running", sub_percent=p,
+        )
+
+        from index_cache import cache_paths_for_db
+        cached_faiss, cached_lookup = cache_paths_for_db(
+            index_cache, db_path, self.orchestrator.translation,
+        )
+        use_db_cache = cached_faiss.exists() and cached_lookup.exists()
+
+        if use_db_cache:
+            logger.info("Loading DB-matched semantic index cache — skipping external/rebuild")
+            self._report_startup("search_index", "Preparing search index", "running", sub_percent=0)
+            self.orchestrator.build_index(cache_dir=index_cache, progress_callback=progress_cb)
+        elif external_faiss_index and external_verse_lookup:
             logger.info("Loading pre-built FAISS index — skipping embedding work")
-            self._report_startup("search_index", "Loading search index", "running")
+            self._report_startup("search_index", "Preparing search index", "running")
             self.orchestrator.load_external_index(
                 external_faiss_index, external_verse_lookup,
                 lookup_format=external_lookup_format,
             )
         else:
-            self._report_startup("search_index", "Building search index", "running")
-            self.orchestrator.build_index()
-        self._report_startup(
-            "search_index",
-            "Loading search index" if external_faiss_index else "Building search index",
-            "done",
-        )
+            self._report_startup("search_index", "Preparing search index", "running", sub_percent=0)
+            self.orchestrator.build_index(cache_dir=index_cache, progress_callback=progress_cb)
+        self._report_startup("search_index", "Preparing search index", "done")
 
         self._report_startup("narrative", "Starting narrative tracker", "running")
         from narrative_tracker import NarrativeTracker
@@ -497,26 +539,8 @@ class MultiVerseServer:
         source  = event.get("source", "semantic")
         min_gap = AUTO_DISPLAY_COOLDOWN.get(source, AUTO_DISPLAY_COOLDOWN["semantic"])
 
-        # Secondary-language lookup: attached whenever a language folder
-        # sits next to the current version's (e.g. data/NKJV/French/...)
-        # and the toggle is on. A missing/broken secondary DB is caught
-        # inside BibleLibrary.get_db and just returns None -- never crashes
-        # the primary (English) detection path.
-        secondary_language = self.library.secondary_language_for(
-            self._current_version, self._current_language
-        )
-        if self._show_secondary and secondary_language and event.get("book_number"):
-            try:
-                sec_db = self.library.get_db(self._current_version, secondary_language)
-                sec_row = sec_db.lookup_verse(
-                    event["book_number"], event["chapter"], event["verse"]
-                ) if sec_db else None
-            except Exception:
-                logger.exception("Secondary-language lookup failed — showing primary only")
-                sec_row = None
-            if sec_row and sec_row.get("text"):
-                event = {**event, "secondary_language": secondary_language,
-                          "secondary_text": sec_row["text"]}
+        # Secondary-language lookup: English primary + optional French below.
+        event = self._attach_secondary_text(event)
 
         same_verse = (
             self._last_displayed is not None
@@ -545,7 +569,8 @@ class MultiVerseServer:
         self._display.secondary_above = self._secondary_above
         self.ndi_sender.set_display(self._display)
         self.ndi_sender.update(
-            reference=f"{event.get('book')} {event.get('chapter')}:{event.get('verse')}",
+            reference=event.get("reference_display")
+            or f"{event.get('book')} {event.get('chapter')}:{event.get('verse')}",
             text=event.get("text", ""),
             secondary_text=event.get("secondary_text"),
         )
@@ -575,21 +600,45 @@ class MultiVerseServer:
             msg = detail or str(warning)
         await self._emit_system_log(code, msg)
 
-    def _search_query(self, query: str) -> dict | None:
-        """Regex first, then semantic paraphrase — same priority as live detection."""
+    def _search_query(self, query: str, mode: str = "all") -> dict | None:
+        """Search: explicit refs, paraphrase, stories — or a single mode."""
         if not query or not query.strip():
             return None
         corrected = correct_text(query.strip())
+        mode = (mode or "all").lower()
+        if mode == "explicit":
+            regex_hit = self.orchestrator._run_regex_only(corrected)
+            return regex_hit if regex_hit and regex_hit.get("triggered") else None
+        if mode == "paraphrase":
+            if not self.orchestrator._index_built:
+                return None
+            return self.orchestrator.vector_engine.search_paraphrase(corrected)
+        if mode == "narrative":
+            if not self.narrative_tracker:
+                return None
+            return self.narrative_tracker.search_query(corrected)
         regex_hit = self.orchestrator._run_regex_only(corrected)
         if regex_hit and regex_hit.get("triggered"):
             return regex_hit
-        if not self.orchestrator._index_built:
-            return None
-        return self.orchestrator.vector_engine.search_paraphrase(corrected)
+        if self.orchestrator._index_built:
+            paraphrase_hit = self.orchestrator.vector_engine.search_paraphrase(corrected)
+            if paraphrase_hit:
+                return paraphrase_hit
+        if self.narrative_tracker:
+            return self.narrative_tracker.search_query(corrected)
+        return None
 
-    def _mic_progress(self, step: str, percent: int):
+    def _audio_devices_payload(self) -> dict:
+        return {
+            "type": "audio_devices",
+            "devices": list_input_devices(),
+            "selected": self._selected_mic,
+        }
+
+    def _mic_progress(self, step: str, percent: int, label: str = ""):
         self._broadcast_threadsafe({
-            "type": "mic_startup_progress", "step": step, "percent": percent,
+            "type": "mic_startup_progress",
+            "step": step, "percent": percent, "label": label,
         })
 
     def _refresh_ndi_display(self):
@@ -611,18 +660,18 @@ class MultiVerseServer:
     def start_mic(self):
         if self.pipeline is None:
             raise RuntimeError("Speech pipeline not initialized")
-        self._mic_progress("starting_mic", 0)
+        self._mic_progress("starting_mic", 0, "Preparing microphone…")
         set_default_input_device(self._selected_mic)
-        self._mic_progress("setting_device", 33)
+        self._mic_progress("setting_device", 33, "Selecting audio device…")
         self.pipeline.start()
-        self._mic_progress("opening_session", 66)
+        self._mic_progress("opening_session", 66, "Opening microphone session…")
         if not self.pipeline.wait_session_ready(timeout=20.0):
-            detail = self.pipeline.last_error or "WinRT session did not start in time"
+            detail = self.pipeline.last_error or "Microphone session did not start in time"
             raise RuntimeError(detail)
         if not self.pipeline.is_running():
-            detail = self.pipeline.last_error or "WinRT session stopped unexpectedly"
+            detail = self.pipeline.last_error or "Microphone session stopped unexpectedly"
             raise RuntimeError(detail)
-        self._mic_progress("ready", 100)
+        self._mic_progress("ready", 100, "Microphone ready")
         logger.info("Mic input started (Windows on-device dictation)")
 
     def stop(self):
@@ -641,9 +690,9 @@ class MultiVerseServer:
             return None
         out_dir = self._user_dirs["transcription"]
         stamp = time.strftime("%Y-%m-%d_%H-%M-%S")
-        path = out_dir / f"MultiVerse_{stamp}.txt"
+        path = out_dir / f"WindowVerse_{stamp}.txt"
         lines = [
-            f"MultiVerse session — saved {time.strftime('%Y-%m-%d %H:%M:%S')}",
+            f"Window Verse session — saved {time.strftime('%Y-%m-%d %H:%M:%S')}",
             "=" * 60,
             "",
         ]
@@ -657,9 +706,13 @@ class MultiVerseServer:
         for key, val in patch.items():
             if hasattr(self._display, key):
                 setattr(self._display, key, val)
+        if "secondary_above" in patch:
+            self._secondary_above = bool(patch["secondary_above"])
         self._display.secondary_above = self._secondary_above
         save_user_display(self._display_path, self._display)
         self.ndi_sender.set_display(self._display)
+        if self._last_displayed:
+            self._last_displayed = self._attach_secondary_text(self._last_displayed)
         self._refresh_ndi_display()
 
     # ── WebSocket handling ────────────────────────────────────────────────────
@@ -676,7 +729,6 @@ class MultiVerseServer:
             "nvidia_name": None,
             "has_other_gpu": False,
             "other_gpu_name": None,
-            "engine": "Windows on-device dictation (WinRT)",
             "model_size": "system-managed",
             "compute_type": "native",
             "chunk_seconds": "continuous",
@@ -715,10 +767,7 @@ class MultiVerseServer:
                     "ndi_unavailable",
                     "NDI output is enabled but the runtime is not installed.",
                 )
-            await websocket.send(json.dumps({
-                "type": "audio_devices",
-                "devices": list_input_devices(),
-            }))
+            await websocket.send(json.dumps(self._audio_devices_payload()))
 
     async def handle_client(self, websocket):
         self._clients.add(websocket)
@@ -763,18 +812,23 @@ class MultiVerseServer:
                 )
         elif action == "search_verse":
             query = msg.get("query", "")
+            mode = msg.get("mode", "all")
             try:
-                result = await asyncio.to_thread(self._search_query, query)
+                result = await asyncio.to_thread(self._search_query, query, mode)
+                if result:
+                    result = self._attach_secondary_text(result)
             except Exception:
                 logger.exception("Search failed for query %r", query)
                 result = None
             await websocket.send(json.dumps({
-                "type": "search_result", "query": query, "result": result,
+                "type": "search_result", "query": query, "mode": mode, "result": result,
             }))
         elif action == "manual_search":
             query = msg.get("query", "")
             try:
                 result = await asyncio.to_thread(self._search_query, query)
+                if result:
+                    result = self._attach_secondary_text(result)
             except Exception:
                 logger.exception("Manual search failed for query %r", query)
                 result = None
@@ -789,9 +843,10 @@ class MultiVerseServer:
             )
         elif action == "set_show_translation":
             self._show_secondary = bool(msg.get("enabled", False))
-            self._broadcast_threadsafe({
+            await self._broadcast({
                 "type": "broadcast_state", "show_secondary": self._show_secondary
             })
+            await self._refresh_last_display_secondary()
             self._refresh_ndi_display()
         elif action == "set_secondary_order":
             self._secondary_above = bool(msg.get("above", False))
@@ -809,10 +864,10 @@ class MultiVerseServer:
                 "backgrounds": list_background_images(self._user_dirs["backgrounds"]),
             })
         elif action == "get_audio_devices":
-            devices = await asyncio.to_thread(list_input_devices)
-            await websocket.send(json.dumps({"type": "audio_devices", "devices": devices}))
+            await websocket.send(json.dumps(self._audio_devices_payload()))
         elif action == "set_mic":
             self._selected_mic = msg.get("name") or "System Default Microphone"
+            await self._broadcast(self._audio_devices_payload())
         elif action == "set_ndi_enabled":
             self._display.ndi_output_enabled = bool(msg.get("enabled", True))
             save_user_display(self._display_path, self._display)
@@ -829,26 +884,86 @@ class MultiVerseServer:
                 "available": getattr(self.ndi_sender, "_available", False),
             })
         elif action == "ndi_preview":
-            sec_lang = self.library.secondary_language_for(
-                self._current_version, self._current_language)
-            secondary = None
-            if self._show_secondary and sec_lang:
-                secondary = (
-                    f"[{sec_lang} sample] Car Dieu a tant aimé le monde "
-                    "qu'il a donné son Fils unique."
-                )
+            preview = {
+                "book": "John", "book_number": 430, "chapter": 3, "verse": 16,
+                "text": "For God so loved the world, that he gave his only begotten Son.",
+            }
+            preview = self._attach_secondary_text(preview)
             try:
                 self.ndi_sender.set_display(self._display)
                 self.ndi_sender.update(
                     reference="John 3:16",
-                    text="For God so loved the world, that he gave his only begotten Son.",
-                    secondary_text=secondary,
+                    text=preview["text"],
+                    secondary_text=preview.get("secondary_text"),
                 )
             except Exception:
                 logger.exception("NDI preview failed")
             await websocket.send(json.dumps({"type": "ndi_preview_sent"}))
         else:
             logger.warning("Unknown action: %s", action)
+
+    def _resolve_book_number(self, event: dict) -> int | None:
+        """Canonical book number for cross-language verse lookup."""
+        bn = event.get("book_number")
+        if bn is not None:
+            return int(bn)
+        book = (event.get("book") or "").strip()
+        if not book:
+            return None
+        from bible_books import BOOKS
+        target = book.lower()
+        for num, name, _abbrevs in BOOKS:
+            if name.lower() == target:
+                return num
+        return None
+
+    def _attach_secondary_text(self, event: dict) -> dict:
+        """Look up the French (secondary) verse for every display event.
+        Secondary text is for Live Output / NDI only — never added to terminal logs."""
+        out = dict(event)
+        out.pop("secondary_text", None)
+        out.pop("secondary_language", None)
+        if not out.get("triggered"):
+            return out
+        from verse_display import PRIMARY_VERSION_LABEL, SECONDARY_VERSION_LABEL, bilingual_reference
+        from bible_books import french_book_name
+        out["primary_version_label"] = PRIMARY_VERSION_LABEL
+        book = out.get("book")
+        chapter, verse = out.get("chapter"), out.get("verse")
+        if book and chapter is not None and verse is not None:
+            out["book_french"] = french_book_name(book)
+            out["reference_display"] = bilingual_reference(book, chapter, verse, out["book_french"])
+        secondary_language = self.library.secondary_language_for(
+            self._current_version, self._current_language
+        )
+        book_number = self._resolve_book_number(out)
+        if not (secondary_language and book_number):
+            return out
+        try:
+            sec_db = self.library.get_db(self._current_version, secondary_language)
+            sec_row = sec_db.lookup_verse(
+                book_number, out["chapter"], out["verse"]
+            ) if sec_db else None
+        except Exception:
+            logger.exception("Secondary-language lookup failed — showing primary only")
+            sec_row = None
+        if sec_row and sec_row.get("text"):
+            out["secondary_language"] = secondary_language
+            out["secondary_text"] = sec_row["text"]
+            out["book_number"] = book_number
+            out["secondary_version_label"] = SECONDARY_VERSION_LABEL
+        return out
+
+    async def _refresh_last_display_secondary(self):
+        if not self._last_displayed:
+            return
+        event = self._attach_secondary_text(self._last_displayed)
+        self._last_displayed = event
+        await self._broadcast({"type": "detection", **event, "auto_display": True})
+        try:
+            self._push_ndi(event)
+        except Exception:
+            logger.exception("NDI update failed after secondary toggle")
 
     async def _switch_version(self, version: str | None, language: str, websocket):
         """
@@ -1000,7 +1115,7 @@ class MultiVerseServer:
         start_static_server(ui_root, self._user_dirs["backgrounds"], port=HTTP_PORT)
 
         async with websockets.serve(self.handle_client, HOST, PORT):
-            logger.info("MultiVerse V3 listening on ws://%s:%d — booting", HOST, PORT)
+            logger.info("Window Verse listening on ws://%s:%d — booting", HOST, PORT)
             await self._broadcast({"type": "status", "state": "booting"})
 
             try:
@@ -1083,12 +1198,15 @@ def main():
     APP_CONFIG = load_config()
     DB_PATH, DEFAULT_TRANSLATION = _load_db_config()
 
-    server = MultiVerseServer()
+    server = WindowVerseServer()
 
-    faiss_index  = os.environ.get("MULTIVERSE_FAISS_INDEX")
-    verse_lookup = os.environ.get("MULTIVERSE_VERSE_LOOKUP")
+    faiss_index = os.environ.get("WINDOWVERSE_FAISS_INDEX") or os.environ.get("MULTIVERSE_FAISS_INDEX")
+    verse_lookup = os.environ.get("WINDOWVERSE_VERSE_LOOKUP") or os.environ.get("MULTIVERSE_VERSE_LOOKUP")
 
-    data_root = Path(os.environ.get("MULTIVERSE_DATA_ROOT", APP_CONFIG.library.data_root))
+    data_root = Path(
+        os.environ.get("WINDOWVERSE_DATA_ROOT")
+        or os.environ.get("MULTIVERSE_DATA_ROOT", APP_CONFIG.library.data_root)
+    )
     default_faiss = data_root / "bible_vectors.index"
     default_lookup = data_root / "bible_verse_map.pkl"
     if not faiss_index and default_faiss.exists():
@@ -1097,16 +1215,20 @@ def main():
         verse_lookup = str(default_lookup)
 
     db_path = DB_PATH
-    if not Path(db_path).exists():
-        server.library.rescan()
-        for version, entry in server.library._versions.items():
-            for lang, path in entry.languages.items():
-                if Path(path).exists():
-                    db_path = str(path)
-                    logger.info("Using discovered Bible DB: %s (%s/%s)", path, version, lang)
-                    break
-            if Path(db_path).exists():
-                break
+    server.library.rescan()
+    resolved = server.library.resolve_primary_db(DEFAULT_TRANSLATION, "English")
+    if resolved:
+        version, lang, path = resolved
+        db_path = str(path)
+        server._current_version = version
+        server._current_language = lang
+        logger.info("Using primary Bible DB: %s (%s/%s)", path, version, lang)
+    elif not Path(db_path).exists():
+        logger.error(
+            "No English NKJV database found. Expected: "
+            "Documents\\WindowVerse\\data\\NKJV\\English\\NKJV.sqlite3"
+        )
+        sys.exit(1)
 
     if faiss_index and verse_lookup:
         logger.info("Found pre-built index files — loading automatically")
@@ -1115,7 +1237,10 @@ def main():
         db_path=db_path,
         external_faiss_index=faiss_index,
         external_verse_lookup=verse_lookup,
-        external_lookup_format=os.environ.get("MULTIVERSE_LOOKUP_FORMAT", "pickle"),
+        external_lookup_format=os.environ.get(
+            "WINDOWVERSE_LOOKUP_FORMAT",
+            os.environ.get("MULTIVERSE_LOOKUP_FORMAT", "pickle"),
+        ),
     ))
 
 

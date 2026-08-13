@@ -141,12 +141,37 @@ class BibleLibrary:
         return sorted(entry.languages) if entry else []
 
     def secondary_language_for(self, version: str, primary_language: str) -> str | None:
-        """First other language available alongside `primary_language` for
-        this version, or None. Used to auto-offer e.g. a French toggle
-        next to an English-primary version without hardcoding "French"."""
+        """Secondary display language for bilingual output. English primary
+        always pairs with French when that folder exists."""
         langs = self.languages_for(version)
+        if primary_language == "English" and "French" in langs:
+            return "French"
         others = [l for l in langs if l != primary_language]
         return others[0] if others else None
+
+    def resolve_primary_db(
+        self,
+        preferred_version: str = "NKJV",
+        preferred_language: str = "English",
+    ) -> tuple[str, str, Path] | None:
+        """Primary detection DB: preferred NKJV English, then any English edition."""
+        if not self._versions:
+            self.rescan()
+        if preferred_version in self._versions:
+            entry = self._versions[preferred_version]
+            if preferred_language in entry.languages:
+                path = entry.languages[preferred_language]
+                if path.exists():
+                    return preferred_version, preferred_language, path
+        for version, entry in sorted(self._versions.items()):
+            if "English" in entry.languages:
+                path = entry.languages["English"]
+                if path.exists():
+                    return version, "English", path
+        return None
+
+    def has_french_for_version(self, version: str) -> bool:
+        return self.has_language(version, "French")
 
     # ------------------------------------------------------------------
     def get_db(self, version: str, language: str = "English") -> BibleDB | None:

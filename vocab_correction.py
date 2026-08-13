@@ -26,11 +26,18 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from pathlib import Path
 
 from rapidfuzz import fuzz, process
 
-from bible_books import BOOKS
+from bible_books import (
+    BOOKS,
+    STT_BOOK_ALIASES,
+    apply_stt_book_aliases,
+    is_reference_signal,
+    resolve_stt_book_alias,
+)
 
 logger = logging.getLogger("multiverse.vocab_correction")
 
@@ -38,6 +45,13 @@ _LEARNED_PATH = Path(__file__).parent / "data" / "corrections_learned.json"
 _CANONICAL_NAMES = [name for _, name, _ in BOOKS]
 _FUZZY_THRESHOLD = 85  # rapidfuzz score 0-100 -- below this, leave the word alone
 _WINDOW_SIZES = (3, 2, 1)  # try longest phrase match first ("Song of Solomon")
+
+# Never rewrite windows that already carry an explicit reference skeleton —
+# "John chapter one verse one" must reach verse_detector intact.
+_REF_STRUCTURE = re.compile(
+    r"\b(chapter|chapters|ch\.|verse|verses|ver\.)\b|\d",
+    re.IGNORECASE,
+)
 
 # WRatio (used below) boosts substring/partial matches -- great for real
 # mishears ("book of Romans" -> "Romans", the filler comes BEFORE the real
@@ -71,6 +85,10 @@ _NEVER_CORRECT = frozenset({
 })
 
 
+def _has_reference_structure(phrase: str) -> bool:
+    return bool(_REF_STRUCTURE.search(phrase))
+
+
 def _load_learned() -> dict[str, str]:
     if _LEARNED_PATH.exists():
         try:
@@ -102,6 +120,7 @@ def purge_bad_corrections() -> int:
         key for key in _learned
         if (key in _NEVER_CORRECT and " " not in key)
         or any(ch.isdigit() for ch in key)
+        or _has_reference_structure(key)
         or not _length_ratio_ok(key, _learned[key])
     ]
     for key in bad_keys:
@@ -112,6 +131,43 @@ def purge_bad_corrections() -> int:
     return len(bad_keys)
 
 
+def _correct_contextual_book_tokens(words: list[str]) -> list[str]:
+    """Fix isolated book mishears when the next word signals a reference."""
+    out = list(words)
+    for i in range(len(out)):
+        nxt = out[i + 1] if i + 1 < len(out) else None
+        if nxt is None or not is_reference_signal(nxt):
+            continue
+        key = out[i].lower().strip(".,;:!?\"'")
+        if key in _NEVER_CORRECT:
+            continue
+        alias = resolve_stt_book_alias(out[i], nxt)
+        if alias:
+            out[i] = alias
+            if key not in _learned:
+                _learned[key] = alias
+            continue
+        if key in _learned:
+            out[i] = _learned[key]
+            continue
+        if _has_reference_structure(key) or any(ch.isdigit() for ch in key):
+            continue
+        best = process.extractOne(
+            out[i], _CANONICAL_NAMES, scorer=fuzz.WRatio, score_cutoff=_FUZZY_THRESHOLD
+        )
+        if best is not None:
+            canonical, score, _ = best
+            if _length_ratio_ok(out[i], canonical) and canonical.lower() != key:
+                _learned[key] = canonical
+                _save_learned(_learned)
+                logger.info(
+                    "Learned contextual correction: %r -> %r (score=%.0f)",
+                    out[i], canonical, score,
+                )
+                out[i] = canonical
+    return out
+
+
 def correct_text(text: str) -> str:
     """Best-effort correction of misheard Bible proper nouns. Never raises --
     returns the original text unmodified on any internal failure."""
@@ -119,7 +175,7 @@ def correct_text(text: str) -> str:
         return text
 
     try:
-        words = text.split()
+        words = _correct_contextual_book_tokens(text.split())
         out: list[str] = []
         i = 0
         n = len(words)
@@ -130,6 +186,12 @@ def correct_text(text: str) -> str:
                     continue
                 phrase = " ".join(words[i:i + size])
                 key = phrase.lower().strip(".,;:!?")
+
+                # Explicit references must never be rewritten — corrupted
+                # learned entries like "john chapter one" -> "John" were
+                # stripping chapter/verse numbers before regex detection.
+                if _has_reference_structure(key):
+                    continue
 
                 # Real book-name mishears never involve digits -- the ASR
                 # already gets numbers right, so a phrase like "verse 1"
@@ -157,12 +219,8 @@ def correct_text(text: str) -> str:
                 if best is not None:
                     canonical, score, _ = best
                     if not _length_ratio_ok(phrase, canonical):
-                        # Same guard as purge_bad_corrections: a short phrase
-                        # scoring high against a long name via WRatio's
-                        # partial-match boost (shared words, e.g. "book of"
-                        # vs "Song of Solomon") is a coincidental overlap,
-                        # not a real mishear. Leave the word alone and keep
-                        # checking shorter windows / move on.
+                        continue
+                    if _has_reference_structure(phrase):
                         continue
                     if canonical.lower() != phrase.lower():
                         _learned[key] = canonical
@@ -176,7 +234,7 @@ def correct_text(text: str) -> str:
             if not matched:
                 out.append(words[i])
                 i += 1
-        return " ".join(out)
+        return apply_stt_book_aliases(" ".join(out))
     except Exception:
         logger.exception("vocab_correction failed -- passing text through unmodified")
         return text

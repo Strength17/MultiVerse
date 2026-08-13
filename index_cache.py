@@ -223,8 +223,20 @@ def load_external_index(vector_engine, faiss_index_path: str | Path,
         )
 
 
+def cache_paths_for_db(cache_dir: str | Path, db_path: str | Path,
+                       translation: str = "NKJV") -> tuple[Path, Path]:
+    """Return (faiss_path, lookup_path) for a given Bible DB file hash."""
+    cache_dir = Path(cache_dir)
+    db_hash = _file_hash(db_path)
+    return (
+        cache_dir / f"verse_index_{translation}_{db_hash}.faiss",
+        cache_dir / f"verse_lookup_{translation}_{db_hash}.pkl",
+    )
+
+
 def load_or_build_index(vector_engine, db_path: str | Path, cache_dir: str | Path,
-                         translation: str = "NKJV") -> None:
+                         translation: str = "NKJV",
+                         progress_callback=None) -> None:
     """
     Populates vector_engine._index and vector_engine._verse_lookup either
     from a valid on-disk cache, or by building fresh and writing the
@@ -236,9 +248,7 @@ def load_or_build_index(vector_engine, db_path: str | Path, cache_dir: str | Pat
     cache_dir = Path(cache_dir)
     cache_dir.mkdir(parents=True, exist_ok=True)
 
-    db_hash = _file_hash(db_path)
-    index_path = cache_dir / f"verse_index_{translation}_{db_hash}.faiss"
-    lookup_path = cache_dir / f"verse_lookup_{translation}_{db_hash}.pkl"
+    index_path, lookup_path = cache_paths_for_db(cache_dir, db_path, translation)
 
     if index_path.exists() and lookup_path.exists():
         logger.info("Loading cached semantic index from %s", index_path)
@@ -250,7 +260,7 @@ def load_or_build_index(vector_engine, db_path: str | Path, cache_dir: str | Pat
         return
 
     logger.info("No valid cache found (hash=%s) — building fresh index", db_hash)
-    vector_engine.build_index()
+    vector_engine.build_index(progress_callback=progress_callback)
 
     faiss.write_index(vector_engine._index, str(index_path))
     with open(lookup_path, "wb") as f:
