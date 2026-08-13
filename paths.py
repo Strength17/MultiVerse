@@ -7,10 +7,10 @@ import shutil
 import sys
 from pathlib import Path
 
-logger = logging.getLogger("windowverse.paths")
+logger = logging.getLogger("multiverse.paths")
 
-_LEGACY_USER_ROOT = Path.home() / "Documents" / "MultiVerse"
-_USER_ROOT = Path.home() / "Documents" / "WindowVerse"
+_USER_ROOT = Path.home() / "Documents" / "MultiVerse"
+_WINDOWVERSE_LEGACY = Path.home() / "Documents" / "WindowVerse"
 
 
 def app_root() -> Path:
@@ -26,32 +26,32 @@ def resource_root() -> Path:
 
 
 def _migrate_legacy_user_data() -> None:
-    """One-time copy from Documents/MultiVerse to Documents/WindowVerse."""
-    if not _LEGACY_USER_ROOT.exists():
+    """One-time copy from Documents/WindowVerse to Documents/MultiVerse."""
+    if not _WINDOWVERSE_LEGACY.exists():
         return
     if _USER_ROOT.exists() and any(_USER_ROOT.iterdir()):
         return
     try:
-        shutil.copytree(_LEGACY_USER_ROOT, _USER_ROOT, dirs_exist_ok=True)
-        logger.info("Migrated user data from %s to %s", _LEGACY_USER_ROOT, _USER_ROOT)
+        shutil.copytree(_WINDOWVERSE_LEGACY, _USER_ROOT, dirs_exist_ok=True)
+        logger.info("Migrated user data from %s to %s", _WINDOWVERSE_LEGACY, _USER_ROOT)
     except Exception:
-        logger.exception("Could not migrate legacy user data — using WindowVerse path only")
+        logger.exception("Could not migrate WindowVerse user data — using MultiVerse path only")
 
 
 def user_data_root() -> Path:
     _migrate_legacy_user_data()
-    if not _USER_ROOT.exists() and _LEGACY_USER_ROOT.exists():
+    if not _USER_ROOT.exists() and _WINDOWVERSE_LEGACY.exists():
         try:
             _USER_ROOT.mkdir(parents=True, exist_ok=True)
-            for item in _LEGACY_USER_ROOT.iterdir():
+            for item in _WINDOWVERSE_LEGACY.iterdir():
                 dest = _USER_ROOT / item.name
                 if item.is_dir():
                     shutil.copytree(item, dest, dirs_exist_ok=True)
                 elif not dest.exists():
                     shutil.copy2(item, dest)
-            logger.info("Seeded WindowVerse user folder from legacy MultiVerse data")
+            logger.info("Seeded MultiVerse user folder from legacy WindowVerse data")
         except Exception:
-            logger.exception("Partial legacy migration — continuing with WindowVerse path")
+            logger.exception("Partial legacy migration — continuing with MultiVerse path")
     _USER_ROOT.mkdir(parents=True, exist_ok=True)
     return _USER_ROOT
 
@@ -95,7 +95,7 @@ def ensure_user_dirs() -> dict[str, Path]:
 
 
 def config_path() -> Path:
-    env = _env("WINDOWVERSE_CONFIG", "MULTIVERSE_CONFIG")
+    env = _env("MULTIVERSE_CONFIG", "WINDOWVERSE_CONFIG")
     if env:
         return Path(env)
     user_cfg = user_data_root() / "config" / "config.ini"
@@ -126,17 +126,17 @@ def bootstrap_install() -> dict[str, Path]:
     cfg = str(user_cfg if user_cfg.exists() else bundled_cfg)
     data = str(dirs["data"])
     logs = str(dirs["logs"])
-    os.environ.setdefault("WINDOWVERSE_CONFIG", cfg)
-    os.environ.setdefault("WINDOWVERSE_DATA_ROOT", data)
-    os.environ.setdefault("WINDOWVERSE_LOGS_DIR", logs)
     os.environ.setdefault("MULTIVERSE_CONFIG", cfg)
     os.environ.setdefault("MULTIVERSE_DATA_ROOT", data)
     os.environ.setdefault("MULTIVERSE_LOGS_DIR", logs)
+    os.environ.setdefault("WINDOWVERSE_CONFIG", cfg)
+    os.environ.setdefault("WINDOWVERSE_DATA_ROOT", data)
+    os.environ.setdefault("WINDOWVERSE_LOGS_DIR", logs)
 
     _migrate_bible_data(bundled / "data", dirs["data"])
 
     return {
-        "config": Path(os.environ["WINDOWVERSE_CONFIG"]),
+        "config": Path(os.environ["MULTIVERSE_CONFIG"]),
         "data_root": dirs["data"],
         "logs": dirs["logs"],
         "transcription": dirs["transcription"],

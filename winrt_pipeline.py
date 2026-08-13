@@ -45,24 +45,23 @@ from dataclasses import dataclass
 
 logger = logging.getLogger("windowverse.winrt_pipeline")
 
-_WINRT_MODULES = (
-    "winrt.windows.foundation",
-    "winrt.windows.media.speechrecognition",
-    "winrt.windows.storage",
-    "winrt.windows.globalization",
+_WINRT_CHECKS: tuple[tuple[str, str], ...] = (
+    ("winrt.windows.foundation", "winrt-Windows.Foundation"),
+    ("winrt.windows.foundation.collections", "winrt-Windows.Foundation.Collections"),
+    ("winrt.windows.globalization", "winrt-Windows.Globalization"),
+    ("winrt.windows.media.speechrecognition", "winrt-Windows.Media.SpeechRecognition"),
+    ("winrt.windows.storage", "winrt-Windows.Storage"),
 )
 
 
 def verify_winrt_dependencies() -> list[str]:
     """Return pip package names that are missing (empty list = OK)."""
     missing: list[str] = []
-    for mod in _WINRT_MODULES:
+    for mod, pkg in _WINRT_CHECKS:
         try:
             __import__(mod)
         except ImportError:
-            missing.append(
-                "winrt-Windows." + mod.rsplit(".", 1)[-1].title().replace("Speechrecognition", "SpeechRecognition")
-            )
+            missing.append(pkg)
     return missing
 
 
@@ -73,8 +72,25 @@ def winrt_install_hint(missing: list[str] | None = None) -> str:
     extra = f" ({', '.join(pkgs)})" if pkgs else ""
     return (
         f"Install Windows speech packages{extra}: "
-        "pip install -r requirements_winrt.txt --break-system-packages — then restart Window Verse."
+        "pip install -r requirements_winrt.txt --break-system-packages — then restart MultiVerse."
     )
+
+
+def probe_winrt_mic(timeout: float = 25.0) -> str | None:
+    """Start/stop WinRT dictation briefly. Return error text or None if OK."""
+    missing = verify_winrt_dependencies()
+    if missing:
+        return winrt_install_hint(missing)
+    pipeline = WinRTSpeechPipeline()
+    pipeline.start()
+    try:
+        if not pipeline.wait_session_ready(timeout):
+            return pipeline.last_error or "Microphone session did not start in time"
+        if not pipeline.is_running():
+            return pipeline.last_error or "Microphone session stopped unexpectedly"
+        return None
+    finally:
+        pipeline.stop()
 
 
 @dataclass
@@ -96,10 +112,11 @@ class WinRTSpeechPipeline:
     """
 
     def __init__(self, on_result=None, on_speech_started=None,
-                 on_partial_result=None, **_ignored):
+                 on_partial_result=None, on_session_recovered=None, **_ignored):
         self.on_result = on_result
         self.on_speech_started = on_speech_started
         self.on_partial_result = on_partial_result
+        self.on_session_recovered = on_session_recovered
         self._thread: threading.Thread | None = None
         self._loop: asyncio.AbstractEventLoop | None = None
         self._recognizer = None
@@ -107,6 +124,7 @@ class WinRTSpeechPipeline:
         self._utterance_start: float | None = None
         self.last_error: str | None = None
         self._session_ready = threading.Event()
+        self._session_active = threading.Event()
 
     def push_audio(self, frame):
         # Intentional no-op -- see module docstring.
@@ -123,10 +141,18 @@ class WinRTSpeechPipeline:
 
     def wait_session_ready(self, timeout: float = 20.0) -> bool:
         """Block until WinRT reports the dictation session is running."""
-        return self._session_ready.wait(timeout=timeout)
+        if self.last_error:
+            return False
+        if not self._session_ready.wait(timeout=timeout):
+            return False
+        return self.is_running() and not self.last_error
 
     def is_running(self) -> bool:
         return self._thread is not None and self._thread.is_alive()
+
+    def is_capturing(self) -> bool:
+        """True when WinRT continuous recognition session is actively listening."""
+        return self.is_running() and self._session_active.is_set()
 
     def stop(self):
         self._stop_event.set()
@@ -140,6 +166,7 @@ class WinRTSpeechPipeline:
             self._thread.join(timeout=5)
             self._thread = None
         self._session_ready.clear()
+        self._session_active.clear()
 
     # ── background thread: owns its own asyncio loop, separate from the
     #    server's main asyncio loop, because pywinrt's async calls need one ──
@@ -151,19 +178,17 @@ class WinRTSpeechPipeline:
         except Exception as e:
             logger.exception("WinRT speech pipeline crashed")
             self.last_error = str(e)
-            self._session_ready.set()
+            return
 
     async def _main_async(self):
         missing = verify_winrt_dependencies()
         if missing:
-            self.last_error = f"No module named 'winrt.windows.globalization'" if any(
-                "Globalization" in p for p in missing
-            ) else f"Missing WinRT packages: {', '.join(missing)}"
+            self.last_error = f"Missing WinRT packages: {', '.join(missing)}"
             logger.error("%s — %s", self.last_error, winrt_install_hint(missing))
-            self._session_ready.set()
             return
 
-        import winrt.windows.globalization  # noqa: F401 — required by SpeechRecognizer
+        import winrt.windows.foundation.collections  # noqa: F401
+        import winrt.windows.globalization  # noqa: F401
         import winrt.windows.media.speechrecognition as speech
 
         recognizer = speech.SpeechRecognizer()
@@ -178,7 +203,6 @@ class WinRTSpeechPipeline:
         if compilation.status != speech.SpeechRecognitionResultStatus.SUCCESS:
             self.last_error = f"compile_constraints_async failed: {compilation.status}"
             logger.error(self.last_error)
-            self._session_ready.set()
             return
 
         self._recognizer = recognizer
@@ -243,14 +267,10 @@ class WinRTSpeechPipeline:
             # whole process was restarted. Auto-restart unless we're the
             # ones who asked it to stop.
             status = getattr(args, "status", None)
+            self._session_active.clear()
             if self._stop_event.is_set():
                 logger.info("WinRT session completed (status=%s) -- deliberate stop", status)
                 return
-            # One line, not two: the restart itself happens on the event
-            # loop and can't fail silently in a way worth a second log line
-            # here, so log the auto-restart decision and the outcome together
-            # after it actually completes (see _restart_session) instead of
-            # splitting it into a "noticed" line here + a "done" line there.
             if self._loop is not None:
                 asyncio.run_coroutine_threadsafe(self._restart_session(status), self._loop)
 
@@ -258,24 +278,57 @@ class WinRTSpeechPipeline:
         recognizer.continuous_recognition_session.add_result_generated(on_result)
         recognizer.continuous_recognition_session.add_completed(on_completed)
 
-        await recognizer.continuous_recognition_session.start_async()
-        logger.info("WinRT continuous on-device dictation session started")
+        await self._start_session("initial")
         self._session_ready.set()
 
         while not self._stop_event.is_set():
-            await asyncio.sleep(0.25)
+            if not self._session_active.is_set() and self._recognizer is not None:
+                await self._restart_session("watchdog")
+            await asyncio.sleep(0.5)
+
+    async def _start_session(self, reason: str):
+        if self._stop_event.is_set() or self._recognizer is None:
+            return False
+        sess = self._recognizer.continuous_recognition_session
+        await sess.start_async()
+        self._session_active.set()
+        self._utterance_start = None
+        logger.info("WinRT continuous on-device dictation session started (%s)", reason)
+        return True
 
     async def _restart_session(self, status):
         if self._stop_event.is_set() or self._recognizer is None:
             return
-        try:
-            await self._recognizer.continuous_recognition_session.start_async()
-            logger.warning(
-                "WinRT session auto-restarted after Windows silence timeout (status=%s)",
-                status,
-            )
-        except Exception:
-            logger.exception("Failed to auto-restart WinRT session (status=%s)", status)
+        sess = self._recognizer.continuous_recognition_session
+        for attempt in range(5):
+            try:
+                try:
+                    await sess.stop_async()
+                except Exception:
+                    pass
+                await asyncio.sleep(0.15 * (attempt + 1))
+                await sess.start_async()
+                self._session_active.set()
+                self._utterance_start = None
+                logger.warning(
+                    "WinRT session auto-restarted after Windows silence timeout "
+                    "(status=%s, attempt=%d)",
+                    status, attempt + 1,
+                )
+                if self.on_session_recovered:
+                    try:
+                        self.on_session_recovered()
+                    except Exception:
+                        logger.exception("on_session_recovered callback failed")
+                return
+            except Exception:
+                logger.exception(
+                    "Failed to auto-restart WinRT session (status=%s, attempt=%d)",
+                    status, attempt + 1,
+                )
+                await asyncio.sleep(0.35 * (attempt + 1))
+        self.last_error = f"WinRT session failed to restart after status={status}"
+        logger.error(self.last_error)
 
     async def _stop_async(self):
         try:

@@ -200,6 +200,37 @@ NARRATIVE_PASSAGES: list[NarrativePassage] = [
             "sign and wants to make Jesus king by force."
         ),
     ),
+    NarrativePassage(
+        id="woman_issue_of_blood", book="Matthew", book_number=400,
+        start_chapter=9, start_verse=20, end_chapter=9, end_verse=22,
+        title="The Woman with the Issue of Blood",
+        summary=(
+            "A woman who has suffered from bleeding for twelve years and "
+            "spent everything on doctors without being healed pushes through "
+            "a crowd surrounding Jesus. She believes that if she can only "
+            "touch the hem of his garment or the border of his clothes she "
+            "will be made whole. She reaches out, touches his garment, and "
+            "is immediately healed. Jesus turns, perceives that power has "
+            "gone out from him, and tells her that her faith has made her "
+            "whole. The same account appears in Mark where she says if she "
+            "may touch but his clothes she shall be whole."
+        ),
+    ),
+    NarrativePassage(
+        id="man_born_blind", book="John", book_number=430,
+        start_chapter=9, start_verse=1, end_chapter=9, end_verse=41,
+        title="Healing the Man Born Blind",
+        summary=(
+            "Jesus sees a man blind from birth and his disciples ask whether "
+            "the man or his parents sinned. Jesus says neither — this happened "
+            "so God's works might be revealed. He spits on the ground, makes "
+            "clay with the saliva, and anoints or rubs it on the blind man's "
+            "eyes. He tells the man to go wash in the pool of Siloam. The man "
+            "goes, washes, and comes back seeing. Neighbors debate whether it is "
+            "the same man. Pharisees question him and his parents about how he "
+            "was healed on the Sabbath."
+        ),
+    ),
 ]
 
 # Fast lookup by id for advancing/anchoring logic

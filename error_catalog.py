@@ -12,7 +12,7 @@ CATALOG: dict[str, dict[str, str]] = {
     },
     "semantic_index_empty": {
         "level": "warn",
-        "fix": "Copy bible_vectors.index and bible_verse_map.pkl into Documents\\WindowVerse\\data\\.",
+        "fix": "Copy bible_vectors.index and bible_verse_map.pkl into Documents\\MultiVerse\\data\\.",
     },
     "matched_reference_missing_from_db": {
         "level": "error",
@@ -28,11 +28,11 @@ CATALOG: dict[str, dict[str, str]] = {
     },
     "ndi_unavailable": {
         "level": "warn",
-        "fix": "Install the free NDI Runtime from ndi.video, then restart Window Verse.",
+        "fix": "Install the free NDI Runtime from ndi.video, then restart MultiVerse.",
     },
     "winrt_deps_missing": {
         "level": "error",
-        "fix": "Run: pip install -r requirements_winrt.txt --break-system-packages — then restart Window Verse.",
+        "fix": "Run: pip install -r requirements_winrt.txt --break-system-packages — then restart MultiVerse.",
     },
     "db_schema_error": {
         "level": "error",
@@ -44,11 +44,11 @@ CATALOG: dict[str, dict[str, str]] = {
     },
     "disconnected": {
         "level": "error",
-        "fix": "Backend stopped or lost connection — restart Window Verse.",
+        "fix": "Backend stopped or lost connection — restart MultiVerse.",
     },
     "generic": {
         "level": "warn",
-        "fix": "See Documents\\WindowVerse\\logs\\windowverse.log for details.",
+        "fix": "See Documents\\MultiVerse\\logs\\multiverse.log for details.",
     },
 }
 

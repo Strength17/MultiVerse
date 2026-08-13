@@ -45,7 +45,7 @@ from console_output import mark_live_line_open, write_line
 
 from bible_db import BibleDB
 from detection_orchestrator import DetectionOrchestrator
-from winrt_pipeline import WinRTSpeechPipeline, verify_winrt_dependencies, winrt_install_hint
+from winrt_pipeline import WinRTSpeechPipeline, verify_winrt_dependencies, winrt_install_hint, probe_winrt_mic
 from vocab_correction import correct_text, purge_bad_corrections
 
 from paths import app_root, ensure_user_dirs, resource_root, bootstrap_install
@@ -60,7 +60,7 @@ def _configure_logging():
     import os
     log_dir = Path(os.environ.get("WINDOWVERSE_LOGS_DIR") or os.environ.get("MULTIVERSE_LOGS_DIR", "logs"))
     log_dir.mkdir(parents=True, exist_ok=True)
-    log_file = log_dir / "windowverse.log"
+    log_file = log_dir / "multiverse.log"
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(name)s %(levelname)s %(message)s",
@@ -150,6 +150,7 @@ def _append_transcript_log(text: str) -> None:
 
 
 IDLE_TIMEOUT_SECONDS = APP_CONFIG.app.idle_timeout_seconds
+SILENCE_SAVE_SECONDS = APP_CONFIG.app.silence_save_seconds
 
 # Per-source minimum gap before auto-displaying a DIFFERENT verse than the
 # one currently shown. Now sourced from config.ini [detection] instead of
@@ -185,6 +186,9 @@ class WindowVerseServer:
 
         self._user_dirs = ensure_user_dirs()
         self._display_path = self._user_dirs["config"] / "display_user.json"
+        from narrative_settings import DetectionUserSettings, load_detection_user
+        self._detection_user_path = self._user_dirs["config"] / "detection_user.json"
+        self._detection_user = load_detection_user(self._detection_user_path)
         self._display = load_user_display(self._display_path)
         self._secondary_above = self._display.secondary_above
         self._display.secondary_above = self._secondary_above
@@ -199,6 +203,9 @@ class WindowVerseServer:
 
         self._last_speech_at = 0.0
         self._idle_paused = False
+        self._mic_listening = False
+        self._silence_checkpoint_saved = False
+        self._mic_stale_since: float | None = None
         self._last_display_at = 0.0
         self._last_displayed: dict | None = None
         self._startup_warnings: list[str] = []
@@ -247,10 +254,11 @@ class WindowVerseServer:
             "bible_db": (0, 8),
             "detection": (8, 12),
             "self_check": (12, 18),
-            "search_index": (18, 82),
-            "narrative": (82, 88),
-            "speech": (88, 94),
-            "ndi": (94, 100),
+            "search_index": (18, 78),
+            "narrative": (78, 84),
+            "speech": (84, 88),
+            "mic_check": (88, 96),
+            "ndi": (96, 100),
         }
         lo, hi = bands.get(step_id, (0, 100))
         if status == "done":
@@ -309,7 +317,7 @@ class WindowVerseServer:
             )
             raise RuntimeError(
                 "English NKJV database failed verification. Place NKJV.sqlite3 in "
-                "Documents\\WindowVerse\\data\\NKJV\\English\\ — not the French file."
+                "Documents\\MultiVerse\\data\\NKJV\\English\\ — not the French file."
             )
         self._report_startup("self_check", "Verifying verse lookups", "done")
         logger.info("Startup self-check passed — anchor verses match expected text")
@@ -343,10 +351,12 @@ class WindowVerseServer:
 
         self._report_startup("narrative", "Starting narrative tracker", "running")
         from narrative_tracker import NarrativeTracker
+        narrative_cfg = self._detection_user.narrative_thresholds()
         self.narrative_tracker = NarrativeTracker(
             embedding_model=self.orchestrator.vector_engine._model,
             bible_db=self.bible_db,
             default_translation="NKJV",
+            **narrative_cfg,
         )
         self._report_startup("narrative", "Starting narrative tracker", "done")
 
@@ -360,11 +370,29 @@ class WindowVerseServer:
             on_result=self._on_chunk_result,
             on_speech_started=self._on_speech_started,
             on_partial_result=self._on_partial_result,
+            on_session_recovered=self._on_session_recovered,
         )
         self._report_startup("speech", "Preparing speech pipeline", "done")
+
+        self._report_startup("mic_check", "Verifying microphone engine", "running")
+        self._mic_probe_error = probe_winrt_mic()
+        if self._mic_probe_error:
+            self._report_startup("mic_check", "Verifying microphone engine", "error")
+            logger.error("Mic preflight failed: %s", self._mic_probe_error)
+        else:
+            self._report_startup("mic_check", "Verifying microphone engine", "done")
         logger.info("Initialization complete.")
 
     # ── VAD instant callback ──────────────────────────────────────────────────
+    def _on_session_recovered(self):
+        """WinRT restarted after Windows silence timeout — keep UI in listening state."""
+        if self._loop is None or not self._mic_listening:
+            return
+        asyncio.run_coroutine_threadsafe(
+            self._broadcast({"type": "status", "state": "listening"}),
+            self._loop,
+        )
+
     def _on_speech_started(self, timestamp: float):
         """Fires the instant VAD detects speech — before transcription finishes.
         Sends speech_started to UI so the left panel shows 🎤 immediately."""
@@ -414,6 +442,8 @@ class WindowVerseServer:
             return
 
         self._last_speech_at = now
+        self._silence_checkpoint_saved = False
+        self._mic_stale_since = None
         if self._idle_paused:
             self._idle_paused = False
             await self._broadcast({"type": "status", "state": "listening"})
@@ -529,6 +559,65 @@ class WindowVerseServer:
         if not event.get("triggered") and not event.get("warning") and narrative_event is None:
             await self._broadcast({"type": "heartbeat"})
 
+    async def _silence_monitor_loop(self):
+        """Auto-save transcript after silence while mic stays open."""
+        while True:
+            await asyncio.sleep(1.0)
+            if not self._mic_listening or not self._session_transcript:
+                continue
+            if self._last_speech_at <= 0 or self._silence_checkpoint_saved:
+                continue
+            save_secs = self._detection_user.clamped_silence_save_seconds()
+            if time.time() - self._last_speech_at < save_secs:
+                continue
+            saved = await asyncio.to_thread(self._save_session_transcript)
+            self._session_transcript.clear()
+            self._silence_checkpoint_saved = True
+            if saved:
+                await self._emit_system_log(
+                    "transcript_saved",
+                    f"Session saved to {saved} (auto-save after {int(save_secs)}s silence)",
+                )
+
+    async def _mic_watchdog_loop(self):
+        """Recover mic if WinRT session dies while UI still shows listening."""
+        while True:
+            await asyncio.sleep(2.0)
+            if not self._mic_listening or not self.pipeline:
+                self._mic_stale_since = None
+                continue
+            if self.pipeline.is_capturing():
+                self._mic_stale_since = None
+                continue
+            now = time.time()
+            if self._mic_stale_since is None:
+                self._mic_stale_since = now
+                continue
+            if now - self._mic_stale_since < 3.0:
+                continue
+            logger.warning("Mic not capturing after %.1fs — attempting recovery", now - self._mic_stale_since)
+            try:
+                await asyncio.to_thread(self._recover_mic_session)
+                self._mic_stale_since = None
+                await self._broadcast({"type": "status", "state": "listening"})
+            except Exception as exc:
+                logger.exception("Mic recovery failed")
+                await self._emit_system_log("mic_start_failed", str(exc))
+
+    def _recover_mic_session(self):
+        if not self.pipeline or not self._mic_listening:
+            return
+        if self.pipeline.is_capturing():
+            return
+        if self.pipeline.is_running():
+            self.pipeline.stop()
+        self.pipeline.start()
+        if not self.pipeline.wait_session_ready(timeout=20.0):
+            detail = self.pipeline.last_error or "Microphone session did not restart"
+            raise RuntimeError(detail)
+        if not self.pipeline.is_capturing():
+            raise RuntimeError(self.pipeline.last_error or "Microphone is not capturing after restart")
+
     async def _check_idle(self, now: float):
         if self._idle_paused or self._last_speech_at == 0.0:
             return
@@ -632,6 +721,61 @@ class WindowVerseServer:
             return self.narrative_tracker.search_query(corrected)
         return None
 
+    def _search_query_multi(self, query: str, testament: str = "all") -> dict:
+        """Forgiving multi-match search grouped by Old and New Testament."""
+        from bible_books import book_testament, testament_matches
+
+        empty = {"results": [], "old_testament": [], "new_testament": []}
+        if not query or not query.strip():
+            return empty
+
+        corrected = correct_text(query.strip())
+        testament = (testament or "all").strip().lower()
+        hits: list[dict] = []
+        seen: set[tuple] = set()
+
+        def add_hit(raw: dict | None, match_type: str) -> None:
+            if not raw:
+                return
+            book = raw.get("book")
+            chapter = raw.get("chapter")
+            verse = raw.get("verse")
+            if not book or chapter is None or verse is None:
+                return
+            book_number = int(raw.get("book_number") or 0)
+            if not testament_matches(book_number, testament):
+                return
+            key = (book, chapter, verse)
+            if key in seen:
+                return
+            seen.add(key)
+            entry = {
+                **raw,
+                "match_type": match_type,
+                "testament": book_testament(book_number),
+                "triggered": True,
+            }
+            hits.append(entry)
+
+        regex_hit = self.orchestrator._run_regex_only(corrected)
+        if regex_hit and regex_hit.get("triggered"):
+            add_hit({**regex_hit, "source": "explicit"}, "explicit")
+
+        if self.orchestrator._index_built:
+            for paraphrase_hit in self.orchestrator.vector_engine.search_paraphrase_multi(
+                corrected, testament=testament,
+            ):
+                add_hit(paraphrase_hit, "paraphrase")
+
+        if self.narrative_tracker:
+            narrative_hit = self.narrative_tracker.search_query(corrected, min_score=0.38)
+            add_hit(narrative_hit, "narrative")
+
+        hits.sort(key=lambda h: h.get("confidence") or 0, reverse=True)
+        ot = [h for h in hits if h.get("testament") == "OT"]
+        nt = [h for h in hits if h.get("testament") == "NT"]
+        return {"results": hits, "old_testament": ot, "new_testament": nt}
+
     def _audio_devices_payload(self) -> dict:
         return {
             "type": "audio_devices",
@@ -676,9 +820,15 @@ class WindowVerseServer:
             detail = self.pipeline.last_error or "Microphone session stopped unexpectedly"
             raise RuntimeError(detail)
         self._mic_progress("ready", 100, "Microphone ready")
+        self._mic_listening = True
+        self._silence_checkpoint_saved = False
+        self._mic_stale_since = None
+        self._last_speech_at = time.time()
         logger.info("Mic input started (Windows on-device dictation)")
 
     def stop(self):
+        self._mic_listening = False
+        self._mic_stale_since = None
         if self.pipeline:
             self.pipeline.stop()
         # Note: deliberately NOT shutting down self._detection_executor here.
@@ -694,9 +844,9 @@ class WindowVerseServer:
             return None
         out_dir = self._user_dirs["transcription"]
         stamp = time.strftime("%Y-%m-%d_%H-%M-%S")
-        path = out_dir / f"WindowVerse_{stamp}.txt"
+        path = out_dir / f"MultiVerse_{stamp}.txt"
         lines = [
-            f"Window Verse session — saved {time.strftime('%Y-%m-%d %H:%M:%S')}",
+            f"MultiVerse session — saved {time.strftime('%Y-%m-%d %H:%M:%S')}",
             "=" * 60,
             "",
         ]
@@ -743,8 +893,6 @@ class WindowVerseServer:
         state = "ready" if self._ready else "booting"
         await websocket.send(json.dumps({"type": "status", "state": state}))
         if self._ready:
-            for problem in self._startup_warnings:
-                await self._emit_system_log("startup_self_check_failed", problem)
             self.library.rescan()
             await websocket.send(json.dumps({
                 "type": "library",
@@ -762,16 +910,15 @@ class WindowVerseServer:
                 "backgrounds": list_background_images(self._user_dirs["backgrounds"]),
             }))
             await websocket.send(json.dumps({
+                "type": "detection_state",
+                "settings": self._detection_user.to_ui_dict(),
+            }))
+            await websocket.send(json.dumps({
                 "type": "ndi_state",
                 "enabled": self._display.ndi_output_enabled,
                 "broadcasting": False,
                 "available": getattr(self.ndi_sender, "_available", False),
             }))
-            if self.config.ndi.enabled and not getattr(self.ndi_sender, "_available", False):
-                await self._emit_system_log(
-                    "ndi_unavailable",
-                    "NDI output is enabled but the runtime is not installed.",
-                )
             await websocket.send(json.dumps(self._audio_devices_payload()))
 
     async def handle_client(self, websocket):
@@ -811,8 +958,15 @@ class WindowVerseServer:
                 await self._broadcast({"type": "status", "state": "ready"})
                 return
             await self._broadcast({"type": "status", "state": "listening"})
+            self._mic_listening = True
+            self._silence_checkpoint_saved = False
+            self._mic_stale_since = None
+            self._last_speech_at = time.time()
         elif action == "stop":
             saved = await asyncio.to_thread(self._save_session_transcript)
+            self._mic_listening = False
+            self._silence_checkpoint_saved = False
+            self._mic_stale_since = None
             await asyncio.to_thread(self.stop)
             await self._broadcast({"type": "status", "state": "ready"})
             if saved:
@@ -821,16 +975,22 @@ class WindowVerseServer:
                 )
         elif action == "search_verse":
             query = msg.get("query", "")
-            mode = msg.get("mode", "all")
+            testament = msg.get("testament") or self._detection_user.clamped_search_testament()
             try:
-                result = await asyncio.to_thread(self._search_query, query, mode)
-                if result:
-                    result = self._attach_secondary_text(result)
+                grouped = await asyncio.to_thread(self._search_query_multi, query, testament)
+                for bucket in ("results", "old_testament", "new_testament"):
+                    grouped[bucket] = [
+                        self._attach_secondary_text(hit)
+                        for hit in grouped.get(bucket) or []
+                    ]
             except Exception:
                 logger.exception("Search failed for query %r", query)
-                result = None
+                grouped = {"results": [], "old_testament": [], "new_testament": []}
             await websocket.send(json.dumps({
-                "type": "search_result", "query": query, "mode": mode, "result": result,
+                "type": "search_results",
+                "query": query,
+                "testament": testament,
+                **grouped,
             }))
         elif action == "manual_search":
             query = msg.get("query", "")
@@ -871,6 +1031,32 @@ class WindowVerseServer:
                 "type": "display_state",
                 "settings": self._display.to_ui_dict(),
                 "backgrounds": list_background_images(self._user_dirs["backgrounds"]),
+            })
+        elif action == "set_detection":
+            from dataclasses import replace
+            from narrative_settings import save_detection_user
+
+            du = self._detection_user
+            if "narrative_sensitivity" in msg:
+                du = replace(du, narrative_sensitivity=int(msg["narrative_sensitivity"]))
+            if "search_testament" in msg:
+                st = str(msg["search_testament"]).strip().lower()
+                if st in ("all", "ot", "nt"):
+                    du = replace(du, search_testament=st)
+            if "silence_save_seconds" in msg:
+                du = replace(
+                    du,
+                    silence_save_seconds=max(5.0, min(600.0, float(msg["silence_save_seconds"]))),
+                )
+            self._detection_user = du
+            save_detection_user(self._detection_user_path, self._detection_user)
+            if self.narrative_tracker:
+                self.narrative_tracker.apply_thresholds(
+                    **self._detection_user.narrative_thresholds()
+                )
+            await self._broadcast({
+                "type": "detection_state",
+                "settings": self._detection_user.to_ui_dict(),
             })
         elif action == "get_audio_devices":
             await websocket.send(json.dumps(self._audio_devices_payload()))
@@ -1124,7 +1310,7 @@ class WindowVerseServer:
         start_static_server(ui_root, self._user_dirs["backgrounds"], port=HTTP_PORT)
 
         async with websockets.serve(self.handle_client, HOST, PORT):
-            logger.info("Window Verse listening on ws://%s:%d — booting", HOST, PORT)
+            logger.info("MultiVerse listening on ws://%s:%d — booting", HOST, PORT)
             await self._broadcast({"type": "status", "state": "booting"})
 
             try:
@@ -1155,11 +1341,11 @@ class WindowVerseServer:
             self._report_startup("ndi", "Starting NDI output", "done")
 
             asyncio.create_task(self._rescan_library_loop())
+            asyncio.create_task(self._silence_monitor_loop())
+            asyncio.create_task(self._mic_watchdog_loop())
 
             self._ready = True
             await self._broadcast({"type": "status", "state": "ready"})
-            for problem in self._startup_warnings:
-                await self._emit_system_log("startup_self_check_failed", problem)
             self.library.rescan()
             await self._broadcast({
                 "type": "library",
@@ -1177,21 +1363,15 @@ class WindowVerseServer:
                 "backgrounds": list_background_images(self._user_dirs["backgrounds"]),
             })
             await self._broadcast({
+                "type": "detection_state",
+                "settings": self._detection_user.to_ui_dict(),
+            })
+            await self._broadcast({
                 "type": "ndi_state",
                 "enabled": self._display.ndi_output_enabled,
                 "broadcasting": False,
                 "available": getattr(self.ndi_sender, "_available", False),
             })
-            if self.config.ndi.enabled and not getattr(self.ndi_sender, "_available", False):
-                await self._emit_system_log(
-                    "ndi_unavailable",
-                    "NDI output is enabled but the runtime is not installed.",
-                )
-            if getattr(self, "_winrt_missing", None):
-                await self._emit_system_log(
-                    "winrt_deps_missing",
-                    f"Missing packages: {', '.join(self._winrt_missing)}",
-                )
             logger.info("Startup complete — press Start in the UI to open the microphone")
             try:
                 await asyncio.Future()
@@ -1240,7 +1420,7 @@ def main():
     elif not Path(db_path).exists():
         logger.error(
             "No English NKJV database found. Expected: "
-            "Documents\\WindowVerse\\data\\NKJV\\English\\NKJV.sqlite3"
+            "Documents\\MultiVerse\\data\\NKJV\\English\\NKJV.sqlite3"
         )
         sys.exit(1)
 

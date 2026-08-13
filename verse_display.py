@@ -83,7 +83,7 @@ class DisplaySettings:
             "bg": (0, 0, 0),
             "bg_alpha": 255,
             "text": (255, 255, 255),
-            "reference": (255, 255, 255),
+            "reference": (43, 155, 255),
             "secondary": (255, 255, 255),
             "separator": (35, 36, 41),
         }
@@ -93,48 +93,61 @@ class DisplaySettings:
 
 
 def compute_screen_layout(
-    primary_lines: int,
-    secondary_lines: int,
-    canvas_w: int,
-    canvas_h: int,
+    primary_text: str,
+    secondary_text: str | None = None,
+    canvas_w: int = 1920,
+    canvas_h: int = 1080,
     text_scale: float = 1.0,
     ref_scale: float = 1.0,
+    primary_label: str = PRIMARY_VERSION_LABEL,
+    secondary_label: str = SECONDARY_VERSION_LABEL,
 ) -> ScreenLayout:
-    """Scale fonts to fill vertical space with even gaps between blocks."""
-    has_sec = secondary_lines > 0
-    pad_v = max(28, int(canvas_h * 0.045))
-    pad_h = max(36, int(canvas_w * 0.045))
-    avail_h = max(120, canvas_h - 2 * pad_v)
+    """Binary-search font size so short verses read large and long verses shrink to fit."""
+    pad_v = max(24, int(canvas_h * 0.05))
+    pad_h = max(32, int(canvas_w * 0.06))
+    avail_h = max(100, canvas_h - 2 * pad_v)
+    avail_w = max(200, int(canvas_w - 2 * pad_h))
 
-    body_px = max(28, int(58 * text_scale))
+    p_full = f"{primary_label} {primary_text}".strip() if primary_text else ""
+    s_full = (
+        f"{secondary_label} {secondary_text}".strip()
+        if secondary_text else ""
+    )
 
-    def measure(px: int) -> tuple[int, ScreenLayout]:
-        version_px = max(16, int(px * 0.46))
-        ref_px = max(20, int(px * 0.58 * ref_scale))
-        block_gap = max(12, int(px * 0.48))
-        line_gap = max(6, int(px * 0.38))
-        version_block = version_px + int(px * 0.2)
-        primary_h = primary_lines * px + max(0, primary_lines - 1) * line_gap + version_block
-        secondary_h = (
-            secondary_lines * px + max(0, secondary_lines - 1) * line_gap + version_block
-            if has_sec else 0
-        )
-        ref_block = ref_px + block_gap
-        between = block_gap if has_sec else 0
-        total = ref_block + primary_h + between + secondary_h
-        layout = ScreenLayout(ref_px, px, version_px, block_gap, line_gap, pad_v, pad_h)
-        return total, layout
+    body_px = max(22, int(min(76, canvas_h * 0.058) * text_scale))
+    ref_px = body_px
+    line_gap = 6
+    block_gap = 10
 
-    for _ in range(32):
-        total, layout = measure(body_px)
+    def block_height(n_lines: int, px: int, lg: int) -> int:
+        if n_lines <= 0:
+            return 0
+        return n_lines * px + max(0, n_lines - 1) * lg
+
+    for _ in range(52):
+        chars_per_line = max(14, int(avail_w / max(8, body_px * 0.52)))
+        ref_px = max(16, int(body_px * 0.62 * ref_scale))
+        line_gap = max(4, int(body_px * 0.30))
+        block_gap = max(8, int(body_px * 0.42))
+        p_lines = estimate_wrapped_lines(p_full, chars_per_line)
+        s_lines = estimate_wrapped_lines(s_full, chars_per_line) if s_full else 0
+        total = ref_px + block_gap
+        total += block_height(p_lines, body_px, line_gap)
+        if s_lines:
+            total += block_gap + block_height(s_lines, body_px, line_gap)
         if total > avail_h:
-            body_px = max(22, int(body_px * 0.93))
-        elif total < avail_h * 0.88:
-            body_px = int(body_px * min(1.14, avail_h / max(total, 1)))
+            body_px = max(16, int(body_px * 0.905))
+        elif (
+            total < avail_h * 0.86
+            and body_px < int(min(84, canvas_h * 0.072) * text_scale)
+        ):
+            body_px = int(body_px * 1.055)
         else:
             break
 
-    return layout
+    return ScreenLayout(
+        ref_px, body_px, body_px, block_gap, line_gap, pad_v, pad_h,
+    )
 
 
 def compute_dynamic_sizes(
@@ -149,10 +162,14 @@ def compute_dynamic_sizes(
     canvas_h: int = 1080,
 ) -> tuple[int, int, int]:
     """Legacy helper — returns (ref_px, primary_px, secondary_px)."""
-    chars = max(24, int(canvas_w * 0.88 / (base_primary * 0.55)))
-    p_lines = estimate_wrapped_lines(primary_text or "", chars)
-    s_lines = estimate_wrapped_lines(secondary_text or "", chars) if secondary_text else 0
-    layout = compute_screen_layout(p_lines, s_lines, canvas_w, canvas_h, text_scale, ref_scale)
+    layout = compute_screen_layout(
+        primary_text or "",
+        secondary_text,
+        canvas_w,
+        canvas_h,
+        text_scale,
+        ref_scale,
+    )
     return layout.ref_px, layout.body_px, layout.body_px
 
 

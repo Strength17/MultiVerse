@@ -1,3 +1,3 @@
-"""Single source for the Window Verse release version."""
+"""Single source for the MultiVerse release version."""
 
 APP_VERSION = "0.0.1.0"

@@ -1,7 +1,13 @@
 """
-Window Verse desktop entry point — single window (WebView2), embedded server, clean shutdown.
+MultiVerse desktop entry point — single window (WebView2), embedded server, clean shutdown.
 """
 from __future__ import annotations
+
+# Load torch before WebView2/WinRT native DLLs — avoids WinError 1114 on c10.dll in some sessions.
+try:
+    import torch  # noqa: F401
+except OSError:
+    torch = None  # type: ignore
 
 import logging
 import socket
@@ -14,6 +20,26 @@ from static_server import HTTP_PORT
 
 PORT = 8765
 logger = logging.getLogger("windowverse.desktop")
+
+
+def _ensure_winrt_dependencies() -> None:
+    """Install any missing WinRT speech packages before the UI opens."""
+    import subprocess
+    from winrt_pipeline import verify_winrt_dependencies, winrt_install_hint
+
+    missing = verify_winrt_dependencies()
+    if not missing:
+        return
+    req = app_root() / "requirements_winrt.txt"
+    logger.warning("Missing WinRT packages %s — running pip install", missing)
+    subprocess.run(
+        [sys.executable, "-m", "pip", "install", "-r", str(req), "--break-system-packages"],
+        check=False,
+    )
+    still = verify_winrt_dependencies()
+    if still:
+        print(winrt_install_hint(still), file=sys.stderr)
+        sys.exit(1)
 
 
 def _wait_for_port(host: str = "127.0.0.1", port: int = PORT, timeout: float = 120.0) -> bool:
@@ -36,8 +62,21 @@ def _run_server():
     server_main()
 
 
+def _preload_ml_stack() -> None:
+    """Ensure sentence-transformers can import after torch."""
+    try:
+        if torch is None:
+            import torch as _torch  # noqa: F401
+        from sentence_transformers import SentenceTransformer  # noqa: F401
+        logger.info("ML stack preloaded")
+    except Exception as exc:
+        logger.warning("ML preload failed (paraphrase search may not work): %s", exc)
+
+
 def main():
     bootstrap_install()
+    _ensure_winrt_dependencies()
+    _preload_ml_stack()
     t = threading.Thread(target=_run_server, daemon=True, name="windowverse-server")
     t.start()
     if not _wait_for_port(port=PORT):
@@ -58,12 +97,12 @@ def main():
         icon = app_root() / "assets" / "multiverse.ico"
 
     window = webview.create_window(
-        "Window Verse — Live Service",
+        "MultiVerse — Live Service",
         url=url,
         width=1440,
         height=900,
         min_size=(1100, 700),
-        background_color="#0e0f12",
+        background_color="#000000",
     )
     webview.start(debug=False)
 

@@ -158,6 +158,24 @@ FRENCH_BOOK_NAMES: dict[str, str] = {
 }
 
 
+# Matthew (400) is the first NT book in this schema (multiples of 10).
+NT_FIRST_BOOK_NUMBER = 400
+
+
+def book_testament(book_number: int) -> str:
+    """Return ``OT`` or ``NT`` for canonical Protestant ordering."""
+    return "NT" if int(book_number) >= NT_FIRST_BOOK_NUMBER else "OT"
+
+
+def testament_matches(book_number: int, testament_filter: str) -> bool:
+    """True when *book_number* passes ``all`` / ``ot`` / ``nt`` filter."""
+    filt = (testament_filter or "all").strip().lower()
+    if filt in ("", "all"):
+        return True
+    t = book_testament(book_number).lower()
+    return t == filt or (filt == "old" and t == "ot") or (filt == "new" and t == "nt")
+
+
 def french_book_name(english_name: str) -> str:
     return FRENCH_BOOK_NAMES.get(english_name, english_name)
 

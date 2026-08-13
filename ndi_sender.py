@@ -223,32 +223,22 @@ class NDISender:
         max_width = int(cfg.width * (1 - 0.09))
         x_center = cfg.width // 2
         secondary_above = disp.secondary_above
-        body_px = max(28, int(cfg.font_size * disp.text_scale))
 
-        for _ in range(28):
-            self._ensure_fonts(body_px, body_px, body_px, disp)
-            primary_lines = _wrap_text(draw, text, self._font, max_width)
-            secondary_lines = (
-                _wrap_text(draw, secondary_text, self._font, max_width)
-                if secondary_text else []
-            )
-            layout = compute_screen_layout(
-                len(primary_lines), len(secondary_lines),
-                cfg.width, cfg.height, disp.text_scale, disp.ref_scale,
-            )
-            if layout.body_px < body_px - 1:
-                body_px = layout.body_px
-                continue
-            if layout.body_px > body_px + 1:
-                body_px = layout.body_px
-                continue
-            break
-
-        self._ensure_fonts(layout.body_px, layout.ref_px, layout.body_px, disp)
-        primary_lines = _wrap_text(draw, text, self._font, max_width)
+        p_full = f"{PRIMARY_VERSION_LABEL} {text}".strip()
+        s_full = (
+            f"{SECONDARY_VERSION_LABEL} {secondary_text}".strip()
+            if secondary_text else ""
+        )
+        layout = compute_screen_layout(
+            text, secondary_text,
+            cfg.width, cfg.height, disp.text_scale, disp.ref_scale,
+            PRIMARY_VERSION_LABEL, SECONDARY_VERSION_LABEL,
+        )
+        body_px = layout.body_px
+        self._ensure_fonts(body_px, layout.ref_px, body_px, disp)
+        primary_lines = _wrap_text(draw, p_full, self._font, max_width)
         secondary_lines = (
-            _wrap_text(draw, secondary_text, self._font, max_width)
-            if secondary_text else []
+            _wrap_text(draw, s_full, self._font, max_width) if s_full else []
         )
 
         ref_px = layout.ref_px
@@ -256,8 +246,6 @@ class NDISender:
         sec_px = layout.body_px
         block_gap = layout.block_gap
         line_gap = layout.line_gap
-        version_label_px = layout.version_px
-        version_gap = int(primary_px * 0.2)
         pad_v = layout.pad_v
 
         def block_height(lines, font_size):
@@ -265,9 +253,8 @@ class NDISender:
                 return 0
             return len(lines) * font_size + max(0, len(lines) - 1) * line_gap
 
-        version_block = version_label_px + version_gap
-        primary_h = block_height(primary_lines, primary_px) + version_block
-        secondary_h = block_height(secondary_lines, sec_px) + version_block if secondary_lines else 0
+        primary_h = block_height(primary_lines, primary_px)
+        secondary_h = block_height(secondary_lines, sec_px) if secondary_lines else 0
         ref_block = ref_px + block_gap if reference else 0
         between = block_gap if secondary_lines else 0
         total_h = ref_block + primary_h + between + secondary_h
@@ -288,11 +275,6 @@ class NDISender:
             _draw_centered_line(draw, reference, self._ref_font_bold, x_center, y, (rr, rg, rb, 255))
             y += ref_px + block_gap
 
-        def draw_version_label(label: str):
-            nonlocal y
-            _draw_centered_line(draw, label, self._ref_font, x_center, y, (rr, rg, rb, 255))
-            y += version_label_px + version_gap
-
         def draw_primary():
             nonlocal y
             font = self._font_bold if disp.primary_bold else self._font
@@ -308,17 +290,13 @@ class NDISender:
                 y += sec_px + line_gap
 
         if secondary_lines and secondary_above:
-            draw_version_label(SECONDARY_VERSION_LABEL)
             draw_secondary()
             y += block_gap
-            draw_version_label(PRIMARY_VERSION_LABEL)
             draw_primary()
         else:
-            draw_version_label(PRIMARY_VERSION_LABEL)
             draw_primary()
             if secondary_lines:
                 y += block_gap
-                draw_version_label(SECONDARY_VERSION_LABEL)
                 draw_secondary()
 
         return np.asarray(img, dtype=np.uint8)

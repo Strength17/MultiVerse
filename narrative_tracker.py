@@ -48,20 +48,10 @@ from narrative_passages import NARRATIVE_PASSAGES, NarrativePassage, PASSAGE_BY_
 
 logger = logging.getLogger("multiverse.narrative_tracker")
 
-# Tuning constants
-ROLLING_WINDOW_SECONDS = 45        # how much recent transcript to consider
-RECHECK_INTERVAL_SECONDS = 4       # how often to re-embed the window (not per-chunk)
-ANCHOR_CONFIDENCE_FLOOR = 0.42     # minimum cosine similarity to anchor to a passage
-DROPOUT_CONFIDENCE_FLOOR = 0.28    # below this, abandon the current passage
-ADVANCE_SECONDS_PER_VERSE = 6.0    # rough pacing: assume ~6s of narration per verse,
-                                    # tuned conservatively slow since pastors often
-                                    # linger -- better to lag slightly than overshoot
-ADVANCE_SIMILARITY_FLOOR = 0.40    # minimum cosine similarity between the recent
-                                    # window and the SPECIFIC next verse's own text
-                                    # before the pointer is allowed onto it -- elapsed
-                                    # time alone used to be sufficient, which let the
-                                    # pointer march forward over totally unrelated
-                                    # speech ("triggering previous" verses)
+# Tuning constants (defaults; overridden via DetectionConfig from config.ini)
+ROLLING_WINDOW_SECONDS = 45
+RECHECK_INTERVAL_SECONDS = 4
+ADVANCE_SECONDS_PER_VERSE = 6.0
 
 
 @dataclass
@@ -91,11 +81,25 @@ class NarrativeTracker:
 
     def __init__(self, embedding_model, bible_db,
                  passages: list[NarrativePassage] | None = None,
-                 default_translation: str = "NKJV"):
+                 default_translation: str = "NKJV",
+                 anchor_threshold: float = 0.48,
+                 anchor_margin: float = 0.05,
+                 dropout_threshold: float = 0.40,
+                 advance_threshold: float = 0.48,
+                 search_threshold: float = 0.48,
+                 min_window_words: int = 15):
         self._model = embedding_model
         self.bible_db = bible_db
         self.default_translation = default_translation
         self.passages = passages or NARRATIVE_PASSAGES
+        self.apply_thresholds(
+            anchor_threshold=anchor_threshold,
+            anchor_margin=anchor_margin,
+            dropout_threshold=dropout_threshold,
+            advance_threshold=advance_threshold,
+            search_threshold=search_threshold,
+            min_window_words=min_window_words,
+        )
 
         self._window: deque = deque()
         self._passage_embeddings: np.ndarray | None = None
@@ -103,6 +107,20 @@ class NarrativeTracker:
         self.state = NarrativeState()
 
         self._build_passage_index()
+
+    def apply_thresholds(self, **kwargs) -> None:
+        if "anchor_threshold" in kwargs:
+            self._anchor_threshold = float(kwargs["anchor_threshold"])
+        if "anchor_margin" in kwargs:
+            self._anchor_margin = float(kwargs["anchor_margin"])
+        if "dropout_threshold" in kwargs:
+            self._dropout_threshold = float(kwargs["dropout_threshold"])
+        if "advance_threshold" in kwargs:
+            self._advance_threshold = float(kwargs["advance_threshold"])
+        if "search_threshold" in kwargs:
+            self._search_threshold = float(kwargs["search_threshold"])
+        if "min_window_words" in kwargs:
+            self._min_window_words = int(kwargs["min_window_words"])
 
     def _build_passage_index(self):
         if not self.passages:
@@ -130,6 +148,20 @@ class NarrativeTracker:
 
     def _window_text(self) -> str:
         return " ".join(e.text for e in self._window)
+
+    def _best_passage_score(self, window_text: str) -> tuple[int, float, float]:
+        query_vec = self._model.encode(
+            [window_text], normalize_embeddings=True, show_progress_bar=False,
+        ).astype("float32")[0]
+        scores = self._passage_embeddings @ query_vec
+        best_idx = int(np.argmax(scores))
+        sorted_scores = np.sort(scores)
+        best_score = float(scores[best_idx])
+        second_score = float(sorted_scores[-2]) if len(sorted_scores) > 1 else 0.0
+        return best_idx, best_score, best_score - second_score
+
+    def _window_ready(self, window_text: str) -> bool:
+        return len(window_text.split()) >= self._min_window_words
 
     def maybe_check(self, now: float | None = None):
         now = now if now is not None else time.time()
@@ -159,7 +191,7 @@ class NarrativeTracker:
         if self.state.passage is None:
             return
         window_text = self._window_text()
-        if len(window_text.split()) < 8:
+        if not self._window_ready(window_text):
             return
         if self._passage_embeddings is None or self._passage_embeddings.shape[0] == 0:
             return
@@ -174,7 +206,7 @@ class NarrativeTracker:
             return
         current_score = float(scores[current_idx])
         self.state.confidence = current_score
-        if current_score < DROPOUT_CONFIDENCE_FLOOR:
+        if current_score < self._dropout_threshold:
             logger.info("Narrative confidence dropped (%.2f) -- dropping anchor on %s",
                         current_score, self.state.passage.title)
             self._drop_anchor()
@@ -182,17 +214,12 @@ class NarrativeTracker:
     def _try_anchor(self, now: float):
         """Try to anchor to a passage from the current window. Returns event or None."""
         window_text = self._window_text()
-        if len(window_text.split()) < 8:
+        if not self._window_ready(window_text):
             return None
         if self._passage_embeddings is None or self._passage_embeddings.shape[0] == 0:
             return None
-        query_vec = self._model.encode(
-            [window_text], normalize_embeddings=True, show_progress_bar=False
-        ).astype("float32")[0]
-        scores = self._passage_embeddings @ query_vec
-        best_idx = int(np.argmax(scores))
-        best_score = float(scores[best_idx])
-        if best_score >= ANCHOR_CONFIDENCE_FLOOR:
+        best_idx, best_score, margin = self._best_passage_score(window_text)
+        if best_score >= self._anchor_threshold and margin >= self._anchor_margin:
             return self._anchor_to_passage(self.passages[best_idx], best_score, now)
         return None
 
@@ -228,7 +255,7 @@ class NarrativeTracker:
         # completely unrelated utterances (confidence trending 0.44 -> 0.28)
         # while still reporting triggered: true.
         window_text = self._window_text()
-        if len(window_text.split()) < 8:
+        if not self._window_ready(window_text):
             return None
         next_verse_row = self.bible_db.lookup_verse(
             passage.book_number, passage.start_chapter, next_verse_number,
@@ -237,14 +264,11 @@ class NarrativeTracker:
         if next_verse_row is None:
             return None
         similarity = self._similarity_to_text(window_text, next_verse_row["text"])
-        if similarity < ADVANCE_SIMILARITY_FLOOR:
-            # Time passed but nothing recently said resembles the next
-            # verse -- release the anchor instead of silently stalling (or
-            # worse, ticking forward anyway) on an unrelated topic.
+        if similarity < self._advance_threshold:
             logger.info(
                 "Narrative advance blocked (similarity=%.2f < %.2f for %s %d:%d) -- "
                 "releasing anchor",
-                similarity, ADVANCE_SIMILARITY_FLOOR, passage.book,
+                similarity, self._advance_threshold, passage.book,
                 passage.start_chapter, next_verse_number,
             )
             self._drop_anchor()
@@ -288,20 +312,16 @@ class NarrativeTracker:
             "latency_ms": None,
         }
 
-    def search_query(self, query: str, min_score: float = 0.38) -> dict | None:
+    def search_query(self, query: str, min_score: float | None = None) -> dict | None:
         """One-shot story lookup for manual search (does not change tracker state)."""
         text = (query or "").strip()
         if len(text.split()) < 3:
             return None
         if self._passage_embeddings is None or self._passage_embeddings.shape[0] == 0:
             return None
-        query_vec = self._model.encode(
-            [text], normalize_embeddings=True, show_progress_bar=False,
-        ).astype("float32")[0]
-        scores = self._passage_embeddings @ query_vec
-        best_idx = int(np.argmax(scores))
-        best_score = float(scores[best_idx])
-        if best_score < min_score:
+        floor = self._search_threshold if min_score is None else min_score
+        best_idx, best_score, margin = self._best_passage_score(text)
+        if best_score < floor or margin < self._anchor_margin:
             return None
         passage = self.passages[best_idx]
         verse_row = self.bible_db.lookup_verse(

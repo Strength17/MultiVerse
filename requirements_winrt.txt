@@ -8,6 +8,7 @@
 # Windows on-device speech recognition (WinRT Python bindings)
 winrt-runtime
 winrt-Windows.Foundation
+winrt-Windows.Foundation.Collections
 winrt-Windows.Media.SpeechRecognition
 winrt-Windows.Storage
 winrt-Windows.Globalization

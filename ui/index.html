@@ -3,26 +3,29 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Window Verse — Live Service</title>
+<title>MultiVerse — Live Service</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg:        #0e0f12;
-  --panel:     #16171b;
-  --panel-alt: #1c1e23;
-  --line:      #2a2c33;
-  --line-soft: #232429;
-  --ink:       #eceef1;
-  --ink-60:    #9497a3;
-  --ink-40:    #63656f;
-  --gold:      #c9a86a;
+  --bg:        #000000;
+  --panel:     #0a0b0f;
+  --panel-alt: #111318;
+  --line:      #1a2030;
+  --line-soft: #141820;
+  --ink:       #e8ecf2;
+  --ink-60:    #9aa3b5;
+  --ink-40:    #5c6475;
+  --accent:    #2b9bff;
+  --accent-dim: rgba(43, 155, 255, 0.14);
+  --silver:    #b8c4d4;
+  --gold:      var(--accent);
   --red:       #e05a4e;
-  --green:     #4fae7d;
-  --green-bg:  rgba(79,174,125,.12);
-  --amber:     #d9a441;
-  --amber-bg:  rgba(217,164,65,.12);
-  --blue:      #6fa8dc;
+  --green:     #2b9bff;
+  --green-bg:  rgba(43, 155, 255, .12);
+  --amber:     #2b9bff;
+  --amber-bg:  rgba(43, 155, 255, .12);
+  --blue:      #2b9bff;
   --mono:      'IBM Plex Mono', monospace;
   --serif:     'Source Serif 4', serif;
   --sans:      'Inter', sans-serif;
@@ -31,8 +34,8 @@
 html, body { height: 100%; overflow: hidden; }
 body {
   background:
-    radial-gradient(ellipse at 15% -10%, rgba(201,168,106,.12), transparent 55%),
-    radial-gradient(ellipse at 85% 110%, rgba(111,168,220,.08), transparent 50%),
+    radial-gradient(ellipse at 12% -8%, rgba(43,155,255,.10), transparent 55%),
+    radial-gradient(ellipse at 88% 108%, rgba(184,196,212,.06), transparent 50%),
     var(--bg);
   color: var(--ink);
   font-family: var(--sans);
@@ -58,7 +61,11 @@ body {
   flex-shrink: 0;
 }
 .wordmark { font-family: var(--serif); font-weight: 700; font-size: 19px; letter-spacing: -.02em; }
-.wordmark em { color: var(--gold); font-style: normal; }
+.wordmark em { color: var(--accent); font-style: normal; }
+.app-logo {
+  width: 34px; height: 34px; border-radius: 9px; flex-shrink: 0;
+  box-shadow: 0 0 14px rgba(43,155,255,0.28);
+}
 .service-pill {
   display: flex; align-items: center; gap: 6px;
   padding: 5px 11px; border: 1px solid var(--line);
@@ -79,7 +86,7 @@ body {
 .version-pill {
   font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase;
   padding: 4px 10px; border-radius: 5px; color: var(--gold);
-  border: 1px solid rgba(201,168,106,0.35); font-weight: 600;
+  border: 1px solid rgba(43,155,255,0.35); font-weight: 600;
 }
 .action-toast {
   display: none; position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
@@ -122,7 +129,7 @@ body {
   transform: translateX(-50%); width: 1px; background: rgba(255,255,255,0.14);
 }
 .col-resize-handle:hover::before, .col-resize-handle.active::before {
-  width: 2px; background: rgba(201,168,106,0.55);
+  width: 2px; background: rgba(43,155,255,0.55);
 }
 .col-hdr {
   display: flex; align-items: center; justify-content: space-between;
@@ -198,44 +205,42 @@ body {
 
 /* ── Col 3: Live Output / Broadcast ── */
 .stage-scroll {
-  flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden;
+  flex: 1; min-height: 0; overflow: hidden;
   display: flex; flex-direction: column; margin: 0 16px; padding: 14px 0;
 }
 .stage-status { display: flex; align-items: center; gap: 6px; font-size: 10.5px; }
 .stage-status .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--line); }
 .stage-status .dot.on { background: var(--red); box-shadow: 0 0 0 3px rgba(224,90,78,.15); }
 .stage {
-  flex: 1; min-height: 280px; background: rgba(0,0,0,0.78);
+  flex: 1 1 0; min-height: 280px; height: 100%; max-height: 100%;
+  background: #000000;
   display: flex; align-items: center; justify-content: center;
-  flex-direction: column; gap: 14px; padding: 5% 5%; text-align: center;
+  flex-direction: column; padding: 4% 5%; text-align: center;
   border-radius: 10px; border: 1px solid rgba(255,255,255,0.08);
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px); overflow: hidden;
   background-size: cover; background-position: center;
+}
+.stage-content {
+  width: 100%; max-width: 100%; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 0;
 }
 .stage.theme-light { background-color: rgba(255,255,255,0.94); color: #141418; }
 .stage.theme-light .stage-ref { color: #141418; text-shadow: none; }
 .stage.theme-light .stage-text, .stage.theme-light .stage-secondary { color: #141418; text-shadow: none; }
-.stage.bordered { box-shadow: inset 0 0 0 2px rgba(201,168,106,0.45); }
+.stage.bordered { box-shadow: inset 0 0 0 2px rgba(43, 155, 255, 0.45); }
 .stage-ref {
-  font-family: var(--sans); color: #fff; font-weight: 700;
-  margin-bottom: 8px; line-height: 1.3;
-  text-shadow: 0 1px 3px rgba(0,0,0,0.85), 0 0 12px rgba(0,0,0,0.5);
+  font-family: var(--sans); color: var(--accent); font-weight: 700;
+  margin-bottom: 0.45em; line-height: 1.25; width: 100%;
+  text-shadow: 0 0 16px rgba(43,155,255,0.35), 0 1px 3px rgba(0,0,0,0.85);
 }
-.stage-version {
-  font-family: var(--sans); font-weight: 700; font-size: 0.55em;
-  letter-spacing: 0.04em; opacity: 0.95;
-}
-.stage-text {
-  font-family: var(--sans); color: #fff; font-weight: 700; line-height: 1.45;
-  max-width: 92%;
+.stage-text, .stage-secondary {
+  font-family: var(--sans); color: #ffffff; font-weight: 700;
+  width: 100%; max-width: 100%;
+  overflow-wrap: break-word; word-wrap: break-word; hyphens: auto;
   text-shadow: 0 1px 3px rgba(0,0,0,0.85), 0 0 10px rgba(0,0,0,0.45);
 }
-.stage-secondary {
-  font-family: var(--sans); color: #fff; font-weight: 700; line-height: 1.45;
-  max-width: 92%; margin-top: 14px;
-  text-shadow: 0 1px 3px rgba(0,0,0,0.85), 0 0 10px rgba(0,0,0,0.45);
-}
-.stage-secondary.above { margin-top: 0; margin-bottom: 14px; }
+.stage-secondary { margin-top: 0.55em; }
+.stage-secondary.above { margin-top: 0; margin-bottom: 0.55em; }
 .stage-empty { color: var(--ink-40); font-size: 13px; }
 .stage-controls { display: flex; gap: 8px; padding: 0 16px 16px; flex-shrink: 0; }
 .stage-controls .btn { flex: 1; justify-content: center; }
@@ -250,7 +255,7 @@ body {
   transform: translateY(-50%); height: 1px; background: rgba(255,255,255,0.14);
 }
 .dock-resizer:hover::before, .dock-resizer.active::before {
-  height: 2px; background: rgba(201,168,106,0.55);
+  height: 2px; background: rgba(43,155,255,0.55);
 }
 .live-bottom-dock {
   flex-shrink: 0; height: 190px; min-height: 120px; max-height: 50vh;
@@ -268,7 +273,31 @@ body {
   text-transform: uppercase; color: var(--ink-40);
   border-bottom: 1px solid var(--line-soft); flex-shrink: 0;
 }
-.dock-search .search-input { margin: 10px 14px; width: calc(100% - 28px); }
+.dock-search .search-input { margin: 8px 14px 6px; width: calc(100% - 28px); }
+.search-toolbar { padding: 6px 14px 0; flex-shrink: 0; }
+.search-toolbar select {
+  width: 100%; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--line);
+  background: var(--panel-alt); color: var(--ink-60); font-size: 11px;
+}
+.search-results-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 10px 8px; }
+.search-empty { font-size: 11px; color: var(--ink-40); padding: 8px 4px; line-height: 1.5; }
+.search-group-hdr {
+  font-size: 9px; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--gold); margin: 8px 2px 4px; padding-top: 4px;
+  border-top: 1px solid var(--line-soft);
+}
+.search-group-hdr:first-child { border-top: none; margin-top: 0; padding-top: 0; }
+.search-hit {
+  border: 1px solid var(--line-soft); border-radius: 7px; padding: 8px 10px;
+  margin-bottom: 6px; cursor: pointer; background: var(--panel);
+}
+.search-hit:hover { border-color: rgba(43,155,255,0.45); }
+.search-hit-ref { font-family: var(--serif); font-size: 13px; font-weight: 700; color: #2b9bff; }
+.search-hit-text {
+  font-family: var(--serif); font-size: 11.5px; line-height: 1.45; color: var(--ink);
+  margin-top: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.search-hit-meta { font-size: 10px; color: var(--ink-40); margin-top: 4px; }
 .dock-recall-scroll { flex: 1; overflow-y: auto; padding: 6px 10px; }
 
 /* ── Bottom tab bar ── */
@@ -280,6 +309,15 @@ body {
 }
 .settings-advanced { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line-soft); }
 .settings-advanced summary { cursor: pointer; color: var(--ink-60); font-size: 12px; margin-bottom: 8px; }
+.sensitivity-scale {
+  display: flex; justify-content: space-between; gap: 4px;
+  font-size: 10px; color: var(--ink-40); margin-top: 6px; line-height: 1.2;
+}
+.sensitivity-scale span { flex: 1; text-align: center; }
+.sensitivity-scale span:first-child { text-align: left; }
+.sensitivity-scale span:last-child { text-align: right; }
+.sensitivity-readout { font-weight: 600; margin-top: 8px; color: var(--gold); }
+.sensitivity-hint { font-size: 12px; color: var(--ink-60); margin-top: 4px; line-height: 1.5; }
 .settings-json { max-height: 120px; overflow-y: auto; display: none; margin-top: 8px; }
 .settings-json.show { display: block; }
 .tab {
@@ -405,7 +443,7 @@ body {
 .nav-label { display: none; }
 .nav-icon { font-size: 16px; line-height: 1; flex-shrink: 0; }
 .nav-item:hover { background: rgba(255,255,255,0.04); color: var(--ink); }
-.nav-item.active { background: rgba(201,168,106,0.12); color: var(--gold); border-color: rgba(201,168,106,0.25); }
+.nav-item.active { background: rgba(43,155,255,0.12); color: var(--gold); border-color: rgba(43,155,255,0.25); }
 .nav-item.has-errors { background: rgba(224,90,78,0.12); color: #ffb4ae; }
 .nav-badge {
   margin-left: auto; min-width: 18px; height: 18px; border-radius: 9px;
@@ -421,7 +459,14 @@ body {
 .view.active { display: flex; }
 .side-scroll { flex: 1; overflow-y: auto; padding: 16px 20px; }
 .log-feed { display: flex; flex-direction: column; gap: 8px; max-height: 60vh; overflow-y: auto; }
-.log-row { padding: 10px 12px; border-radius: 8px; font-size: 12px; border: 1px solid rgba(255,255,255,0.06); background: rgba(22,23,27,0.5); }
+.log-row { padding: 10px 12px; border-radius: 8px; font-size: 12px; border: 1px solid rgba(255,255,255,0.06); background: rgba(22,23,27,0.5); display: flex; align-items: flex-start; gap: 8px; }
+.log-row-body { flex: 1; min-width: 0; }
+.log-copy-btn {
+  flex-shrink: 0; border: none; background: transparent; color: var(--ink-40);
+  cursor: pointer; padding: 2px 4px; border-radius: 4px; font-size: 13px; line-height: 1;
+}
+.log-copy-btn:hover { color: var(--ink); background: rgba(255,255,255,0.06); }
+.log-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
 .log-row.error { border-color: rgba(224,90,78,0.35); background: rgba(224,90,78,0.08); }
 .log-row.warn { border-color: rgba(217,164,65,0.35); background: rgba(217,164,65,0.08); }
 .log-row.info { border-color: rgba(79,174,125,0.35); background: rgba(79,174,125,0.08); }
@@ -443,7 +488,7 @@ body {
   border-radius: 6px; border: 1px solid var(--line); cursor: pointer; font-size: 12.5px;
 }
 .mic-device-row:hover { border-color: var(--ink-40); }
-.mic-device-row.active { border-color: var(--gold); background: rgba(201,168,106,0.08); }
+.mic-device-row.active { border-color: var(--gold); background: rgba(43,155,255,0.08); }
 .mic-device-tag { font-size: 10px; padding: 2px 6px; border-radius: 4px; background: var(--panel-alt); color: var(--ink-60); }
 .json-copy-row { display: flex; align-items: center; gap: 8px; margin: 8px 0; }
 #menuToggle { display: none; }
@@ -488,7 +533,8 @@ body {
 <header class="header">
   <button class="btn small" id="menuToggle" title="Toggle menu">☰</button>
   <span class="header-log-dot" id="headerLogDot" title="Errors logged — open Logs"></span>
-  <div class="wordmark">Window<em>Verse</em></div>
+  <img class="app-logo" src="logo.png" alt="" width="34" height="34">
+  <div class="wordmark">Multi<em>Verse</em></div>
   <div class="service-pill">Service <b>Live Sermon</b></div>
   <span class="version-pill" id="versionPill">NKJV</span>
   <div class="header-spacer"></div>
@@ -565,7 +611,17 @@ body {
 <div class="live-bottom-dock" id="liveBottomDock">
   <div class="dock-section dock-search">
     <div class="dock-hdr">Search</div>
+    <div class="search-toolbar">
+      <select id="searchTestament" title="Search scope">
+        <option value="all">All Bible</option>
+        <option value="ot">Old Testament only</option>
+        <option value="nt">New Testament only</option>
+      </select>
+    </div>
     <input class="search-input" id="searchInput" placeholder='Search verses or references… e.g. "the lord is my shepherd"'>
+    <div class="search-results-scroll" id="searchResults">
+      <div class="search-empty" id="searchEmpty">Type a phrase and press Enter — matches are grouped by testament.</div>
+    </div>
   </div>
   <div class="dock-section dock-recall">
     <div class="dock-hdr">Recent Verses</div>
@@ -589,8 +645,11 @@ body {
 </div></div>
 <div class="view" id="view-logs"><div class="side-scroll">
   <div class="vmix-panel">
-    <div class="vmix-steps"><b>Logs & Diagnostics</b> — errors never appear in the transcript.<br><br>
-      <button class="btn small" id="clearLogsBtn">Clear</button>
+    <div class="vmix-steps"><b>Logs & Diagnostics</b> — errors never appear in the transcript.
+      <div class="log-toolbar">
+        <button class="btn small" id="copyLogsBtn" title="Copy all logs">📋 Copy all</button>
+        <button class="btn small" id="clearLogsBtn">Clear</button>
+      </div>
     </div>
     <div class="log-feed" id="logFeed"></div>
   </div>
@@ -629,11 +688,11 @@ body {
         <div class="vmix-stat"><span class="dot" id="vmixDbDot"></span><span id="vmixDbTxt">Bible DB: —</span></div>
         <button class="btn small" id="vmixOpenBtn">⧉ Open Projector Window</button>
       </div>
-      <div class="vmix-note">Window Verse broadcasts the current verse as a real NDI video source — vMix (or any NDI receiver) adds it like a normal camera input. The projector window above is an alternative fallback (via vMix's own Desktop Capture) if you'd rather not install the NDI runtime.</div>
+      <div class="vmix-note">MultiVerse broadcasts the current verse as a real NDI video source — vMix (or any NDI receiver) adds it like a normal camera input. The projector window above is an alternative fallback (via vMix's own Desktop Capture) if you'd rather not install the NDI runtime.</div>
       <div class="vmix-steps">
-        1. Install the free <b>NDI Runtime</b> (or NDI Tools) from ndi.video once on the machine running Window Verse.<br>
-        2. <code>pip install cyndilib pillow --break-system-packages</code>, then start Window Verse as usual — the NDI source starts automatically if <code>[ndi] enabled = true</code> in <code>config/config.ini</code>.<br>
-        3. In vMix: <b>Add Input → NDI</b> — the source named (by default) <code>Window Verse</code> appears in the list automatically on the same network.<br>
+        1. Install the free <b>NDI Runtime</b> (or NDI Tools) from ndi.video once on the machine running MultiVerse.<br>
+        2. <code>pip install cyndilib pillow --break-system-packages</code>, then start MultiVerse as usual — the NDI source starts automatically if <code>[ndi] enabled = true</code> in <code>config/config.ini</code>.<br>
+        3. In vMix: <b>Add Input → NDI</b> — the source named (by default) <code>MultiVerse</code> appears in the list automatically on the same network.<br>
         4. Add it to a layer/overlay channel as with any other source. It updates automatically whenever a verse is auto-displayed, and clears when you go off-air.<br><br>
         <button class="btn small" id="ndiPreviewBtn">▶ Send test verse to NDI (matches Live Output layout)</button>
         <span id="ndiPreviewStatus" style="margin-left:8px;font-size:12px;color:var(--ink-60)"></span><br><br>
@@ -656,6 +715,49 @@ body {
         <div class="mic-device-list" id="micDeviceList"></div>
         <select class="version-select" id="micSelect" style="display:none"><option>Loading devices…</option></select>
       </div>
+      <details class="vmix-steps settings-advanced" open>
+        <summary>Story narration detection</summary>
+        <p class="sensitivity-hint" style="margin-top:8px">
+          When you retell a Bible story in your own words, MultiVerse matches your speech against known narratives.
+          Slide toward <b>Sensitive</b> if real stories are missed; toward <b>Strict</b> if casual talk triggers wrongly.
+        </p>
+        <label style="display:block;margin:12px 0 6px">
+          Sensitivity
+          <input type="range" id="narrativeSensitivity" min="1" max="5" step="1" value="3" style="width:100%;margin-top:10px">
+        </label>
+        <div class="sensitivity-scale" aria-hidden="true">
+          <span>Strict</span><span>Moderate</span><span>Balanced</span><span>Sensitive</span><span>Very sensitive</span>
+        </div>
+        <div class="sensitivity-readout" id="narrativeSensitivityLabel">Balanced</div>
+        <div class="sensitivity-hint" id="narrativeSensitivityHint">Recommended default — real stories without casual chatter.</div>
+      </details>
+      <details class="vmix-steps settings-advanced" open>
+        <summary>Search & transcript</summary>
+        <label style="display:block;margin:12px 0 6px">Default search scope
+          <select class="version-select" id="settingsSearchTestament" style="margin-top:4px;max-width:280px">
+            <option value="all">All Bible</option>
+            <option value="ot">Old Testament only</option>
+            <option value="nt">New Testament only</option>
+          </select>
+        </label>
+        <p class="sensitivity-hint">Used by the Live page search bar. You can also change it there before each search.</p>
+        <label style="display:block;margin:12px 0 6px">Auto-save transcript after silence
+          <select class="version-select" id="silenceSavePreset" style="margin-top:4px;max-width:280px">
+            <option value="10">10 seconds</option>
+            <option value="20">20 seconds</option>
+            <option value="30">30 seconds</option>
+            <option value="60">1 minute</option>
+            <option value="120">2 minutes</option>
+            <option value="custom">Custom…</option>
+          </select>
+        </label>
+        <label style="display:block;margin:8px 0 12px" id="silenceSaveCustomRow">
+          Custom seconds
+          <input type="number" id="silenceSaveCustom" min="5" max="600" step="1" value="10"
+            style="margin-top:4px;width:120px;padding:6px 8px;border-radius:6px;border:1px solid var(--line);background:var(--panel-alt);color:var(--ink)">
+        </label>
+        <p class="sensitivity-hint">Mic stays on; only the transcript is saved to Documents\MultiVerse\Transcription.</p>
+      </details>
       <details class="vmix-steps settings-advanced">
         <summary>Verse appearance (Live Output, NDI, projector)</summary>
         <label style="display:block;margin:8px 0">Theme
@@ -723,6 +825,9 @@ const micBtn=$("micBtn"), stopBtn=$("stopBtn");
 const txFeed=$("txFeed"), txEmpty=$("txEmpty"), txFooter=$("txFooter"), txCount=$("txCount"), txScroll=$("txScroll");
 const engineBody=$("engineBody"), engineEmpty=$("engineEmpty"), detCount=$("detCount");
 const searchInput=$("searchInput");
+const searchTestament=$("searchTestament");
+const searchResults=$("searchResults");
+const searchEmpty=$("searchEmpty");
 const stage=$("stage"), liveDot=$("liveDot"), liveTxt=$("liveTxt");
 const popoutBtn=$("popoutBtn"), clearBtn=$("clearBtn");
 const recallFeed=$("recallFeed"), recallEmpty=$("recallEmpty");
@@ -747,7 +852,7 @@ const libraryStatusTxt=$("libraryStatusTxt");
 const sidebar=$("sidebar"), mainGrid=$("mainGrid"), logFeed=$("logFeed");
 const logBadge=$("logBadge"), headerLogDot=$("headerLogDot"), navLogs=$("navLogs");
 const micProgress=$("micProgress"), micProgressBar=$("micProgressBar");
-const clearLogsBtn=$("clearLogsBtn");
+const clearLogsBtn=$("clearLogsBtn"), copyLogsBtn=$("copyLogsBtn");
 const versionPill=$("versionPill");
 const micDeviceList=$("micDeviceList");
 const copyJsonBtn=$("copyJsonBtn");
@@ -941,14 +1046,31 @@ function playLogChime() {
   } catch (_) {}
 }
 
+function copyTextToClipboard(text, okMsg) {
+  if (!text) { showToast("Nothing to copy"); return; }
+  navigator.clipboard.writeText(text).then(
+    () => showToast(okMsg || "Copied to clipboard"),
+    () => showToast("Could not copy — check browser permissions")
+  );
+}
+
 function appendSystemLog(msg) {
   if (!logFeed) return;
   logCount++;
   const level = msg.level || "warn";
+  const ts = msg.ts || tsLabel();
+  const body = `${ts} — ${msg.message || msg.code || "Event"}`;
+  const fix = msg.fix ? `\nFix: ${msg.fix}` : "";
+  const plain = body + fix;
   const row = document.createElement("div");
   row.className = "log-row " + level;
-  const fix = msg.fix ? `<div class="log-fix"><b>Fix:</b> ${msg.fix}</div>` : "";
-  row.innerHTML = `<div><span style="opacity:.6">${msg.ts || tsLabel()}</span> — ${msg.message || msg.code || "Event"}</div>${fix}`;
+  row.dataset.plain = plain;
+  const fixHtml = msg.fix ? `<div class="log-fix"><b>Fix:</b> ${msg.fix}</div>` : "";
+  row.innerHTML = `<div class="log-row-body"><div><span style="opacity:.6">${ts}</span> — ${msg.message || msg.code || "Event"}</div>${fixHtml}</div><button type="button" class="log-copy-btn" title="Copy log entry">📋</button>`;
+  row.querySelector(".log-copy-btn").onclick = (e) => {
+    e.stopPropagation();
+    copyTextToClipboard(row.dataset.plain, "Log entry copied");
+  };
   logFeed.prepend(row);
   while (logFeed.childElementCount > 100) logFeed.removeChild(logFeed.lastChild);
   if (logBadge) { logBadge.style.display = ""; logBadge.textContent = String(logCount); }
@@ -1016,14 +1138,14 @@ function saveTranscript() {
     appendInfoLog("Nothing transcribed yet this session — nothing to save.");
     return;
   }
-  const header = `Window Verse transcript — session started ${sessionLines[0].ts}, saved ${new Date().toLocaleString()}\n${"=".repeat(60)}\n\n`;
+  const header = `MultiVerse transcript — session started ${sessionLines[0].ts}, saved ${new Date().toLocaleString()}\n${"=".repeat(60)}\n\n`;
   const body = sessionLines.map(l => `[${l.ts}] ${l.text}`).join("\n");
   const blob = new Blob([header + body], { type: "text/plain;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
   a.href = url;
-  a.download = `Window Verse_Transcript_${stamp}.txt`;
+  a.download = `MultiVerse_Transcript_${stamp}.txt`;
   document.body.appendChild(a);
   a.click();
   a.remove();
@@ -1067,31 +1189,78 @@ let displaySettings = {
   background_mode: "solid", background_image: "",
 };
 let backgroundImages = [];
+let userPressedStart = false;
 
-function computeStageSizes(d) {
-  const hasSec = !!(d && d.secondary_text);
-  const total = (d?.text?.length || 0) + (hasSec ? d.secondary_text.length : 0);
-  let ref = 20 * (displaySettings.ref_scale || 1);
-  let body = 26 * (displaySettings.text_scale || 1);
-  let sec = 22 * (displaySettings.text_scale || 1);
-  if (!hasSec) {
-    if (total < 90) body = 26 * (displaySettings.text_scale || 1);
-    else if (total < 150) body = 22 * (displaySettings.text_scale || 1);
-  } else {
-    if (total < 120) { body = 19 * (displaySettings.text_scale || 1); sec = 17 * (displaySettings.text_scale || 1); }
-    else if (total > 260) { body = 14 * (displaySettings.text_scale || 1); sec = 13 * (displaySettings.text_scale || 1); ref = 13; }
-    else if (total > 180) { body = 16 * (displaySettings.text_scale || 1); sec = 14 * (displaySettings.text_scale || 1); }
+function estimateWrappedLines(text, charsPerLine) {
+  if (!text || !text.trim()) return 0;
+  const words = text.split(/\s+/);
+  let lines = 1, current = 0;
+  for (const word of words) {
+    const wlen = word.length;
+    if (current && current + 1 + wlen > charsPerLine) {
+      lines++; current = wlen;
+    } else if (current) {
+      current += 1 + wlen;
+    } else {
+      current = wlen;
+    }
   }
-  const lines = Math.ceil(total / 42) + (hasSec ? 2 : 0);
-  if (lines > 6) { const f = 6 / lines; body *= f; sec *= f; ref *= f; }
-  return { ref, body, sec };
+  return Math.max(1, lines);
+}
+
+function getStageViewport() {
+  const host = stage.parentElement || stage;
+  const w = Math.max(200, (host.clientWidth || stage.clientWidth || 400) - 8);
+  const h = Math.max(180, (host.clientHeight || stage.clientHeight || 300) - 8);
+  return { w, h };
+}
+
+function computeStageLayout(d) {
+  const { w: boxW, h: boxH } = getStageViewport();
+  const ts = displaySettings.text_scale || 1;
+  const rs = displaySettings.ref_scale || 1;
+  const pLabel = d.primary_version_label || "[NKJV]";
+  const sLabel = d.secondary_version_label || "[LSG]";
+  const pFull = `${pLabel} ${d.text || ""}`.trim();
+  const sFull = d.secondary_text ? `${sLabel} ${d.secondary_text}`.trim() : "";
+  let body = Math.min(72, boxH * 0.095) * ts;
+  let ref = body * 0.62 * rs;
+  let lineGap = 6, blockGap = 10;
+  const availH = boxH * 0.92;
+  const availW = boxW * 0.96;
+  const blockH = (n, px, lg) => n <= 0 ? 0 : n * px + Math.max(0, n - 1) * lg;
+  for (let i = 0; i < 52; i++) {
+    const cpl = Math.max(12, Math.floor(availW / Math.max(8, body * 0.52)));
+    ref = Math.max(13, body * 0.62 * rs);
+    lineGap = Math.max(3, body * 0.30);
+    blockGap = Math.max(6, body * 0.40);
+    const pLines = estimateWrappedLines(pFull, cpl);
+    const sLines = sFull ? estimateWrappedLines(sFull, cpl) : 0;
+    let total = ref + blockGap + blockH(pLines, body, lineGap);
+    if (sLines) total += blockGap + blockH(sLines, body, lineGap);
+    if (total > availH) body = Math.max(11, body * 0.905);
+    else if (total < availH * 0.86 && body < boxH * 0.12) body *= 1.05;
+    else break;
+  }
+  const lh = 1 + lineGap / body;
+  return { ref, body, lh, pFull, sFull };
+}
+
+function shrinkStageUntilFits() {
+  const content = stage.querySelector(".stage-content");
+  if (!content) return;
+  for (let i = 0; i < 28; i++) {
+    const overH = content.scrollHeight > stage.clientHeight + 2;
+    const overW = content.scrollWidth > stage.clientWidth + 2;
+    if (!overH && !overW) break;
+    content.querySelectorAll(".stage-ref, .stage-text, .stage-secondary").forEach(el => {
+      const px = parseFloat(getComputedStyle(el).fontSize) || 16;
+      el.style.fontSize = Math.max(10, px * 0.93) + "px";
+    });
+  }
 }
 
 function applyStageLayout(d) {
-  const sz = computeStageSizes(d);
-  stage.style.setProperty("--stage-ref-size", sz.ref + "px");
-  stage.style.setProperty("--stage-text-size", sz.body + "px");
-  stage.style.setProperty("--stage-sec-size", sz.sec + "px");
   stage.classList.toggle("theme-light", displaySettings.theme === "light");
   stage.classList.toggle("bordered", !!displaySettings.show_border);
   stage.style.fontFamily = displaySettings.font_family === "sans" ? "var(--sans)" : "var(--serif)";
@@ -1106,26 +1275,19 @@ function applyStageLayout(d) {
 }
 
 function buildStageHtml(d) {
-  const sz = computeStageSizes(d);
+  const lay = computeStageLayout(d);
   const refText = d.reference_display || `${d.book_french || ""} • ${d.book} ${d.chapter}:${d.verse}`.replace(/^ • /, "");
-  const pLabel = d.primary_version_label || "[NKJV]";
-  const sLabel = d.secondary_version_label || "[LSG]";
-  const pStyle = [
-    `font-size:${sz.body}px`,
-    "font-weight:700",
-    displaySettings.primary_italic ? "font-style:italic" : "",
-  ].filter(Boolean).join(";");
-  const sStyle = [
-    `font-size:${sz.sec}px`,
-    "font-weight:700",
-    displaySettings.secondary_italic ? "font-style:italic" : "",
-  ].filter(Boolean).join(";");
-  const ref = `<div class="stage-ref" style="font-size:${sz.ref}px">${refText}</div>`;
-  const primary = `<div class="stage-text" style="${pStyle}"><span class="stage-version">${pLabel}</span> ${d.text}</div>`;
-  if (!d.secondary_text) return ref + primary;
+  const italicP = displaySettings.primary_italic ? "font-style:italic;" : "";
+  const italicS = displaySettings.secondary_italic ? "font-style:italic;" : "";
+  const ref = `<div class="stage-ref" style="font-size:${lay.ref}px">${refText}</div>`;
+  const primary = `<div class="stage-text" style="font-size:${lay.body}px;line-height:${lay.lh};${italicP}">${lay.pFull}</div>`;
+  if (!d.secondary_text) {
+    return `<div class="stage-content">${ref}${primary}</div>`;
+  }
   const secClass = secondaryAbovePrimary ? "stage-secondary above" : "stage-secondary";
-  const secondary = `<div class="${secClass}" style="${sStyle}"><span class="stage-version">${sLabel}</span> ${d.secondary_text}</div>`;
-  return secondaryAbovePrimary ? ref + secondary + primary : ref + primary + secondary;
+  const secondary = `<div class="${secClass}" style="font-size:${lay.body}px;line-height:${lay.lh};${italicS}">${lay.sFull}</div>`;
+  const blocks = secondaryAbovePrimary ? ref + secondary + primary : ref + primary + secondary;
+  return `<div class="stage-content">${blocks}</div>`;
 }
 
 // ── Stage / Live Output (col 3) + real pop-out projector window ──
@@ -1133,6 +1295,7 @@ function sendToStage(d) {
   lastStageVerse = d;
   applyStageLayout(d);
   stage.innerHTML = buildStageHtml(d);
+  requestAnimationFrame(() => shrinkStageUntilFits());
   liveDot.classList.add("on");
   liveTxt.textContent = "on air";
   if (projectorWin && !projectorWin.closed) {
@@ -1162,15 +1325,15 @@ clearBtn.onclick = () => {
 // distinctive so it's unambiguous in vMix's window list.
 function openProjector() {
   if (projectorWin && !projectorWin.closed) { projectorWin.focus(); return; }
-  projectorWin = window.open("", "WindowVerseProjector", "width=1920,height=1080");
-  projectorWin.document.write(`<!DOCTYPE html><html><head><title>Window Verse — Projector</title>
+  projectorWin = window.open("", "MultiVerseProjector", "width=1920,height=1080");
+  projectorWin.document.write(`<!DOCTYPE html><html><head><title>MultiVerse — Projector</title>
     <style>
       body{margin:0;background:#000;color:#f5f2ea;font-family:'Source Serif 4',serif;
            height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
            text-align:center;padding:6vw;}
-      .ref{color:#c9a86a;font-size:3vw;margin-bottom:1.4vw;}
-      .txt{font-size:4.2vw;line-height:1.5;max-width:88%;}
-      .sec{color:#9497a3;font-style:italic;font-size:3.2vw;line-height:1.5;max-width:88%;margin-top:1.4vw;padding-top:1.4vw;border-top:1px dashed #333;}
+      .ref{color:#2b9bff;font-size:3vw;margin-bottom:1.4vw;text-shadow:0 0 12px rgba(43,155,255,0.35);}
+      .txt{font-size:4.2vw;line-height:1.5;max-width:88%;color:#fff;font-weight:700;}
+      .sec{color:#fff;font-style:italic;font-size:3.2vw;line-height:1.5;max-width:88%;margin-top:1.4vw;padding-top:1.4vw;}
       .sec.above{margin-top:0;margin-bottom:1.4vw;padding-top:0;padding-bottom:1.4vw;border-top:none;border-bottom:1px dashed #333;}
       .empty{color:#333;font-size:2vw;}
     </style></head><body><div id="root"><div class="empty">No verse on air</div></div>
@@ -1197,6 +1360,16 @@ function openProjector() {
 }
 popoutBtn.onclick = openProjector;
 vmixOpenBtn.onclick = openProjector;
+
+const stageScroll = stage.parentElement;
+if (stageScroll && typeof ResizeObserver !== "undefined") {
+  let stageResizeTimer = null;
+  new ResizeObserver(() => {
+    if (!lastStageVerse) return;
+    clearTimeout(stageResizeTimer);
+    stageResizeTimer = setTimeout(() => sendToStage(lastStageVerse), 80);
+  }).observe(stageScroll);
+}
 
 // Poll rather than rely on a single open-time flag, since the window can
 // be closed by the operator (or by accident) at any point mid-service --
@@ -1338,6 +1511,166 @@ if (micSelect) micSelect.onchange = () => wsSend({ action: "set_mic", name: micS
 function pushDisplaySettings() {
   wsSend({ action: "set_display", settings: displaySettings });
   if (lastStageVerse) sendToStage(lastStageVerse);
+}
+
+const NARRATIVE_PRESETS = {
+  1: { label: "Strict", hint: "Fewest false triggers — needs clear story wording." },
+  2: { label: "Moderate", hint: "Conservative — good for mixed sermon and announcements." },
+  3: { label: "Balanced", hint: "Recommended default — real stories without casual chatter." },
+  4: { label: "Sensitive", hint: "Catches shorter retellings — may occasionally misfire." },
+  5: { label: "Very sensitive", hint: "Most forgiving — use only if stories are still missed." },
+};
+let narrativeSensitivity = 3;
+let searchTestamentFilter = "all";
+let silenceSaveSeconds = 10;
+
+function pushDetectionSettings(patch) {
+  wsSend({ action: "set_detection", ...patch });
+}
+
+function updateSearchTestamentUI(value) {
+  searchTestamentFilter = (value || "all").toLowerCase();
+  if (searchTestament) searchTestament.value = searchTestamentFilter;
+  const settingsSel = $("settingsSearchTestament");
+  if (settingsSel) settingsSel.value = searchTestamentFilter;
+}
+
+function updateSilenceSaveUI(seconds, preset) {
+  silenceSaveSeconds = Math.max(5, Math.min(600, parseFloat(seconds) || 10));
+  const presetSel = $("silenceSavePreset");
+  const customRow = $("silenceSaveCustomRow");
+  const customInput = $("silenceSaveCustom");
+  const presets = ["10", "20", "30", "60", "120"];
+  let chosen = preset;
+  if (!chosen) {
+    chosen = presets.find(p => Math.abs(parseFloat(p) - silenceSaveSeconds) < 0.5) ? String(Math.round(silenceSaveSeconds)) : "custom";
+  }
+  if (presetSel) presetSel.value = chosen === String(Math.round(silenceSaveSeconds)) && presets.includes(chosen) ? chosen : (presets.includes(String(Math.round(silenceSaveSeconds))) ? String(Math.round(silenceSaveSeconds)) : "custom");
+  if (customInput) customInput.value = String(Math.round(silenceSaveSeconds));
+  if (customRow) customRow.style.display = (presetSel && presetSel.value === "custom") ? "block" : "none";
+}
+
+function sendDetectionSettings() {
+  pushDetectionSettings({
+    narrative_sensitivity: narrativeSensitivity,
+    search_testament: searchTestamentFilter,
+    silence_save_seconds: silenceSaveSeconds,
+  });
+}
+
+function renderSearchResults(msg) {
+  if (!searchResults) return;
+  searchResults.innerHTML = "";
+  const all = msg.results || [];
+  const ot = msg.old_testament || [];
+  const nt = msg.new_testament || [];
+  if (!all.length) {
+    searchResults.appendChild(Object.assign(document.createElement("div"), {
+      className: "search-empty",
+      textContent: `No matches found for "${msg.query || ""}". Try different wording or All Bible.`,
+    }));
+    return;
+  }
+
+  function addGroup(title, items) {
+    if (!items.length) return;
+    const hdr = document.createElement("div");
+    hdr.className = "search-group-hdr";
+    hdr.textContent = title;
+    searchResults.appendChild(hdr);
+    for (const hit of items) {
+      const row = document.createElement("div");
+      row.className = "search-hit";
+      const pct = Math.round((hit.confidence || 0) * 100);
+      const type = (hit.match_type || hit.source || "match").replace(/_/g, " ");
+      row.innerHTML = `
+        <div class="search-hit-ref">${hit.book} ${hit.chapter}:${hit.verse}</div>
+        <div class="search-hit-text">${hit.text || ""}</div>
+        <div class="search-hit-meta">${type}${pct ? ` · ${pct}%` : ""}</div>`;
+      row.onclick = () => {
+        const d = { ...hit, source: "search", auto_display: true };
+        renderDetection(d);
+        sendToStage(d);
+      };
+      searchResults.appendChild(row);
+    }
+  }
+
+  const filt = (msg.testament || searchTestamentFilter || "all").toLowerCase();
+  if (filt === "ot") addGroup("Old Testament", ot.length ? ot : all);
+  else if (filt === "nt") addGroup("New Testament", nt.length ? nt : all);
+  else {
+    addGroup("Old Testament", ot);
+    addGroup("New Testament", nt);
+  }
+
+  const top = all[0];
+  if (top) renderDetection({ ...top, source: "search", auto_display: true });
+}
+
+function updateNarrativeSensitivityUI(level) {
+  narrativeSensitivity = Math.max(1, Math.min(5, parseInt(level, 10) || 3));
+  const preset = NARRATIVE_PRESETS[narrativeSensitivity] || NARRATIVE_PRESETS[3];
+  const slider = $("narrativeSensitivity");
+  if (slider) slider.value = String(narrativeSensitivity);
+  if ($("narrativeSensitivityLabel")) $("narrativeSensitivityLabel").textContent = preset.label;
+  if ($("narrativeSensitivityHint")) $("narrativeSensitivityHint").textContent = preset.hint;
+}
+
+const narrativeSlider = $("narrativeSensitivity");
+if (narrativeSlider) {
+  narrativeSlider.oninput = () => {
+    updateNarrativeSensitivityUI(narrativeSlider.value);
+    sendDetectionSettings();
+  };
+}
+
+const settingsSearchTestament = $("settingsSearchTestament");
+if (settingsSearchTestament) {
+  settingsSearchTestament.onchange = () => {
+    updateSearchTestamentUI(settingsSearchTestament.value);
+    sendDetectionSettings();
+  };
+}
+if (searchTestament) {
+  searchTestament.onchange = () => {
+    updateSearchTestamentUI(searchTestament.value);
+    sendDetectionSettings();
+  };
+}
+
+const silenceSavePreset = $("silenceSavePreset");
+const silenceSaveCustom = $("silenceSaveCustom");
+function syncSilenceFromPreset() {
+  if (!silenceSavePreset) return;
+  if (silenceSavePreset.value === "custom") {
+    updateSilenceSaveUI(parseFloat(silenceSaveCustom?.value || "10"), "custom");
+  } else {
+    updateSilenceSaveUI(parseFloat(silenceSavePreset.value), silenceSavePreset.value);
+  }
+  sendDetectionSettings();
+}
+if (silenceSavePreset) silenceSavePreset.onchange = syncSilenceFromPreset;
+if (silenceSaveCustom) {
+  silenceSaveCustom.onchange = () => {
+    updateSilenceSaveUI(parseFloat(silenceSaveCustom.value), "custom");
+    sendDetectionSettings();
+  };
+}
+
+function applyDetectionState(msg) {
+  if (!msg.settings) return;
+  if (typeof msg.settings.narrative_sensitivity === "number") {
+    updateNarrativeSensitivityUI(msg.settings.narrative_sensitivity);
+  } else if (msg.settings.narrative_label) {
+    updateNarrativeSensitivityUI(narrativeSensitivity);
+    if ($("narrativeSensitivityLabel")) $("narrativeSensitivityLabel").textContent = msg.settings.narrative_label;
+    if ($("narrativeSensitivityHint")) $("narrativeSensitivityHint").textContent = msg.settings.narrative_hint || "";
+  }
+  if (msg.settings.search_testament) updateSearchTestamentUI(msg.settings.search_testament);
+  if (typeof msg.settings.silence_save_seconds === "number") {
+    updateSilenceSaveUI(msg.settings.silence_save_seconds, msg.settings.silence_save_preset);
+  }
 }
 ["dispTheme","dispFont","dispBold","dispItalic","dispSecItalic","dispBorder","dispTextScale","dispRefScale","dispBgMode","dispBgImage"].forEach(id => {
   const el = $(id);
@@ -1484,6 +1817,10 @@ if (clearLogsBtn) clearLogsBtn.onclick = () => {
   if (logBadge) logBadge.style.display = "none";
   headerLogDot?.classList.remove("show");
   navLogs?.classList.remove("has-errors");
+};
+if (copyLogsBtn) copyLogsBtn.onclick = () => {
+  const lines = [...logFeed.querySelectorAll(".log-row")].map(r => r.dataset.plain || "").reverse();
+  copyTextToClipboard(lines.join("\n\n"), "All logs copied");
 };
 
 function applyColumnOrder(order) {
@@ -1735,6 +2072,13 @@ function onWsMessage({ data }) {
       if (micProgress) micProgress.classList.add("show");
       break;
     case "system_log":
+      if (!userPressedStart && (msg.level === "error" || msg.level === "warn")) {
+        if (msg.code === "matched_reference_missing_from_db") {
+          vmixDbDot.className = "dot bad";
+          vmixDbTxt.textContent = "Bible DB: missing row for last reference";
+        }
+        break;
+      }
       appendSystemLog(msg);
       if (msg.code === "matched_reference_missing_from_db") {
         vmixDbDot.className = "dot bad";
@@ -1750,6 +2094,9 @@ function onWsMessage({ data }) {
     case "ndi_state":
       renderNdiState(msg);
       break;
+    case "search_results":
+      renderSearchResults(msg);
+      break;
     case "search_result":
     case "manual_search_result":
       if (msg.result) {
@@ -1763,6 +2110,9 @@ function onWsMessage({ data }) {
     case "display_state":
       applyDisplayState(msg);
       break;
+    case "detection_state":
+      applyDetectionState(msg);
+      break;
     case "audio_devices":
       renderAudioDevices(msg);
       break;
@@ -1773,12 +2123,21 @@ connectWs();
 setStatus("disconnected");
 
 // ── Controls ──
-micBtn.onclick  = () => wsSend({ action: "start_mic" });
+micBtn.onclick  = () => { userPressedStart = true; wsSend({ action: "start_mic" }); };
 stopBtn.onclick = () => wsSend({ action: "stop" });
 searchInput.addEventListener("keydown", e => {
   if (e.key === "Enter") {
     const q = searchInput.value.trim();
-    if (q) wsSend({ action: "search_verse", query: q });
+    if (q) {
+      if (searchResults) {
+        searchResults.innerHTML = '<div class="search-empty">Searching…</div>';
+      }
+      wsSend({
+        action: "search_verse",
+        query: q,
+        testament: searchTestament?.value || searchTestamentFilter || "all",
+      });
+    }
   }
 });
 </script>

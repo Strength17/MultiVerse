@@ -62,18 +62,27 @@ class DetectionConfig:
     dedup_seconds: float = 6.0             # suppress an identical verse re-firing within this window
     book_memory_seconds: float = 10.0      # how long a "pending book" guess stays valid
     min_semantic_words: int = 8
+    # Narrative (Bible story) track — cosine similarity on passage summaries.
+    # Raised from 0.42/0.28/0.40 after live false positives on casual speech.
+    narrative_anchor_threshold: float = 0.47
+    narrative_anchor_margin: float = 0.05   # best must beat second-best by this much
+    narrative_dropout_threshold: float = 0.40
+    narrative_advance_threshold: float = 0.48
+    narrative_search_threshold: float = 0.47
+    narrative_min_window_words: int = 15    # rolling window must have this many words before anchor
 
 
 @dataclass(frozen=True)
 class AppConfig:
     idle_timeout_seconds: float = 600.0
     transcript_tail_words: int = 8
+    silence_save_seconds: float = 10.0   # auto-save transcript after this many seconds of silence
 
 
 @dataclass(frozen=True)
 class NDIConfig:
     enabled: bool = True
-    sender_name: str = "WindowVerse"
+    sender_name: str = "MultiVerse"
     width: int = 1920
     height: int = 1080
     fps: float = 3.0
@@ -81,9 +90,9 @@ class NDIConfig:
     font_size: int = 56
     reference_font_size: int = 44
     secondary_font_size: int = 46
-    text_color: tuple[int, int, int] = (245, 242, 234)       # #f5f2ea — matches .stage-text
-    reference_color: tuple[int, int, int] = (126, 184, 255)  # ice blue — matches Window Verse UI
-    secondary_color: tuple[int, int, int] = (245, 242, 234)  # same visibility as primary
+    text_color: tuple[int, int, int] = (255, 255, 255)
+    reference_color: tuple[int, int, int] = (43, 155, 255)
+    secondary_color: tuple[int, int, int] = (255, 255, 255)
     separator_color: tuple[int, int, int] = (35, 36, 41)    # #232429 — matches .line-soft
     background_color: tuple[int, int, int] = (0, 0, 0)
     background_alpha: int = 255            # 0 = fully transparent key, 255 = opaque
@@ -165,6 +174,24 @@ def load_config(path: str | None = None) -> WindowVerseConfig:
                                           fallback=det_defaults.book_memory_seconds),
         min_semantic_words=cfg.getint("detection", "min_semantic_words",
                                        fallback=det_defaults.min_semantic_words),
+        narrative_anchor_threshold=cfg.getfloat(
+            "detection", "narrative_anchor_threshold",
+            fallback=det_defaults.narrative_anchor_threshold),
+        narrative_anchor_margin=cfg.getfloat(
+            "detection", "narrative_anchor_margin",
+            fallback=det_defaults.narrative_anchor_margin),
+        narrative_dropout_threshold=cfg.getfloat(
+            "detection", "narrative_dropout_threshold",
+            fallback=det_defaults.narrative_dropout_threshold),
+        narrative_advance_threshold=cfg.getfloat(
+            "detection", "narrative_advance_threshold",
+            fallback=det_defaults.narrative_advance_threshold),
+        narrative_search_threshold=cfg.getfloat(
+            "detection", "narrative_search_threshold",
+            fallback=det_defaults.narrative_search_threshold),
+        narrative_min_window_words=cfg.getint(
+            "detection", "narrative_min_window_words",
+            fallback=det_defaults.narrative_min_window_words),
     )
 
     app_defaults = AppConfig()
@@ -173,6 +200,8 @@ def load_config(path: str | None = None) -> WindowVerseConfig:
                                            fallback=app_defaults.idle_timeout_seconds),
         transcript_tail_words=cfg.getint("output", "transcript_tail_words",
                                           fallback=app_defaults.transcript_tail_words),
+        silence_save_seconds=cfg.getfloat("app", "silence_save_seconds",
+                                           fallback=app_defaults.silence_save_seconds),
     )
 
     ndi_defaults = NDIConfig()

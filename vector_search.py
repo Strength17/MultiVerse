@@ -43,7 +43,34 @@ BIBLICAL_TERM_WEIGHT = {
     "tabernacle": 2.0, "covenant": 2.0, "begotten": 2.0,
     "shepherd": 1.5, "vineyard": 1.5, "wilderness": 1.5,
     "prophecy": 1.5, "discipline": 1.5, "stewardship": 1.5,
+    "clay": 1.5, "spittle": 1.5, "blind": 1.5, "siloam": 2.0,
 }
+
+# Manual UI search — more forgiving than live auto-detection.
+MANUAL_SEARCH_TOP_K = 40
+MANUAL_SEARCH_MAX_RESULTS = 12
+MANUAL_SEARCH_VECTOR_THRESHOLD = 0.48
+MANUAL_SEARCH_MIN_OVERLAP = 0.08
+
+_MANUAL_QUERY_ALIASES: tuple[tuple[tuple[str, ...], str], ...] = (
+    (("mud", "dirt"), "clay spittle saliva anointed ground"),
+    (("rubbed", "rub", "spread"), "anointed clay"),
+    (("wash", "washed", "bathe"), "pool siloam"),
+    (("blind",), "eyes sight"),
+)
+
+
+def _expand_manual_query(query: str) -> str:
+    """Add common sermon paraphrase terms so manual search stays forgiving."""
+    q = query.lower()
+    extras: list[str] = []
+    for triggers, expansion in _MANUAL_QUERY_ALIASES:
+        if any(t in q for t in triggers):
+            extras.append(expansion)
+    if not extras:
+        return query
+    return query + " " + " ".join(extras)
+
 
 _WORD_RE = re.compile(r"[a-z']+")
 
@@ -285,6 +312,121 @@ class VectorSearchEngine:
             "confidence": confidence,
             "raw_faiss_score": best["score"],
         }
+
+    def search_paraphrase_multi(
+        self,
+        query: str,
+        *,
+        top_k: int = MANUAL_SEARCH_TOP_K,
+        max_results: int = MANUAL_SEARCH_MAX_RESULTS,
+        vector_threshold: float = MANUAL_SEARCH_VECTOR_THRESHOLD,
+        min_overlap_ratio: float = MANUAL_SEARCH_MIN_OVERLAP,
+        testament: str = "all",
+    ) -> list[dict]:
+        """
+        Forgiving multi-match search used by the manual search bar.
+        Returns up to *max_results* verses above a lower confidence floor.
+        """
+        from bible_books import testament_matches
+
+        if self._index is None:
+            raise RuntimeError("Vector index not built — call build_index() first")
+
+        query = query.strip()
+        if not query:
+            return []
+
+        embed_query = _expand_manual_query(query)
+
+        with self._lock:
+            qvec = self._embed_query(embed_query)
+            scores, idxs = self._index.search(qvec, top_k)
+
+        candidates = []
+        for score, idx in zip(scores[0], idxs[0]):
+            if idx < 0 or idx >= len(self._verse_lookup):
+                continue
+            cand = self._verse_lookup[idx]
+            if isinstance(cand, dict):
+                get = cand.get
+            else:
+                get = lambda key, default=None, _c=cand: getattr(_c, key, default)
+            candidates.append({
+                "book": get("book"), "book_number": get("book_number"),
+                "chapter": get("chapter"), "verse": get("verse"),
+                "text": get("text"), "translation": get("translation", self.translation),
+                "score": float(score),
+            })
+
+        if not candidates:
+            return []
+
+        scored = self._score_all_candidates(query, candidates)
+        expanded_words = set(_tokenize(_expand_manual_query(query)))
+        query_words = set(_tokenize(query)) | expanded_words
+        query_word_count = max(len(query_words), 1)
+        for cand in scored:
+            cand_words = set(_tokenize(cand.get("text") or ""))
+            cand["overlap_count"] = len(query_words & cand_words)
+        results: list[dict] = []
+        seen: set[tuple] = set()
+
+        for cand in scored:
+            if len(results) >= max_results:
+                break
+            book_number = cand.get("book_number") or 0
+            if not testament_matches(book_number, testament):
+                continue
+            overlap_ratio = cand.get("overlap_count", 0) / query_word_count
+            if overlap_ratio < min_overlap_ratio:
+                continue
+            confidence = self._score_to_confidence(cand["combined_score"])
+            if confidence < vector_threshold:
+                continue
+            key = (cand.get("book"), cand.get("chapter"), cand.get("verse"))
+            if key in seen:
+                continue
+            seen.add(key)
+            results.append({
+                "source": "semantic",
+                "book": cand["book"],
+                "book_number": book_number,
+                "chapter": cand["chapter"],
+                "verse": cand["verse"],
+                "text": cand["text"],
+                "translation": cand.get("translation", self.translation),
+                "confidence": confidence,
+                "raw_faiss_score": cand["score"],
+                "overlap_ratio": round(overlap_ratio, 3),
+            })
+
+        return results
+
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _score_all_candidates(query: str, candidates: list[dict]) -> list[dict]:
+        """Score and sort all FAISS candidates (not just the top one)."""
+        query_words = set(_tokenize(query))
+        for cand in candidates:
+            cand_text = cand.get("text") or ""
+            if not cand_text:
+                cand["combined_score"] = -1.0
+                cand["overlap_count"] = 0
+                continue
+            cand_words = set(_tokenize(cand_text))
+            overlap = len(query_words & cand_words)
+            cand["overlap_count"] = overlap
+            term_bonus = sum(
+                BIBLICAL_TERM_WEIGHT.get(w, 0) for w in (query_words & cand_words)
+            )
+            order_bonus = VectorSearchEngine._bigram_overlap(query, cand_text)
+            cand["combined_score"] = (
+                cand["score"]
+                + (overlap * 0.02)
+                + (term_bonus * 0.01)
+                + (order_bonus * 0.015)
+            )
+        return sorted(candidates, key=lambda c: c.get("combined_score", -1.0), reverse=True)
 
     # ------------------------------------------------------------------
     @staticmethod
