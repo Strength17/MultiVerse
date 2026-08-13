@@ -88,11 +88,7 @@ def main():
     import webview
 
     url = f"http://127.0.0.1:{HTTP_PORT}/ui/index.html"
-    icon = resource_root() / "assets" / "windowverse.ico"
-    if not icon.exists():
-        icon = app_root() / "assets" / "windowverse.ico"
-    if not icon.exists():
-        icon = resource_root() / "assets" / "multiverse.ico"
+    icon = resource_root() / "assets" / "multiverse.ico"
     if not icon.exists():
         icon = app_root() / "assets" / "multiverse.ico"
 

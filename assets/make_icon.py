@@ -8,7 +8,6 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parent
 SRC = ROOT / "multiverse_logo.png"
 OUT = ROOT / "multiverse.ico"
-LEGACY = ROOT / "windowverse.ico"
 
 
 def main() -> None:
@@ -19,7 +18,6 @@ def main() -> None:
     sizes = [(256, 256), (128, 128), (64, 64), (48, 48), (32, 32), (16, 16)]
     imgs = [base.resize((s, s), Image.Resampling.LANCZOS) for s, _ in sizes]
     imgs[0].save(OUT, format="ICO", sizes=sizes, append_images=imgs[1:])
-    imgs[0].save(LEGACY, format="ICO", sizes=sizes, append_images=imgs[1:])
     print("Wrote", OUT)
 
 
