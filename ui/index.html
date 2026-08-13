@@ -3,78 +3,48 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Window Verse — Live Service</title>
+<title>MultiVerse — Live Service</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg:        #0a0c14;
-  --bg-deep:   #0a0c14;
-  --panel:     rgba(255, 255, 255, 0.04);
-  --panel-alt: rgba(255, 255, 255, 0.07);
-  --line:      rgba(255, 255, 255, 0.12);
-  --line-soft: rgba(255, 255, 255, 0.06);
+  --bg:        #0e0f12;
+  --panel:     #16171b;
+  --panel-alt: #1c1e23;
+  --line:      #2a2c33;
+  --line-soft: #232429;
   --ink:       #eceef1;
   --ink-60:    #9497a3;
   --ink-40:    #63656f;
-  --gold:      #7eb8ff;
-  --accent:    #7eb8ff;
-  --accent-2:  #a78bfa;
-  --silver:    #c8d0dc;
+  --gold:      #c9a86a;
   --red:       #e05a4e;
   --green:     #4fae7d;
   --green-bg:  rgba(79,174,125,.12);
   --amber:     #d9a441;
   --amber-bg:  rgba(217,164,65,.12);
   --blue:      #6fa8dc;
-  --glass-bg:  rgba(255, 255, 255, 0.06);
-  --glass-blur: blur(20px) saturate(160%);
-  --glass-border: rgba(255, 255, 255, 0.35);
   --mono:      'IBM Plex Mono', monospace;
   --serif:     'Source Serif 4', serif;
   --sans:      'Inter', sans-serif;
-  --sidebar-width: 56px;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; overflow: hidden; }
 body {
-  background: var(--bg-deep);
+  background:
+    radial-gradient(ellipse at 15% -10%, rgba(201,168,106,.12), transparent 55%),
+    radial-gradient(ellipse at 85% 110%, rgba(111,168,220,.08), transparent 50%),
+    var(--bg);
   color: var(--ink);
   font-family: var(--sans);
   display: flex;
   flex-direction: column;
-  position: relative;
-}
-.bg-blobs {
-  position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden;
-}
-.bg-blobs::before, .bg-blobs::after {
-  content: ""; position: absolute; border-radius: 50%; filter: blur(80px);
-}
-.bg-blobs::before {
-  width: 420px; height: 420px; top: -80px; left: -60px;
-  background: radial-gradient(circle, rgba(126,184,255,.28), transparent 70%);
-}
-.bg-blobs::after {
-  width: 380px; height: 380px; bottom: -100px; right: -40px;
-  background: radial-gradient(circle, rgba(167,139,250,.22), transparent 70%);
-}
-.glass-panel {
-  background: var(--glass-bg);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--glass-border);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.12),
-    0 8px 32px rgba(0,0,0,0.28);
 }
 .glass {
-  background: var(--glass-bg);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  border-color: var(--glass-border);
+  background: rgba(22, 23, 27, 0.55);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-color: rgba(255,255,255,0.07);
 }
-.app-shell, .conn-banner, .action-toast { position: relative; z-index: 1; }
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
 
@@ -82,38 +52,21 @@ body {
 .header {
   display: flex; align-items: center; gap: 14px;
   padding: 0 20px; height: 54px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  background: rgba(22, 23, 27, 0.65);
+  backdrop-filter: blur(14px);
   flex-shrink: 0;
 }
-.header.glass-panel {
-  border-radius: 0;
-  border-left: none; border-right: none; border-top: none;
-}
 .wordmark { font-family: var(--serif); font-weight: 700; font-size: 19px; letter-spacing: -.02em; }
-.wordmark em { color: var(--accent); font-style: normal; }
+.wordmark em { color: var(--gold); font-style: normal; }
 .service-pill {
   display: flex; align-items: center; gap: 6px;
-  padding: 5px 11px; border-radius: 6px; font-size: 12px; color: var(--ink-60);
+  padding: 5px 11px; border: 1px solid var(--line);
+  border-radius: 6px; font-size: 12px; color: var(--ink-60);
   background: var(--panel-alt);
-  border: 1px solid var(--glass-border);
-  backdrop-filter: var(--glass-blur);
 }
 .service-pill b { color: var(--ink); font-weight: 600; }
 .header-spacer { flex: 1; }
-.version-pill {
-  font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; font-weight: 600;
-  padding: 5px 10px; border-radius: 6px; color: var(--accent);
-  border: 1px solid rgba(126,184,255,.35); background: rgba(126,184,255,.1);
-}
-.french-toggle-header {
-  display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
-  font-size: 11px; font-weight: 600; letter-spacing: .04em; color: var(--ink-60);
-  padding: 5px 10px; border-radius: 6px; border: 1px solid var(--line);
-  background: var(--panel-alt); user-select: none;
-}
-.french-toggle-header:has(input:checked) {
-  color: var(--accent); border-color: rgba(126,184,255,.4); background: rgba(126,184,255,.1);
-}
-.french-toggle-header input { width: 14px; height: 14px; accent-color: var(--accent); cursor: pointer; }
 .ai-badge {
   display: flex; align-items: center; gap: 6px;
   font-size: 11px; letter-spacing: .04em; color: var(--ink-60);
@@ -123,52 +76,58 @@ body {
 .ai-badge .dot.live { background: var(--green); box-shadow: 0 0 0 3px var(--green-bg); animation: pulse 2s infinite; }
 .ai-badge .dot.error { background: var(--red); }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+.version-pill {
+  font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase;
+  padding: 4px 10px; border-radius: 5px; color: var(--gold);
+  border: 1px solid rgba(201,168,106,0.35); font-weight: 600;
+}
+.action-toast {
+  display: none; position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  padding: 10px 18px; border-radius: 8px; font-size: 12.5px; font-weight: 500;
+  background: rgba(22,23,27,0.95); border: 1px solid var(--line); color: var(--ink);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.45); z-index: 9999;
+}
+.action-toast.show { display: block; }
 .btn {
   font-family: var(--sans); font-size: 12.5px; font-weight: 600;
-  padding: 8px 16px; border-radius: 7px; border: 1px solid var(--glass-border);
+  padding: 8px 16px; border-radius: 7px; border: 1px solid var(--line);
   background: var(--panel-alt); color: var(--ink); cursor: pointer;
   display: flex; align-items: center; gap: 7px;
-  backdrop-filter: var(--glass-blur);
 }
-.btn:hover:not(:disabled) { border-color: var(--silver); }
+.btn:hover:not(:disabled) { border-color: var(--ink-40); }
 .btn:disabled { opacity: .35; cursor: not-allowed; }
-.btn.start { background: linear-gradient(135deg, #5a9fd4, var(--accent)); border-color: rgba(126,184,255,.6); color: #fff; }
-.btn.start:hover:not(:disabled) { background: linear-gradient(135deg, #4a8fc4, #6aacf0); }
+.btn.start { background: var(--red); border-color: var(--red); color: #fff; }
+.btn.start:hover:not(:disabled) { background: #c94a3f; }
 .btn.small { padding: 5px 10px; font-size: 11px; }
 
 /* ── Three-column main grid (resizable) ── */
 .live-workspace { flex: 1; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
 .main {
   flex: 1; display: flex; align-items: stretch;
-  gap: 1px; background: var(--line);
+  gap: 0; background: var(--line);
   min-height: 0; overflow: hidden;
 }
 .col {
-  background: var(--glass-bg);
-  backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--glass-border);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+  background: rgba(14, 15, 18, 0.82);
+  backdrop-filter: blur(8px);
   display: flex; flex-direction: column; min-height: 0; min-width: 160px;
-  position: relative;
-  flex: 1 1 0;
+  overflow: hidden; position: relative; flex: 1 1 0;
 }
 .col-resize-handle {
-  position: absolute; top: 0; right: 0; bottom: 0; width: 11px;
-  transform: translateX(50%); cursor: col-resize; z-index: 5; touch-action: none;
-  background: transparent;
+  position: absolute; top: 0; right: -3px; bottom: 0; width: 6px;
+  cursor: col-resize; z-index: 5; touch-action: none;
 }
 .col-resize-handle::before {
   content: ""; position: absolute; top: 0; bottom: 0; left: 50%;
-  width: 1px; transform: translateX(-50%); background: var(--line);
-  pointer-events: none;
+  transform: translateX(-50%); width: 1px; background: rgba(255,255,255,0.14);
 }
 .col-resize-handle:hover::before, .col-resize-handle.active::before {
-  background: rgba(126,184,255,0.75); width: 2px;
+  width: 2px; background: rgba(201,168,106,0.55);
 }
 .col-hdr {
   display: flex; align-items: center; justify-content: space-between;
   padding: 12px 16px; border-bottom: 1px solid var(--line-soft); flex-shrink: 0;
-  background: rgba(255,255,255,0.03);
+  background: rgba(22, 23, 27, 0.45);
 }
 .col-num { font-family: var(--serif); font-size: 20px; color: var(--ink-40); margin-right: 8px; }
 .col-title-wrap { display: flex; align-items: baseline; }
@@ -179,14 +138,6 @@ body {
   font-size: 9.5px; padding: 2px 6px; border-radius: 4px; border: 1px solid var(--line);
   color: var(--ink-60); letter-spacing: .04em;
 }
-.mic-status-pill {
-  font-size: 9.5px; padding: 2px 8px; border-radius: 10px; display: none;
-  align-items: center; gap: 5px; letter-spacing: .04em; text-transform: uppercase;
-}
-.mic-status-pill.show { display: inline-flex; }
-.mic-status-pill.starting { color: var(--amber); background: var(--amber-bg); border: 1px solid rgba(217,164,65,.35); }
-.mic-status-pill.live { color: var(--green); background: var(--green-bg); border: 1px solid rgba(79,174,125,.35); }
-.mic-status-pill .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 
 /* ── Col 1: Transcription ── */
 .tx-scroll { flex: 1; overflow-y: auto; min-height: 0; display: flex; flex-direction: column; }
@@ -216,28 +167,16 @@ body {
 .col-footer { padding: 9px 16px; border-top: 1px solid var(--line-soft); font-size: 10.5px; color: var(--ink-40); flex-shrink: 0; }
 
 /* ── Col 2: Engine / Suggestions ── */
-.search-wrap { padding: 12px 16px; border-bottom: 1px solid var(--line-soft); display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; }
-.search-input {
-  width: 100%; padding: 10px 12px; border-radius: 7px; border: 1px solid var(--line);
-  background: var(--panel-alt); color: var(--ink); font-family: var(--sans); font-size: 13px;
-}
-.search-input:focus { outline: none; border-color: var(--accent); }
-.version-select {
-  padding: 8px 10px; border-radius: 7px; border: 1px solid var(--line);
-  background: var(--panel-alt); color: var(--ink-60); font-size: 12px;
-}
 .engine-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
 .engine-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; }
-.spark { font-size: 20px; color: var(--accent); }
+.spark { font-size: 20px; color: var(--gold); }
 .engine-empty p { font-size: 12.5px; color: var(--ink-40); text-align: center; line-height: 1.7; }
 
 .verse-card {
-  border: 1px solid var(--glass-border); border-radius: 9px;
-  background: var(--panel-alt);
-  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--line); border-radius: 9px; background: var(--panel);
   padding: 14px 16px; display: flex; flex-direction: column; gap: 8px;
 }
-.verse-source { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); display: flex; align-items: center; gap: 5px; }
+.verse-source { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--gold); display: flex; align-items: center; gap: 5px; }
 .verse-ref { font-family: var(--serif); font-size: 19px; font-weight: 700; }
 .verse-text { font-family: var(--serif); font-size: 14px; line-height: 1.55; color: var(--ink); }
 .verse-meta { display: flex; align-items: center; gap: 7px; font-size: 10.5px; color: var(--ink-60); }
@@ -247,68 +186,92 @@ body {
 .conf-low    { background: rgba(224,90,78,.12); color: var(--red); }
 .meta-sep { color: var(--line); }
 
+.search-input {
+  width: 100%; padding: 10px 12px; border-radius: 7px; border: 1px solid var(--line);
+  background: var(--panel-alt); color: var(--ink); font-family: var(--sans); font-size: 13px;
+}
+.search-input:focus { outline: none; border-color: var(--gold); }
+.version-select {
+  padding: 8px 10px; border-radius: 7px; border: 1px solid var(--line);
+  background: var(--panel-alt); color: var(--ink-60); font-size: 12px;
+}
+
 /* ── Col 3: Live Output / Broadcast ── */
+.stage-scroll {
+  flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden;
+  display: flex; flex-direction: column; margin: 0 16px; padding: 14px 0;
+}
 .stage-status { display: flex; align-items: center; gap: 6px; font-size: 10.5px; }
 .stage-status .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--line); }
 .stage-status .dot.on { background: var(--red); box-shadow: 0 0 0 3px rgba(224,90,78,.15); }
-.stage-scroll {
-  flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden;
-  display: flex; flex-direction: column; margin: 0 16px;
-  padding: 14px 0;
-}
 .stage {
-  flex: 1 1 auto; width: 100%; min-height: 100%; background: rgba(0,0,0,0.78);
-  display: flex; align-items: stretch; justify-content: flex-start;
-  flex-direction: column; gap: 0; padding: 5% 6%; text-align: center;
+  flex: 1; min-height: 280px; background: rgba(0,0,0,0.78);
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column; gap: 14px; padding: 5% 5%; text-align: center;
   border-radius: 10px; border: 1px solid rgba(255,255,255,0.08);
   backdrop-filter: blur(8px);
   background-size: cover; background-position: center;
 }
-.stage-fill { width: 100%; display: flex; flex-direction: column; gap: var(--block-gap, 18px); flex: 1; justify-content: center; }
-.stage-stack { width: 100%; display: flex; flex-direction: column; gap: var(--block-gap, 18px); align-items: center; }
-.stage-block { width: 100%; max-width: 100%; text-align: center; }
 .stage.theme-light { background-color: rgba(255,255,255,0.94); color: #141418; }
-.stage.theme-light .stage-ref { color: #8c6930; }
-.stage.theme-light .stage-text { color: #141418; }
-.stage.theme-light .stage-secondary { color: #141418; }
-.stage.bordered { box-shadow: inset 0 0 0 2px rgba(126,184,255,0.45); }
+.stage.theme-light .stage-ref { color: #141418; text-shadow: none; }
+.stage.theme-light .stage-text, .stage.theme-light .stage-secondary { color: #141418; text-shadow: none; }
+.stage.bordered { box-shadow: inset 0 0 0 2px rgba(201,168,106,0.45); }
 .stage-ref {
-  font-family: var(--serif); color: var(--accent); font-weight: 700;
-  width: 100%; line-height: 1.3; flex-shrink: 0;
+  font-family: var(--sans); color: #fff; font-weight: 700;
+  margin-bottom: 8px; line-height: 1.3;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.85), 0 0 12px rgba(0,0,0,0.5);
 }
 .stage-version {
-  font-family: var(--sans); color: var(--accent);
-  letter-spacing: 0.02em; margin-bottom: 0.35em; line-height: 1.3;
+  font-family: var(--sans); font-weight: 700; font-size: 0.55em;
+  letter-spacing: 0.04em; opacity: 0.95;
 }
-.stage-text-block { width: 100%; max-width: 100%; }
-.stage-text { font-family: var(--serif); color: #f5f2ea; line-height: 1.45; width: 100%; }
-.stage-secondary { color: #f5f2ea; width: 100%; padding: 0; border: none; margin: 0; }
+.stage-text {
+  font-family: var(--sans); color: #fff; font-weight: 700; line-height: 1.45;
+  max-width: 92%;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.85), 0 0 10px rgba(0,0,0,0.45);
+}
+.stage-secondary {
+  font-family: var(--sans); color: #fff; font-weight: 700; line-height: 1.45;
+  max-width: 92%; margin-top: 14px;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.85), 0 0 10px rgba(0,0,0,0.45);
+}
+.stage-secondary.above { margin-top: 0; margin-bottom: 14px; }
+.stage-empty { color: var(--ink-40); font-size: 13px; }
 .stage-controls { display: flex; gap: 8px; padding: 0 16px 16px; flex-shrink: 0; }
 .stage-controls .btn { flex: 1; justify-content: center; }
 
-/* ── Bottom dock tab bar ── */
-.dock-tabbar {
-  display: flex; flex-shrink: 0; overflow-x: auto;
-  border-bottom: 1px solid var(--line-soft);
-  background: rgba(255,255,255,0.03);
+/* ── Bottom dock (Search + Recent Verses) ── */
+.dock-resizer {
+  flex-shrink: 0; height: 5px; cursor: row-resize; background: var(--line);
+  position: relative; touch-action: none;
 }
-.dock-tab {
-  padding: 9px 14px; font-size: 11.5px; color: var(--ink-60); cursor: pointer;
-  border-bottom: 2px solid transparent; white-space: nowrap;
-  letter-spacing: .02em;
+.dock-resizer::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 50%;
+  transform: translateY(-50%); height: 1px; background: rgba(255,255,255,0.14);
 }
-.dock-tab:hover { color: var(--ink); }
-.dock-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
-.dock-tab.disabled { opacity: .45; cursor: default; }
-.dock-tab-body { flex: 1; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
-.dock-tab-panel { display: none; flex: 1; flex-direction: column; min-height: 0; overflow: hidden; }
-.dock-tab-panel.active { display: flex; }
-.dock-soon {
-  flex: 1; display: flex; align-items: center; justify-content: center;
-  color: var(--ink-40); font-size: 12.5px; padding: 24px; text-align: center;
+.dock-resizer:hover::before, .dock-resizer.active::before {
+  height: 2px; background: rgba(201,168,106,0.55);
 }
+.live-bottom-dock {
+  flex-shrink: 0; height: 190px; min-height: 120px; max-height: 50vh;
+  display: flex; gap: 0; background: var(--line);
+  border-top: 1px solid var(--line);
+}
+.dock-section {
+  flex: 1; background: rgba(14, 15, 18, 0.92);
+  display: flex; flex-direction: column; min-width: 0; overflow: hidden;
+  border-right: 1px solid var(--line-soft);
+}
+.dock-section:last-child { border-right: none; }
+.dock-hdr {
+  padding: 8px 14px; font-size: 10px; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--ink-40);
+  border-bottom: 1px solid var(--line-soft); flex-shrink: 0;
+}
+.dock-search .search-input { margin: 10px 14px; width: calc(100% - 28px); }
+.dock-recall-scroll { flex: 1; overflow-y: auto; padding: 6px 10px; }
 
-/* ── Bottom tab bar (legacy) ── */
+/* ── Bottom tab bar ── */
 .tabbar {
   display: flex; border-top: 1px solid rgba(255,255,255,0.07);
   background: rgba(22, 23, 27, 0.65);
@@ -317,20 +280,8 @@ body {
 }
 .settings-advanced { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line-soft); }
 .settings-advanced summary { cursor: pointer; color: var(--ink-60); font-size: 12px; margin-bottom: 8px; }
-.settings-json { max-height: 280px; overflow-y: auto; display: none; margin-top: 8px; }
+.settings-json { max-height: 120px; overflow-y: auto; display: none; margin-top: 8px; }
 .settings-json.show { display: block; }
-.json-log-toolbar {
-  display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  flex-wrap: wrap; margin: 8px 0;
-}
-.json-copy-btn {
-  font-family: var(--sans); font-size: 11px; font-weight: 600;
-  padding: 5px 10px; border-radius: 6px; border: 1px solid var(--line);
-  background: var(--panel-alt); color: var(--ink-60); cursor: pointer;
-  display: inline-flex; align-items: center; gap: 5px;
-}
-.json-copy-btn:hover { color: var(--gold); border-color: rgba(201,168,106,.4); }
-.json-copy-btn.copied { color: var(--green); border-color: rgba(79,174,125,.4); }
 .tab {
   padding: 10px 16px; font-size: 12px; color: var(--ink-60); cursor: pointer;
   border-bottom: 2px solid transparent; white-space: nowrap; display: flex; align-items: center; gap: 6px;
@@ -351,48 +302,6 @@ body {
 .recall-ref { font-weight: 600; }
 .recall-snip { color: var(--ink-40); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* ── Live bottom dock (search + recent verses) ── */
-.dock-resizer {
-  flex-shrink: 0; height: 11px; cursor: row-resize; touch-action: none;
-  background: transparent; position: relative;
-}
-.dock-resizer::before {
-  content: ""; position: absolute; left: 0; right: 0; top: 50%;
-  height: 1px; transform: translateY(-50%); background: var(--line);
-  pointer-events: none;
-}
-.dock-resizer:hover::before, .dock-resizer.active::before {
-  background: rgba(126,184,255,0.75); height: 2px;
-}
-.live-bottom-dock {
-  flex-shrink: 0; display: flex; flex-direction: column;
-  height: var(--dock-height, 200px); min-height: 100px; max-height: 45vh;
-  overflow: hidden;
-}
-.dock-search-row {
-  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-  padding: 10px 16px; border-bottom: 1px solid var(--line-soft); flex-shrink: 0;
-}
-.dock-search-label {
-  font-size: 11.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
-  color: var(--accent); flex-shrink: 0; white-space: nowrap;
-}
-.dock-search-input {
-  flex: 1; min-width: 160px; padding: 8px 12px; border-radius: 7px;
-  border: 1px solid var(--glass-border); background: var(--panel-alt); color: var(--ink);
-  font-family: var(--sans); font-size: 13px;
-  backdrop-filter: var(--glass-blur);
-}
-.dock-search-input:focus { outline: none; border-color: var(--accent); }
-.dock-search-hint { font-size: 10.5px; color: var(--ink-40); flex-shrink: 0; }
-.dock-recall { flex: 1; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
-.dock-recall-hdr {
-  padding: 6px 16px; font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase;
-  color: var(--ink-40); flex-shrink: 0;
-}
-.dock-recall-scroll { flex: 1; overflow-y: auto; padding: 0 10px 10px; min-height: 0; }
-.dock-recall-empty { color: var(--ink-40); font-size: 12px; text-align: center; padding: 20px; }
-
 /* JSON log */
 .json-row { font-family: var(--mono); font-size: 11px; line-height: 1.6; color: #c4b48c; white-space: pre; padding: 2px 0; }
 .jk { color: #7db8a4; } .js { color: #d4a070; } .jn { color: #8db8d4; } .jb { color: #b89cd4; }
@@ -406,16 +315,6 @@ body {
 }
 .conn-banner.show { display: flex; }
 
-/* ── Action toast (wsSend failures, etc.) ── */
-.action-toast {
-  position: fixed; bottom: 220px; left: 50%; transform: translateX(-50%);
-  padding: 10px 18px; border-radius: 8px; font-size: 12.5px; font-weight: 500;
-  background: rgba(224,90,78,.92); color: #fff; z-index: 9999;
-  box-shadow: 0 4px 20px rgba(0,0,0,.4); pointer-events: none;
-  opacity: 0; transition: opacity .25s;
-}
-.action-toast.show { opacity: 1; }
-
 /* ── Startup progress bar ── */
 .startup-bar {
   display: none; flex-direction: column; gap: 6px;
@@ -424,16 +323,15 @@ body {
   flex-shrink: 0;
 }
 .startup-bar.show { display: flex; }
-.startup-bar-title { font-weight: 600; color: var(--ink-60); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
-.startup-progress-wrap { height: 8px; background: var(--line); border-radius: 4px; overflow: hidden; }
-.startup-progress-bar { height: 100%; width: 0%; background: linear-gradient(90deg, var(--gold), var(--green)); transition: width .35s ease; }
-.startup-progress-pct { font-size: 11px; color: var(--ink-40); margin-top: 2px; }
-.startup-step-current {
-  font-size: 13px; color: var(--ink-60); min-height: 1.4em;
-  transition: opacity .35s ease;
+.startup-bar-track {
+  height: 4px; background: var(--line); border-radius: 2px; overflow: hidden;
 }
-.startup-step-current.fade { opacity: 0; }
-.startup-steps { display: none; }
+.startup-bar-fill {
+  height: 100%; width: 0%; background: linear-gradient(90deg, var(--gold), var(--green));
+  transition: width .3s ease;
+}
+.startup-bar-title { font-weight: 600; color: var(--ink-60); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
+.startup-steps { display: flex; flex-wrap: wrap; gap: 8px 16px; }
 .startup-step {
   display: flex; align-items: center; gap: 6px; color: var(--ink-40);
 }
@@ -463,57 +361,44 @@ body {
 /* ── App shell + sidebar ── */
 .app-shell { flex: 1; display: flex; min-height: 0; overflow: hidden; }
 .sidebar {
-  width: var(--sidebar-width, 56px); flex-shrink: 0; display: flex; flex-direction: column;
-  backdrop-filter: var(--glass-blur);
-  border-right: 1px solid var(--glass-border);
-  transition: width .2s;
-  position: relative; min-width: 56px; max-width: 360px;
-  background: var(--glass-bg);
-  box-shadow: inset -1px 0 0 rgba(255,255,255,0.06);
+  width: 56px; flex-shrink: 0; display: flex; flex-direction: column;
+  background: rgba(18, 19, 22, 0.72); backdrop-filter: blur(16px);
+  border-right: 1px solid rgba(255,255,255,0.07);
+  position: relative; min-width: 56px;
 }
+.sidebar.sidebar-wide { width: var(--sidebar-w, 220px); }
+.sidebar.sidebar-wide .nav-label { display: inline; }
+.sidebar.sidebar-wide .sidebar-hdr { display: block; }
 .sidebar-resizer {
-  position: absolute; top: 0; right: 0; bottom: 0; width: 11px;
-  transform: translateX(50%); cursor: col-resize; z-index: 6; touch-action: none;
-  background: transparent;
+  position: absolute; top: 0; right: -3px; bottom: 0; width: 6px;
+  cursor: col-resize; z-index: 6; touch-action: none;
 }
 .sidebar-resizer::before {
   content: ""; position: absolute; top: 0; bottom: 0; left: 50%;
-  width: 1px; transform: translateX(-50%); background: var(--line);
-  pointer-events: none;
+  transform: translateX(-50%); width: 1px; background: rgba(255,255,255,0.14);
 }
-.sidebar-resizer:hover::before, .sidebar-resizer.active::before {
-  background: rgba(126,184,255,0.75); width: 2px;
-}
-.sidebar.collapsed { width: 56px; --sidebar-width: 56px; }
-.sidebar.collapsed .nav-label { display: none; }
-.sidebar.collapsed .nav-item { justify-content: center; padding: 12px 8px; }
-.sidebar-logo {
-  display: flex; align-items: center; justify-content: center;
-  padding: 14px 8px 10px; font-family: var(--serif); font-weight: 700;
-  font-size: 13px; color: var(--accent); letter-spacing: -.03em;
-  border-bottom: 1px solid var(--line-soft); flex-shrink: 0;
-}
-.sidebar-logo span { color: var(--silver); font-weight: 400; }
-.sidebar-hdr { display: none; }
+.sidebar-hdr { display: none; padding: 14px 12px 8px; font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-40); }
 .nav-item {
-  display: flex; align-items: center; gap: 10px; padding: 11px 14px; margin: 2px 8px;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 12px 8px; margin: 2px 6px;
   border-radius: 8px; cursor: pointer; font-size: 13px; color: var(--ink-60);
   border: 1px solid transparent; position: relative;
 }
-.nav-item .nav-icon { width: 20px; text-align: center; flex-shrink: 0; font-size: 15px; }
-.nav-item:hover { background: rgba(255,255,255,0.06); color: var(--ink); }
-.nav-item.active {
-  background: rgba(126,184,255,0.12); color: var(--accent);
-  border-color: rgba(126,184,255,0.28);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.1);
-}
+.sidebar.sidebar-wide .nav-item { justify-content: flex-start; padding: 11px 14px; margin: 2px 8px; }
+.nav-label { display: none; }
+.nav-icon { font-size: 16px; line-height: 1; flex-shrink: 0; }
+.nav-item:hover { background: rgba(255,255,255,0.04); color: var(--ink); }
+.nav-item.active { background: rgba(201,168,106,0.12); color: var(--gold); border-color: rgba(201,168,106,0.25); }
 .nav-item.has-errors { background: rgba(224,90,78,0.12); color: #ffb4ae; }
 .nav-badge {
   margin-left: auto; min-width: 18px; height: 18px; border-radius: 9px;
   background: var(--red); color: #fff; font-size: 10px; font-weight: 700;
   display: flex; align-items: center; justify-content: center; padding: 0 5px;
 }
-.sidebar.collapsed .nav-badge { position: absolute; top: 6px; right: 6px; min-width: 8px; height: 8px; font-size: 0; padding: 0; }
+.sidebar.sidebar-wide .nav-badge { position: static; min-width: 18px; height: 18px; font-size: 10px; padding: 0 5px; }
+.sidebar:not(.sidebar-wide) .nav-badge {
+  position: absolute; top: 6px; right: 6px; min-width: 8px; height: 8px; font-size: 0; padding: 0;
+}
 .workspace { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 .view { flex: 1; display: none; flex-direction: column; min-height: 0; overflow: hidden; }
 .view.active { display: flex; }
@@ -524,111 +409,70 @@ body {
 .log-row.warn { border-color: rgba(217,164,65,0.35); background: rgba(217,164,65,0.08); }
 .log-row.info { border-color: rgba(79,174,125,0.35); background: rgba(79,174,125,0.08); }
 .log-fix { margin-top: 6px; font-size: 11px; color: var(--ink-60); }
-.log-fix b { color: var(--accent); font-weight: 600; }
+.log-fix b { color: var(--gold); font-weight: 600; }
 .header-log-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--red); display: none; cursor: pointer; animation: pulse 1.2s infinite; }
 .header-log-dot.show { display: inline-block; }
 .col-hdr { cursor: grab; user-select: none; }
 .col-hdr:active { cursor: grabbing; }
 .col.dragging { opacity: 0.55; }
-.search-wrap .version-select { display: none !important; }
-.legacy-tab-body, .legacy-tabbar { display: none !important; }
-.mic-progress { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; margin: 0 16px 8px; display: none; }
+.mic-status-pill {
+  font-size: 10px; padding: 3px 8px; border-radius: 4px;
+  background: var(--green-bg); color: var(--green); display: none;
+}
+.mic-status-pill.show { display: inline-block; }
+.mic-device-list { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; max-width: 420px; }
+.mic-device-row {
+  display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+  border-radius: 6px; border: 1px solid var(--line); cursor: pointer; font-size: 12.5px;
+}
+.mic-device-row:hover { border-color: var(--ink-40); }
+.mic-device-row.active { border-color: var(--gold); background: rgba(201,168,106,0.08); }
+.mic-device-tag { font-size: 10px; padding: 2px 6px; border-radius: 4px; background: var(--panel-alt); color: var(--ink-60); }
+.json-copy-row { display: flex; align-items: center; gap: 8px; margin: 8px 0; }
+#menuToggle { display: none; }
+.tabbar, .tab-body { display: none !important; }
+.mic-progress { height: 3px; background: var(--line); border-radius: 2px; overflow: hidden; margin-top: 8px; display: none; }
 .mic-progress.show { display: block; }
-.mic-progress-label { font-size: 10.5px; color: var(--amber); padding: 0 16px 4px; display: none; }
-.mic-progress-label.show { display: block; }
-.mic-progress-bar { height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent), var(--green)); transition: width .25s; }
-.mic-error-inline { font-size: 11.5px; color: var(--red); padding: 0 16px 8px; display: none; line-height: 1.5; }
-.mic-error-inline.show { display: block; }
-
-/* ── Microphone device list ── */
-.mic-panel-note { margin-top: 6px; font-size: 12px; color: var(--ink-60); line-height: 1.5; }
-.mic-device-list { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; max-height: 320px; overflow-y: auto; }
-.mic-device-item {
-  display: flex; align-items: center; gap: 10px; padding: 10px 12px;
-  border-radius: 8px; border: 1px solid var(--line); background: var(--panel-alt);
-  cursor: pointer; text-align: left; width: 100%; font-family: var(--sans); color: var(--ink);
-}
-.mic-device-item:hover { border-color: var(--ink-40); }
-.mic-device-item.active { border-color: rgba(79,174,125,.45); background: var(--green-bg); }
-.mic-device-item .mic-device-dot {
-  width: 8px; height: 8px; border-radius: 50%; background: var(--line); flex-shrink: 0;
-}
-.mic-device-item.active .mic-device-dot { background: var(--green); box-shadow: 0 0 0 3px var(--green-bg); }
-.mic-device-name { flex: 1; font-size: 13px; line-height: 1.35; }
-.mic-device-tags { display: flex; gap: 5px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
-.mic-device-tag {
-  font-size: 9px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
-  padding: 2px 6px; border-radius: 4px; border: 1px solid var(--line); color: var(--ink-40);
-}
-.mic-device-tag.default { color: var(--accent); border-color: rgba(126,184,255,.35); }
-.mic-device-tag.active-tag { color: var(--green); border-color: rgba(79,174,125,.35); }
-.mic-device-empty { font-size: 12px; color: var(--ink-40); padding: 12px 0; }
-
-/* ── Responsive ── */
-@media (max-width: 1200px) {
-  .main { flex-wrap: wrap; }
-  .col[data-col="tx"] { flex: 1 1 100% !important; min-height: 180px; }
-  .col[data-col="suggest"], .col[data-col="stage"] { flex: 1 1 calc(50% - 3px) !important; min-height: 200px; }
-  .col-resize-handle { display: none; }
-}
-@media (max-width: 900px) {
-  .col[data-col="suggest"], .col[data-col="stage"] { flex: 1 1 100% !important; }
-  .sidebar:not(.collapsed) { width: 56px; --sidebar-width: 56px; }
-  .sidebar:not(.collapsed) .nav-label { display: none; }
-  .sidebar:not(.collapsed) .nav-item { justify-content: center; padding: 12px 8px; }
-  .sidebar-resizer { display: none; }
-}
-@media (max-width: 600px) {
-  .header { padding: 0 12px; gap: 8px; }
-  .service-pill { display: none; }
-  #saveBtn .save-label { display: none; }
-  .live-bottom-dock { min-height: 100px; max-height: 40vh; }
-  .dock-search-row { flex-direction: column; align-items: stretch; }
-  .dock-search-hint { display: none; }
-}
+.mic-progress-bar { height: 100%; width: 0%; background: linear-gradient(90deg, var(--gold), var(--green)); transition: width .25s; }
 </style>
 </head>
 <body>
 
-<div class="bg-blobs" aria-hidden="true"></div>
 <div class="conn-banner" id="connBanner">⚠ Lost connection to backend — reconnecting…</div>
 <div class="action-toast" id="actionToast"></div>
 
 <div class="app-shell">
-<aside class="sidebar collapsed glass-panel" id="sidebar">
-  <div class="sidebar-resizer" id="sidebarResizer" title="Drag to resize sidebar"></div>
-  <div class="sidebar-logo" title="Window Verse">W<span>V</span></div>
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-resizer" id="sidebarResizer" title="Drag to widen sidebar"></div>
+  <div class="sidebar-hdr">Menu</div>
   <div class="nav-item active" data-view="live" title="Live"><span class="nav-icon">▣</span><span class="nav-label">Live</span></div>
-  <div class="nav-item" data-view="search" title="Search"><span class="nav-icon">⌕</span><span class="nav-label">Search</span></div>
-  <div class="nav-item" data-view="bible" title="Bible & Languages"><span class="nav-icon">📖</span><span class="nav-label">Bible</span></div>
-  <div class="nav-item" data-view="vmix" title="NDI / vMix"><span class="nav-icon">⛓</span><span class="nav-label">NDI</span></div>
+  <div class="nav-item" data-view="vmix" title="vMix / NDI"><span class="nav-icon">⛓</span><span class="nav-label">vMix / NDI</span></div>
+  <div class="nav-item" data-view="bible" title="Bible & Languages"><span class="nav-icon">📖</span><span class="nav-label">Bible & Languages</span></div>
   <div class="nav-item" data-view="appearance" title="Appearance"><span class="nav-icon">✦</span><span class="nav-label">Appearance</span></div>
-  <div class="nav-item" data-view="mic" title="Microphone"><span class="nav-icon">🎙</span><span class="nav-label">Mic</span></div>
-  <div class="nav-item" data-view="recall" title="Quick Recall"><span class="nav-icon">↺</span><span class="nav-label">Recall</span></div>
+  <div class="nav-item" data-view="mic" title="Microphone"><span class="nav-icon">🎙</span><span class="nav-label">Microphone</span></div>
+  <div class="nav-item" data-view="recall" title="Quick Recall"><span class="nav-icon">↺</span><span class="nav-label">Quick Recall</span></div>
   <div class="nav-item" data-view="logs" id="navLogs" title="Logs"><span class="nav-icon">⚠</span><span class="nav-label">Logs</span><span class="nav-badge" id="logBadge" style="display:none">0</span></div>
-  <div class="nav-item" data-view="developer" title="Developer" style="margin-top:auto"><span class="nav-icon">{ }</span><span class="nav-label">Dev</span></div>
+  <div class="nav-item" data-view="developer" title="Developer"><span class="nav-icon">{ }</span><span class="nav-label">Developer</span></div>
 </aside>
 
 <div class="workspace">
 <div class="startup-bar" id="startupBar">
-  <div class="startup-bar-title" id="startupTitle">Loading Window Verse…</div>
-  <div class="startup-progress-wrap"><div class="startup-progress-bar" id="startupProgressBar"></div></div>
-  <div class="startup-progress-pct" id="startupProgressPct">0%</div>
-  <div class="startup-step-current" id="startupStepCurrent">Starting…</div>
-  <div class="startup-steps" id="startupSteps" aria-hidden="true"></div>
+  <div class="startup-bar-title" id="startupTitle">Loading…</div>
+  <div class="startup-bar-track"><div class="startup-bar-fill" id="startupProgressBar"></div></div>
+  <div class="startup-steps" id="startupSteps"></div>
 </div>
 
-<header class="header glass-panel">
+<header class="header">
   <button class="btn small" id="menuToggle" title="Toggle menu">☰</button>
   <span class="header-log-dot" id="headerLogDot" title="Errors logged — open Logs"></span>
-  <div class="wordmark">Window<em>Verse</em></div>
+  <div class="wordmark">Multi<em>Verse</em></div>
   <div class="service-pill">Service <b>Live Sermon</b></div>
+  <span class="version-pill" id="versionPill">NKJV</span>
   <div class="header-spacer"></div>
-  <span class="version-pill" title="New King James Version">NKJV</span>
   <div class="ai-badge"><span class="dot" id="sDot"></span><span id="sTxt">disconnected</span></div>
   <button class="btn start" id="micBtn">▶ Start</button>
   <button class="btn" id="stopBtn" disabled>■ Stop</button>
-  <button class="btn small" id="saveBtn" title="Download session transcript">💾 <span class="save-label">Save Transcript</span></button>
+  <button class="btn small" id="saveBtn" title="Download session transcript">💾 Save Transcript</button>
 </header>
 
 <div class="view active" id="view-live">
@@ -642,8 +486,8 @@ body {
       <div class="col-title-wrap"><span class="col-num">01</span>
         <div><span class="col-label">Channel</span><span class="col-title">Transcription</span></div>
       </div>
-      <span class="mic-status-pill" id="micStatusPill"><span class="dot"></span><span id="micStatusTxt">Mic</span></span>
       <span class="badge-mini" id="txCount">0 lines</span>
+      <span class="mic-status-pill" id="micStatusPill">● Mic live</span>
     </div>
     <div class="tx-scroll" id="txScroll">
       <div class="tx-empty" id="txEmpty">
@@ -653,9 +497,7 @@ body {
       <div class="tx-inner" id="txFeed"></div>
     </div>
     <div class="col-footer" id="txFooter">Idle — press ▶ Start</div>
-    <div class="mic-progress-label" id="micProgressLabel">Opening microphone…</div>
     <div class="mic-progress" id="micProgress"><div class="mic-progress-bar" id="micProgressBar"></div></div>
-    <div class="mic-error-inline" id="micErrorInline"></div>
   </div>
 
   <!-- COL 2: Engine / Suggestions -->
@@ -670,20 +512,21 @@ body {
     <div class="engine-body" id="engineBody">
       <div class="engine-empty" id="engineEmpty">
         <span class="spark">✦</span>
-        <p>Waiting for speech<br>Detected verses appear here</p>
+        <p>Waiting for speech detection<br>Or search in the panel below</p>
       </div>
     </div>
   </div>
 
   <!-- COL 3: Live Output / Broadcast -->
   <div class="col" data-col="stage" draggable="true">
+    <div class="col-resize-handle" data-resize-col="2" title="Drag to resize"></div>
     <div class="col-hdr" data-drag-handle>
       <div class="col-title-wrap"><span class="col-num">03</span>
         <div><span class="col-label">Broadcast</span><span class="col-title">Live Output</span></div>
       </div>
       <div class="stage-status"><span class="dot" id="liveDot"></span><span id="liveTxt">standby</span></div>
     </div>
-    <div class="stage-scroll" id="stageScroll">
+    <div class="stage-scroll">
       <div class="stage" id="stage">
         <div class="stage-empty">No verse on air</div>
       </div>
@@ -695,52 +538,20 @@ body {
   </div>
 
 </div>
-
-<div class="dock-resizer" id="dockResizer" title="Drag to resize search panel"></div>
-<div class="live-bottom-dock glass-panel" id="liveBottomDock">
-  <div class="dock-tabbar" id="dockTabbar">
-    <div class="dock-tab active" data-dock-tab="recall">Quick Recall</div>
-    <div class="dock-tab" data-dock-tab="search">Search</div>
-    <div class="dock-tab disabled" data-dock-tab="templates">Templates</div>
-    <div class="dock-tab disabled" data-dock-tab="titles">Titles</div>
-    <div class="dock-tab disabled" data-dock-tab="songs">Songs</div>
-    <div class="dock-tab disabled" data-dock-tab="timer">Timer</div>
-    <div class="dock-tab disabled" data-dock-tab="output">Output Control</div>
-    <div class="dock-tab disabled" data-dock-tab="stage-msg">Stage Messages</div>
-    <div class="dock-tab disabled" data-dock-tab="announce">Announcements</div>
-    <div class="dock-tab disabled" data-dock-tab="macros">Macros</div>
-    <div class="dock-tab disabled" data-dock-tab="timeline">Timeline</div>
-    <div class="dock-tab disabled" data-dock-tab="notes">Sermon Notes</div>
+<div class="dock-resizer" id="dockResizer" title="Drag to resize"></div>
+<div class="live-bottom-dock" id="liveBottomDock">
+  <div class="dock-section dock-search">
+    <div class="dock-hdr">Search</div>
+    <input class="search-input" id="searchInput" placeholder='Search verses or references… e.g. "the lord is my shepherd"'>
   </div>
-  <div class="dock-tab-body">
-    <div class="dock-tab-panel active" data-dock-panel="recall">
-      <div class="dock-recall">
-        <div class="dock-recall-scroll" id="dockRecallScroll">
-          <div class="dock-recall-empty" id="recallEmpty">Recent verses appear here</div>
-          <div id="recallFeed"></div>
-        </div>
-      </div>
+  <div class="dock-section dock-recall">
+    <div class="dock-hdr">Recent Verses</div>
+    <div class="dock-recall-scroll">
+      <div class="tab-panel-empty" id="recallEmpty">Recent verses appear here</div>
+      <div id="recallFeed"></div>
     </div>
-    <div class="dock-tab-panel" data-dock-panel="search">
-      <div class="dock-search-row">
-        <span class="dock-search-label">Search</span>
-        <input class="dock-search-input" id="searchInput" placeholder='Verses, references, paraphrases… e.g. John 3:16'>
-        <span class="dock-search-hint">Enter ↵</span>
-      </div>
-    </div>
-    <div class="dock-tab-panel" data-dock-panel="templates"><div class="dock-soon">Templates — coming soon</div></div>
-    <div class="dock-tab-panel" data-dock-panel="titles"><div class="dock-soon">Titles — coming soon</div></div>
-    <div class="dock-tab-panel" data-dock-panel="songs"><div class="dock-soon">Songs — coming soon</div></div>
-    <div class="dock-tab-panel" data-dock-panel="timer"><div class="dock-soon">Timer — coming soon</div></div>
-    <div class="dock-tab-panel" data-dock-panel="output"><div class="dock-soon">Output Control — coming soon</div></div>
-    <div class="dock-tab-panel" data-dock-panel="stage-msg"><div class="dock-soon">Stage Messages — coming soon</div></div>
-    <div class="dock-tab-panel" data-dock-panel="announce"><div class="dock-soon">Announcements — coming soon</div></div>
-    <div class="dock-tab-panel" data-dock-panel="macros"><div class="dock-soon">Macros — coming soon</div></div>
-    <div class="dock-tab-panel" data-dock-panel="timeline"><div class="dock-soon">Timeline — coming soon</div></div>
-    <div class="dock-tab-panel" data-dock-panel="notes"><div class="dock-soon">Sermon Notes — coming soon</div></div>
   </div>
 </div>
-
 </div><!-- live-workspace -->
 </div><!-- view-live -->
 
@@ -748,7 +559,11 @@ body {
 <div class="view" id="view-bible"><div class="side-scroll"><div class="vmix-panel" id="panel-bible"></div></div></div>
 <div class="view" id="view-appearance"><div class="side-scroll"><div class="vmix-panel" id="panel-appearance"></div></div></div>
 <div class="view" id="view-mic"><div class="side-scroll"><div class="vmix-panel" id="panel-mic"></div></div></div>
-<div class="view" id="view-recall"><div class="side-scroll"><div id="panel-recall"><p class="dock-recall-empty">Recent verses are shown on the Live page below the main workspace. Use the sidebar Live view or click below to jump there.</p></div></div></div>
+<div class="view" id="view-recall"><div class="side-scroll">
+  <div class="vmix-steps">Recent verses are shown in the <b>Live</b> page bottom panel.<br><br>
+    <button class="btn small" id="gotoRecallBtn">Go to Recent Verses</button>
+  </div>
+</div></div>
 <div class="view" id="view-logs"><div class="side-scroll">
   <div class="vmix-panel">
     <div class="vmix-steps"><b>Logs & Diagnostics</b> — errors never appear in the transcript.<br><br>
@@ -763,13 +578,15 @@ body {
 </div><!-- app-shell -->
 
 <!-- Legacy tab panels (content moved to side views on load) -->
-<div class="legacy-tabbar" style="display:none">
+<div class="tabbar" style="display:none">
   <div class="tab active" data-tab="recall">↺ Quick Recall</div>
   <div class="tab" data-tab="vmix">⛓ vMix / NDI Output</div>
   <div class="tab" data-tab="settings">⚙ Settings</div>
 </div>
-<div class="legacy-tab-body">
-  <div class="tab-panel active" id="tab-recall"></div>
+<div class="tab-body">
+  <div class="tab-panel active" id="tab-recall">
+    <div class="tab-panel-empty">Recent verses moved to Live bottom dock</div>
+  </div>
   <div class="tab-panel" id="tab-json" style="display:none"><div id="jsonFeed"></div></div>
   <div class="tab-panel" id="tab-vmix">
     <div class="vmix-panel">
@@ -804,27 +621,17 @@ body {
   <div class="tab-panel" id="tab-settings">
     <div class="vmix-panel">
       <div class="vmix-status-row">
-        <div class="vmix-stat"><span id="libraryStatusTxt">Loading translation…</span></div>
+        <div class="vmix-stat"><span id="libraryStatusTxt">Scanning for Bible versions…</span></div>
       </div>
       <div class="vmix-steps">
-        <b>Translation</b><br>
-        Window Verse uses the <b>New King James Version (NKJV)</b> in English for verse detection,
-        Live Output, and NDI. The matching French verse appears automatically whenever a verse is detected.
+        <b>Bible version</b><br>
+        Detected automatically from the <code>data/</code> folder — drop a new version's database file in there (see <code>NDI_SETUP.md</code> for the folder layout) and it appears here without restarting.<br><br>
+        <select class="version-select" id="settingsVersionSelect" style="margin-top:6px;max-width:280px" disabled><option>Loading…</option></select>
       </div>
-      <div class="vmix-steps" id="frenchToggleRow">
-        <b>French translation</b>
-        <p id="frenchAvailNote" style="margin-top:8px;font-size:12px;color:var(--ink-60);line-height:1.6">
-          When a French database is installed, every detected verse automatically shows the matching French text on Live Output and NDI.
-          Use <b>Appearance</b> to place French above or below English.
-        </p>
-      </div>
-      <div class="vmix-steps" id="micDevicePanel">
-        <b>Microphone input</b>
-        <p class="mic-panel-note" id="micPanelNote">Available capture devices on this PC. The active device is used when you press Start.</p>
-        <div class="mic-device-list" id="micDeviceList">
-          <div class="mic-device-empty">Scanning for microphones…</div>
-        </div>
-        <select class="version-select" id="micSelect" style="display:none" aria-hidden="true"><option>Loading devices…</option></select>
+      <div class="vmix-steps">
+        <b>Microphone</b><br>
+        <div class="mic-device-list" id="micDeviceList"></div>
+        <select class="version-select" id="micSelect" style="display:none"><option>Loading devices…</option></select>
       </div>
       <details class="vmix-steps settings-advanced">
         <summary>Verse appearance (Live Output, NDI, projector)</summary>
@@ -842,8 +649,7 @@ body {
         </label>
         <label style="display:flex;align-items:center;gap:8px;margin:6px 0"><input type="checkbox" id="dispBold"> Primary bold</label>
         <label style="display:flex;align-items:center;gap:8px;margin:6px 0"><input type="checkbox" id="dispItalic"> Primary italic</label>
-        <label style="display:flex;align-items:center;gap:8px;margin:6px 0"><input type="checkbox" id="dispSecItalic" checked> French italic</label>
-        <label style="display:flex;align-items:center;gap:8px;margin:6px 0"><input type="checkbox" id="dispSecAbove"> French above English</label>
+        <label style="display:flex;align-items:center;gap:8px;margin:6px 0"><input type="checkbox" id="dispSecItalic" checked> Secondary italic</label>
         <label style="display:flex;align-items:center;gap:8px;margin:6px 0"><input type="checkbox" id="dispBorder"> Gold border</label>
         <label style="display:block;margin:8px 0">Text size scale <input type="range" id="dispTextScale" min="0.7" max="1.5" step="0.05" value="1"></label>
         <label style="display:block;margin:8px 0">Reference size scale <input type="range" id="dispRefScale" min="0.7" max="1.5" step="0.05" value="1"></label>
@@ -859,12 +665,29 @@ body {
       </details>
       <details class="vmix-steps settings-advanced">
         <summary>Developer — JSON detection log</summary>
-        <div class="json-log-toolbar">
-          <label style="display:flex;align-items:center;gap:8px;margin:0"><input type="checkbox" id="showJsonToggle"> Show JSON log</label>
-          <button type="button" class="json-copy-btn" id="copyJsonBtn" title="Copy log to clipboard">📋 Copy</button>
+        <div class="json-copy-row">
+          <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="showJsonToggle"> Show JSON log</label>
+          <button class="btn small" id="copyJsonBtn" type="button">Copy JSON</button>
         </div>
         <div class="settings-json" id="settingsJsonPanel"><div id="jsonFeedSettings"></div></div>
       </details>
+      <div class="vmix-steps" id="secondaryLangRow" style="display:none">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="secondaryToggle">
+          <span>Also show <b id="secondaryLangName">—</b> translation when available</span>
+        </label>
+      </div>
+      <div class="vmix-steps" id="secondaryOrderRow" style="display:none">
+        <span style="display:block;margin-bottom:6px;color:var(--ink-60);font-size:12px">Secondary language position (Live Output + NDI + projector):</span>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:4px">
+          <input type="radio" name="secondaryOrder" id="secondaryBelow" value="below" checked>
+          <span>Below primary (English on top)</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="radio" name="secondaryOrder" id="secondaryAbove" value="above">
+          <span>Above primary (<b id="secondaryOrderLang">—</b> on top)</span>
+        </label>
+      </div>
     </div>
   </div>
 </div>
@@ -883,10 +706,8 @@ const recallFeed=$("recallFeed"), recallEmpty=$("recallEmpty");
 const jsonFeed=$("jsonFeed");
 const saveBtn=$("saveBtn"), connBanner=$("connBanner"), actionToast=$("actionToast");
 const startupBar=$("startupBar"), startupTitle=$("startupTitle"), startupSteps=$("startupSteps");
-const startupProgressBar=$("startupProgressBar"), startupProgressPct=$("startupProgressPct");
-const startupStepCurrent=$("startupStepCurrent");
-const micStatusPill=$("micStatusPill"), micStatusTxt=$("micStatusTxt");
-const micProgressLabel=$("micProgressLabel"), micErrorInline=$("micErrorInline");
+const startupProgressBar=$("startupProgressBar");
+const micStatusPill=$("micStatusPill");
 const liveBottomDock=$("liveBottomDock");
 const micRing=() => txEmpty.querySelector(".mic-ring");
 const micEmptyText=() => txEmpty.querySelector("p");
@@ -894,14 +715,19 @@ const vmixWsDot=$("vmixWsDot"), vmixWsTxt=$("vmixWsTxt");
 const vmixWinDot=$("vmixWinDot"), vmixWinTxt=$("vmixWinTxt");
 const vmixDbDot=$("vmixDbDot"), vmixDbTxt=$("vmixDbTxt");
 const vmixOpenBtn=$("vmixOpenBtn");
-const frenchAvailNote=$("frenchAvailNote");
-const frenchToggleRow=$("frenchToggleRow");
+const settingsVersionSelect=$("settingsVersionSelect");
+const secondaryLangRow=$("secondaryLangRow"), secondaryLangName=$("secondaryLangName"), secondaryToggle=$("secondaryToggle");
+const secondaryOrderRow=$("secondaryOrderRow"), secondaryBelow=$("secondaryBelow"), secondaryAbove=$("secondaryAbove"), secondaryOrderLang=$("secondaryOrderLang");
 const ndiPreviewBtn=$("ndiPreviewBtn"), ndiPreviewStatus=$("ndiPreviewStatus");
 const libraryStatusTxt=$("libraryStatusTxt");
 const sidebar=$("sidebar"), mainGrid=$("mainGrid"), logFeed=$("logFeed");
 const logBadge=$("logBadge"), headerLogDot=$("headerLogDot"), navLogs=$("navLogs");
 const micProgress=$("micProgress"), micProgressBar=$("micProgressBar");
-const menuToggle=$("menuToggle"), clearLogsBtn=$("clearLogsBtn");
+const clearLogsBtn=$("clearLogsBtn");
+const versionPill=$("versionPill");
+const micDeviceList=$("micDeviceList");
+const copyJsonBtn=$("copyJsonBtn");
+const gotoRecallBtn=$("gotoRecallBtn");
 
 let txLines = 0, dets = 0, projectorWin = null;
 let sessionLines = [];
@@ -914,74 +740,10 @@ let ndiEnabled = true;
 let toastTimer = null;
 let selectedMic = "";
 const startupStepEls = {};
-const COL_ORDER_KEY = "wvColOrder";
-const COL_WIDTHS_KEY = "wvColWidths";
-const DOCK_HEIGHT_KEY = "wvDockHeight";
-const SIDEBAR_WIDTH_KEY = "wvSidebarWidth";
-
-function migrateLayoutStorage() {
-  const pairs = [
-    ["mvColOrder", COL_ORDER_KEY],
-    ["mvColWidths", COL_WIDTHS_KEY],
-    ["mvDockHeight", DOCK_HEIGHT_KEY],
-    ["mvSidebarWidth", SIDEBAR_WIDTH_KEY],
-  ];
-  for (const [oldKey, newKey] of pairs) {
-    const val = localStorage.getItem(oldKey);
-    if (val != null && localStorage.getItem(newKey) == null) {
-      localStorage.setItem(newKey, val);
-    }
-  }
-}
-migrateLayoutStorage();
-
-function showToast(message) {
-  if (!actionToast) return;
-  actionToast.textContent = message;
-  actionToast.classList.add("show");
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => actionToast.classList.remove("show"), 3500);
-}
-
-let startupOverallPct = 0;
-const STARTUP_LABELS = {
-  bible_db: "Loading Bible…",
-  detection: "Starting detection…",
-  self_check: "Checking verses…",
-  search_index: "Preparing search…",
-  narrative: "Finishing setup…",
-  speech: "Finishing setup…",
-  ndi: "Finishing setup…",
-};
-
-function setStartupProgress(pct, label) {
-  startupOverallPct = Math.max(0, Math.min(100, pct || 0));
-  if (startupProgressBar) startupProgressBar.style.width = startupOverallPct + "%";
-  if (startupProgressPct) startupProgressPct.textContent = startupOverallPct + "%";
-  if (label && startupStepCurrent) {
-    startupStepCurrent.classList.add("fade");
-    setTimeout(() => {
-      startupStepCurrent.textContent = label;
-      startupStepCurrent.classList.remove("fade");
-    }, 180);
-  }
-}
-
-function updateStartupProgressBar() {
-  if (backendReady) setStartupProgress(100, "Ready");
-}
-
-function updateMicStatusPill(state) {
-  if (!micStatusPill) return;
-  micStatusPill.classList.remove("show", "starting", "live");
-  if (state === "starting") {
-    micStatusPill.classList.add("show", "starting");
-    if (micStatusTxt) micStatusTxt.textContent = "Opening";
-  } else if (state === "listening") {
-    micStatusPill.classList.add("show", "live");
-    if (micStatusTxt) micStatusTxt.textContent = "Live";
-  }
-}
+const COL_ORDER_KEY = "mvColOrder";
+const COL_WIDTHS_KEY = "mvColWidths";
+const DOCK_HEIGHT_KEY = "mvDockHeight";
+const SIDEBAR_WIDTH_KEY = "mvSidebarWidth";
 
 // ── Status ──
 function updateMicEmpty(state) {
@@ -1016,18 +778,11 @@ function setStatus(state) {
   sDot.className = "dot" + (isLive ? " live" : isErr ? " error" : state === "starting" ? " live" : "");
   micBtn.disabled  = !canStart || state === "starting" || isLive;
   stopBtn.disabled = !isLive;
-  const showProg = state === "starting";
-  if (micProgress) micProgress.classList.toggle("show", showProg);
-  if (micProgressLabel) micProgressLabel.classList.toggle("show", showProg);
-  if (!showProg) {
-    if (micProgressBar) micProgressBar.style.width = "0%";
-    if (micProgressLabel) micProgressLabel.textContent = "Opening microphone…";
+  if (micProgress) {
+    const showProg = state === "starting";
+    micProgress.classList.toggle("show", showProg);
+    if (!showProg && micProgressBar) micProgressBar.style.width = "0%";
   }
-  if (isLive && micErrorInline) {
-    micErrorInline.classList.remove("show");
-    micErrorInline.textContent = "";
-  }
-  updateMicStatusPill(state);
   txFooter.textContent = isLive
     ? "● Microphone live — speak now (saved to logs/transcript_*.log)"
     : state === "starting"
@@ -1037,6 +792,11 @@ function setStatus(state) {
       : state === "booting" || state === "connecting"
         ? "Waiting for backend to finish loading…"
         : "Idle — press ▶ Start";
+
+  if (micStatusPill) {
+    micStatusPill.classList.toggle("show", isLive || state === "starting");
+    micStatusPill.textContent = state === "starting" ? "● Opening mic…" : "● Mic live";
+  }
 
   updateMicEmpty(state);
 
@@ -1054,28 +814,26 @@ function setStatus(state) {
 }
 
 function updateStartupBarVisibility(state) {
-  const show = !backendReady;
+  const show = !backendReady && state !== "disconnected" && state !== "error";
   startupBar.classList.toggle("show", show);
   if (backendReady) {
-    startupTitle.textContent = "Ready";
-    setStartupProgress(100, "Ready");
-  } else if (state === "error") {
-    startupTitle.textContent = "Startup failed";
-    if (startupStepCurrent) startupStepCurrent.textContent = "Check Logs for details — English NKJV database required.";
+    startupTitle.textContent = "Backend ready";
+  } else if (state === "connecting") {
+    startupTitle.textContent = "Connecting to backend…";
   } else {
-    startupTitle.textContent = "Loading Window Verse…";
+    startupTitle.textContent = "Loading backend…";
   }
 }
 
-function renderStartupStep(step, label, status, percent) {
-  const friendly = STARTUP_LABELS[step] || label || "Loading…";
-  if (status === "error") {
-    setStartupProgress(percent ?? startupOverallPct, friendly + " — failed");
-    return;
-  }
-  if (typeof percent === "number") {
-    setStartupProgress(percent, friendly);
-  }
+function updateStartupProgress() {
+  const steps = Object.values(startupStepEls);
+  if (!steps.length || !startupProgressBar) return;
+  const done = steps.filter(el => el.classList.contains("done")).length;
+  const pct = Math.round((done / steps.length) * 100);
+  startupProgressBar.style.width = pct + "%";
+}
+
+function renderStartupStep(step, label, status) {
   let el = startupStepEls[step];
   if (!el) {
     el = document.createElement("div");
@@ -1085,6 +843,17 @@ function renderStartupStep(step, label, status, percent) {
     startupSteps.appendChild(el);
   }
   el.className = "startup-step " + status;
+  const icon = status === "done" ? "✓" : status === "error" ? "✕" : "…";
+  el.innerHTML = `<span class="icon">${icon}</span><span>${label}</span>`;
+  updateStartupProgress();
+}
+
+function showToast(msg) {
+  if (!actionToast) return;
+  actionToast.textContent = msg;
+  actionToast.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => actionToast.classList.remove("show"), 3200);
 }
 
 // ── Transcript ──
@@ -1211,7 +980,7 @@ function saveTranscript() {
   const a = document.createElement("a");
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
   a.href = url;
-  a.download = `WindowVerse_Transcript_${stamp}.txt`;
+  a.download = `Window Verse_Transcript_${stamp}.txt`;
   document.body.appendChild(a);
   a.click();
   a.remove();
@@ -1229,7 +998,7 @@ function renderDetection(d) {
   const card = document.createElement("div");
   card.className = "verse-card";
   card.innerHTML = `
-    <div class="verse-source"><span>✦</span>${(d.narrative_passage || d.source || "detection").toUpperCase()}</div>
+    <div class="verse-source"><span>✦</span>${(d.source||"detection").toUpperCase()}</div>
     <div class="verse-ref">${d.book} ${d.chapter}:${d.verse}</div>
     <div class="verse-text">${d.text}</div>
     <div class="verse-meta">
@@ -1246,93 +1015,37 @@ function renderDetection(d) {
   addToRecall(d);
 }
 
-let currentVersion = "NKJV", currentLanguage = "English", secondaryLanguage = null;
+let currentVersion = null, currentLanguage = "English", secondaryLanguage = null;
 let secondaryAbovePrimary = false;
-const PRIMARY_VERSION_LABEL = "[NKJV]";
-const SECONDARY_VERSION_LABEL = "[LSG]";
 let lastStageVerse = null;
 let displaySettings = {
   theme: "dark", font_family: "serif", primary_bold: false, primary_italic: false,
-  secondary_italic: true, secondary_above: false, show_border: false, ref_scale: 1, text_scale: 1,
+  secondary_italic: true, show_border: false, ref_scale: 1, text_scale: 1,
   background_mode: "solid", background_image: "",
 };
 let backgroundImages = [];
 
-const FRENCH_BOOK_NAMES = {
-  Genesis:"Genèse",Exodus:"Exode",Leviticus:"Lévitique",Numbers:"Nombres",Deuteronomy:"Deutéronome",
-  Joshua:"Josué",Judges:"Juges",Ruth:"Ruth","1 Samuel":"1 Samuel","2 Samuel":"2 Samuel",
-  "1 Kings":"1 Rois","2 Kings":"2 Rois","1 Chronicles":"1 Chroniques","2 Chronicles":"2 Chroniques",
-  Ezra:"Esdras",Nehemiah:"Néhémie",Esther:"Esther",Job:"Job",Psalms:"Psaumes",Proverbs:"Proverbes",
-  Ecclesiastes:"Ecclésiaste","Song of Solomon":"Cantique des Cantiques",Isaiah:"Ésaïe",
-  Jeremiah:"Jérémie",Lamentations:"Lamentations",Ezekiel:"Ézéchiel",Daniel:"Daniel",Hosea:"Osée",
-  Joel:"Joël",Amos:"Amos",Obadiah:"Abdias",Jonah:"Jonas",Micah:"Michée",Nahum:"Nahum",
-  Habakkuk:"Habakuk",Zephaniah:"Sophonie",Haggai:"Aggée",Zechariah:"Zacharie",Malachi:"Malachie",
-  Matthew:"Matthieu",Mark:"Marc",Luke:"Luc",John:"Jean",Acts:"Actes",Romans:"Romains",
-  "1 Corinthians":"1 Corinthiens","2 Corinthians":"2 Corinthiens",Galatians:"Galates",
-  Ephesians:"Éphésiens",Philippians:"Philippiens",Colossians:"Colossiens",
-  "1 Thessalonians":"1 Thessaloniciens","2 Thessalonians":"2 Thessaloniciens",
-  "1 Timothy":"1 Timothée","2 Timothy":"2 Timothée",Titus:"Tite",Philemon:"Philémon",
-  Hebrews:"Hébreux",James:"Jacques","1 Peter":"1 Pierre","2 Peter":"2 Pierre",
-  "1 John":"1 Jean","2 John":"2 Jean","3 John":"3 Jean",Jude:"Jude",Revelation:"Apocalypse",
-};
-
-function frenchBookName(book) {
-  return FRENCH_BOOK_NAMES[book] || book;
-}
-
-function bilingualReference(d) {
-  if (d.reference_display) return d.reference_display;
-  const fr = d.book_french || frenchBookName(d.book);
-  return `${fr} • ${d.book} ${d.chapter}:${d.verse}`;
-}
-
-function estimateLines(text, charsPerLine) {
-  if (!text) return 0;
-  const words = text.split(/\s+/);
-  let lines = 1, cur = 0;
-  for (const w of words) {
-    if (cur && cur + 1 + w.length > charsPerLine) { lines++; cur = w.length; }
-    else cur = cur ? cur + 1 + w.length : w.length;
-  }
-  return Math.max(1, lines);
-}
-
 function computeStageSizes(d) {
   const hasSec = !!(d && d.secondary_text);
-  const scroll = $("stageScroll") || stage;
-  const availH = Math.max(280, scroll?.clientHeight || 420);
-  const availW = Math.max(320, scroll?.clientWidth || 600);
-  const charsPerLine = Math.max(18, Math.floor(availW / 14));
-  const pLines = estimateLines(d?.text || "", charsPerLine);
-  const sLines = hasSec ? estimateLines(d.secondary_text, charsPerLine) : 0;
-  let body = 20 * (displaySettings.text_scale || 1);
-  const scale = displaySettings.text_scale || 1;
-
-  function measure(px) {
-    const versionPx = Math.max(11, px * 0.46);
-    const refPx = Math.max(14, px * 0.58 * (displaySettings.ref_scale || 1));
-    const blockGap = Math.max(10, px * 0.48);
-    const lineGap = Math.max(4, px * 0.38);
-    const versionBlock = versionPx + px * 0.2;
-    const primaryH = pLines * px + Math.max(0, pLines - 1) * lineGap + versionBlock;
-    const secondaryH = hasSec ? sLines * px + Math.max(0, sLines - 1) * lineGap + versionBlock : 0;
-    const refBlock = refPx + blockGap;
-    const between = hasSec ? blockGap : 0;
-    return { total: refBlock + primaryH + between + secondaryH, ref: refPx, body: px, sec: px, gap: blockGap, version: versionPx };
+  const total = (d?.text?.length || 0) + (hasSec ? d.secondary_text.length : 0);
+  let ref = 20 * (displaySettings.ref_scale || 1);
+  let body = 26 * (displaySettings.text_scale || 1);
+  let sec = 22 * (displaySettings.text_scale || 1);
+  if (!hasSec) {
+    if (total < 90) body = 26 * (displaySettings.text_scale || 1);
+    else if (total < 150) body = 22 * (displaySettings.text_scale || 1);
+  } else {
+    if (total < 120) { body = 19 * (displaySettings.text_scale || 1); sec = 17 * (displaySettings.text_scale || 1); }
+    else if (total > 260) { body = 14 * (displaySettings.text_scale || 1); sec = 13 * (displaySettings.text_scale || 1); ref = 13; }
+    else if (total > 180) { body = 16 * (displaySettings.text_scale || 1); sec = 14 * (displaySettings.text_scale || 1); }
   }
-
-  for (let i = 0; i < 32; i++) {
-    const m = measure(body);
-    if (m.total > availH * 0.96) body = Math.max(12, body * 0.93);
-    else if (m.total < availH * 0.88) body = Math.min(body * Math.min(1.14, availH / Math.max(m.total, 1)), 72 * scale);
-    else return m;
-  }
-  return measure(body);
+  const lines = Math.ceil(total / 42) + (hasSec ? 2 : 0);
+  if (lines > 6) { const f = 6 / lines; body *= f; sec *= f; ref *= f; }
+  return { ref, body, sec };
 }
 
 function applyStageLayout(d) {
   const sz = computeStageSizes(d);
-  stage.style.setProperty("--block-gap", sz.gap + "px");
   stage.style.setProperty("--stage-ref-size", sz.ref + "px");
   stage.style.setProperty("--stage-text-size", sz.body + "px");
   stage.style.setProperty("--stage-sec-size", sz.sec + "px");
@@ -1349,28 +1062,27 @@ function applyStageLayout(d) {
   }
 }
 
-function buildVerseBlock(label, text, bodyPx, secStyle) {
-  const verPx = Math.round(bodyPx * 0.46);
-  return `<div class="stage-text-block"><div class="stage-version" style="font-size:${verPx}px">${label}</div><div class="stage-text" style="font-size:${bodyPx}px;${secStyle||""}">${text}</div></div>`;
-}
-
 function buildStageHtml(d) {
   const sz = computeStageSizes(d);
+  const refText = d.reference_display || `${d.book_french || ""} • ${d.book} ${d.chapter}:${d.verse}`.replace(/^ • /, "");
+  const pLabel = d.primary_version_label || "[NKJV]";
+  const sLabel = d.secondary_version_label || "[LSG]";
   const pStyle = [
-    displaySettings.primary_bold ? "font-weight:700" : "",
+    `font-size:${sz.body}px`,
+    "font-weight:700",
     displaySettings.primary_italic ? "font-style:italic" : "",
   ].filter(Boolean).join(";");
   const sStyle = [
+    `font-size:${sz.sec}px`,
+    "font-weight:700",
     displaySettings.secondary_italic ? "font-style:italic" : "",
   ].filter(Boolean).join(";");
-  const primaryLabel = d.primary_version_label || PRIMARY_VERSION_LABEL;
-  const secondaryLabel = d.secondary_version_label || SECONDARY_VERSION_LABEL;
-  const ref = `<div class="stage-ref" style="font-size:${Math.round(sz.ref)}px">${bilingualReference(d)}</div>`;
-  const primary = `<div class="stage-block">${buildVerseBlock(primaryLabel, d.text, Math.round(sz.body), pStyle)}</div>`;
-  if (!d.secondary_text) return `<div class="stage-fill">${ref}<div class="stage-stack">${primary}</div></div>`;
-  const secondary = `<div class="stage-block stage-secondary">${buildVerseBlock(secondaryLabel, d.secondary_text, Math.round(sz.sec), sStyle)}</div>`;
-  const stack = secondaryAbovePrimary ? secondary + primary : primary + secondary;
-  return `<div class="stage-fill">${ref}<div class="stage-stack">${stack}</div></div>`;
+  const ref = `<div class="stage-ref" style="font-size:${sz.ref}px">${refText}</div>`;
+  const primary = `<div class="stage-text" style="${pStyle}"><span class="stage-version">${pLabel}</span> ${d.text}</div>`;
+  if (!d.secondary_text) return ref + primary;
+  const secClass = secondaryAbovePrimary ? "stage-secondary above" : "stage-secondary";
+  const secondary = `<div class="${secClass}" style="${sStyle}"><span class="stage-version">${sLabel}</span> ${d.secondary_text}</div>`;
+  return secondaryAbovePrimary ? ref + secondary + primary : ref + primary + secondary;
 }
 
 // ── Stage / Live Output (col 3) + real pop-out projector window ──
@@ -1382,11 +1094,12 @@ function sendToStage(d) {
   liveTxt.textContent = "on air";
   if (projectorWin && !projectorWin.closed) {
     projectorWin.postMessage({
-      type: "verse", book: d.book, chapter: d.chapter, verse: d.verse,
-      reference_display: bilingualReference(d),
+      type: "verse",
+      reference_display: d.reference_display,
+      primary_version_label: d.primary_version_label || "[NKJV]",
+      secondary_version_label: d.secondary_version_label || "[LSG]",
+      book: d.book, chapter: d.chapter, verse: d.verse,
       text: d.text, secondary_text: d.secondary_text || null,
-      primary_version_label: d.primary_version_label || PRIMARY_VERSION_LABEL,
-      secondary_version_label: d.secondary_version_label || SECONDARY_VERSION_LABEL,
       secondary_above: secondaryAbovePrimary,
     }, "*");
   }
@@ -1409,34 +1122,28 @@ function openProjector() {
   projectorWin = window.open("", "WindowVerseProjector", "width=1920,height=1080");
   projectorWin.document.write(`<!DOCTYPE html><html><head><title>Window Verse — Projector</title>
     <style>
-      html,body{margin:0;height:100%;background:#000;color:#f5f2ea;font-family:'Source Serif 4',serif;}
-      #root{min-height:100%;display:flex;flex-direction:column;justify-content:center;padding:5vh 6vw;text-align:center;box-sizing:border-box;}
-      .ref{color:#c9a86a;font-weight:700;font-size:clamp(22px,3.2vw,52px);margin:0 0 var(--gap,2.5vh);}
-      .stack{display:flex;flex-direction:column;gap:var(--gap,2.5vh);width:100%;align-items:center;}
-      .ver{color:#c9a86a;font-size:clamp(14px,1.8vw,32px);margin-bottom:0.4em;font-family:'Inter',sans-serif;}
-      .txt{font-size:clamp(22px,4.5vw,78px);line-height:1.45;width:100%;color:#f5f2ea;}
-      .block{width:100%;max-width:100%;}
+      body{margin:0;background:#000;color:#f5f2ea;font-family:'Source Serif 4',serif;
+           height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
+           text-align:center;padding:6vw;}
+      .ref{color:#c9a86a;font-size:3vw;margin-bottom:1.4vw;}
+      .txt{font-size:4.2vw;line-height:1.5;max-width:88%;}
+      .sec{color:#9497a3;font-style:italic;font-size:3.2vw;line-height:1.5;max-width:88%;margin-top:1.4vw;padding-top:1.4vw;border-top:1px dashed #333;}
+      .sec.above{margin-top:0;margin-bottom:1.4vw;padding-top:0;padding-bottom:1.4vw;border-top:none;border-bottom:1px dashed #333;}
       .empty{color:#333;font-size:2vw;}
     </style></head><body><div id="root"><div class="empty">No verse on air</div></div>
     <script>
-      function verseBlock(label, text) {
-        return '<div class="block"><div class="ver">'+label+'</div><div class="txt">'+text+'</div></div>';
-      }
       window.addEventListener("message", (e) => {
         const root = document.getElementById("root");
         if (e.data.type === "verse") {
-          const refText = e.data.reference_display || (e.data.book+' '+e.data.chapter+':'+e.data.verse);
-          const ref = '<div class="ref">'+refText+'</div>';
-          const pLabel = e.data.primary_version_label || 'New King James (NKJV)';
-          const sLabel = e.data.secondary_version_label || 'Louis Segond (LSG)';
-          const primary = verseBlock(pLabel, e.data.text);
-          const sec = e.data.secondary_text ? verseBlock(sLabel, e.data.secondary_text) : '';
-          const stack = e.data.secondary_above && e.data.secondary_text ? sec + primary : primary + sec;
-          root.innerHTML = ref + '<div class="stack">'+stack+'</div>';
+          const ref = '<div class="ref">'+e.data.book+' '+e.data.chapter+':'+e.data.verse+'</div>';
+          const txt = '<div class="txt">'+e.data.text+'</div>';
+          const sec = e.data.secondary_text
+            ? '<div class="sec'+(e.data.secondary_above?' above':'')+'">'+e.data.secondary_text+'</div>'
+            : '';
+          root.innerHTML = e.data.secondary_above && e.data.secondary_text
+            ? ref + sec + txt
+            : ref + txt + sec;
         } else if (e.data.type === "clear") {
-          root.innerHTML = '<div class="empty">No verse on air</div>';
-        }
-      });
           root.innerHTML = '<div class="empty">No verse on air</div>';
         }
       });
@@ -1493,47 +1200,55 @@ function appendJson(obj) {
 }
 
 function copyJsonLog() {
-  const feed = $("jsonFeedSettings");
-  if (!feed) return;
-  const rows = [...feed.querySelectorAll(".json-row")];
-  if (!rows.length) {
-    showToast("JSON log is empty — enable Show JSON log and detect a verse first.");
-    return;
-  }
-  const text = rows.map(r => r.dataset.raw || r.textContent).join("\n");
-  navigator.clipboard.writeText(text).then(() => {
-    const btn = $("copyJsonBtn");
-    if (btn) {
-      btn.classList.add("copied");
-      btn.textContent = "✓ Copied";
-      setTimeout(() => {
-        btn.classList.remove("copied");
-        btn.textContent = "📋 Copy";
-      }, 1800);
-    }
-  }).catch(() => showToast("Could not copy — check browser clipboard permissions."));
+  const rows = [...document.querySelectorAll("#jsonFeedSettings .json-row, #jsonFeed .json-row")];
+  const text = rows.map(r => r.dataset.raw || r.textContent).reverse().join("\n");
+  if (!text) { showToast("No JSON log entries to copy"); return; }
+  navigator.clipboard.writeText(text).then(
+    () => showToast("JSON log copied to clipboard"),
+    () => showToast("Could not copy — check browser permissions")
+  );
 }
+if (copyJsonBtn) copyJsonBtn.onclick = copyJsonLog;
 
-// ── Bible library / French (always on output when DB present) ──
+// ── Bible version / language library ──
 function renderLibrary(msg) {
-  currentVersion = msg.current_version || "NKJV";
-  currentLanguage = "English";
+  currentVersion = msg.current_version;
+  currentLanguage = msg.current_language || "English";
   secondaryLanguage = msg.secondary_language || null;
   if (typeof msg.secondary_above === "boolean") secondaryAbovePrimary = msg.secondary_above;
 
-  const hasFrench = secondaryLanguage === "French"
-    || (msg.versions || []).some(v => v.version === "NKJV" && (v.languages || []).includes("French"));
+  const versions = msg.versions || [];
+  const optionsHtml = versions.length
+    ? versions.map(v => v.languages.map(lang =>
+        `<option value="${v.version}::${lang}" ${v.version === currentVersion && lang === currentLanguage ? "selected" : ""}>${v.version}${v.languages.length > 1 ? " — " + lang : ""}</option>`
+      ).join("")).join("")
+    : `<option>No Bible DB found in data/</option>`;
+
+  if (settingsVersionSelect) {
+    settingsVersionSelect.innerHTML = optionsHtml;
+    settingsVersionSelect.disabled = versions.length === 0;
+  }
+  if (versionPill) versionPill.textContent = currentVersion || "NKJV";
 
   if (libraryStatusTxt) {
-    libraryStatusTxt.textContent = hasFrench
-      ? "NKJV English — French translation available"
-      : "NKJV English — add data/NKJV/French/*.db for bilingual display";
+    libraryStatusTxt.textContent = versions.length
+      ? `${versions.length} version${versions.length !== 1 ? "s" : ""} detected in data/ — currently on ${currentVersion} (${currentLanguage})`
+      : "No Bible database found under data/ — see NDI_SETUP.md for the expected folder layout.";
   }
-  if (frenchToggleRow) frenchToggleRow.style.display = hasFrench ? "" : "none";
-  if (frenchAvailNote) {
-    frenchAvailNote.textContent = hasFrench
-      ? "French database found — every detected verse shows French on Live Output and NDI. Set above/below order in Appearance."
-      : "No French database detected — install data/NKJV/French/*.db for bilingual display.";
+
+  if (secondaryLangRow) {
+    if (secondaryLanguage) {
+      secondaryLangRow.style.display = "";
+      secondaryOrderRow.style.display = "";
+      secondaryLangName.textContent = secondaryLanguage;
+      secondaryOrderLang.textContent = secondaryLanguage;
+      secondaryToggle.checked = !!msg.show_secondary;
+      if (secondaryAbovePrimary) secondaryAbove.checked = true;
+      else secondaryBelow.checked = true;
+    } else {
+      secondaryLangRow.style.display = "none";
+      secondaryOrderRow.style.display = "none";
+    }
   }
   if (lastStageVerse) sendToStage(lastStageVerse);
 }
@@ -1543,20 +1258,30 @@ function wsSend(payload) {
     ws.send(JSON.stringify(payload));
     return true;
   }
-  if (payload.action === "start_mic") {
-    showToast("Not connected — waiting for backend…");
-  } else if (payload.action === "search_verse") {
-    showToast("Not connected — search unavailable until backend loads.");
-  } else {
-    showToast("Not connected to backend — please wait…");
-  }
+  showToast("Not connected to backend — reconnecting…");
   return false;
 }
 
 function onVersionChosen(value) {
-  /* Version switching removed — NKJV English is fixed. */
+  const [version, language] = value.split("::");
+  if (!version || version === currentVersion && language === currentLanguage) return;
+  wsSend({ action: "switch_version", version, language });
 }
-
+if (settingsVersionSelect) settingsVersionSelect.onchange = () => onVersionChosen(settingsVersionSelect.value);
+if (secondaryToggle) {
+  secondaryToggle.onchange = () => {
+    wsSend({ action: "set_show_translation", enabled: secondaryToggle.checked });
+  };
+}
+function onSecondaryOrderChange() {
+  const above = secondaryAbove && secondaryAbove.checked;
+  if (above === secondaryAbovePrimary) return;
+  secondaryAbovePrimary = above;
+  wsSend({ action: "set_secondary_order", above });
+  if (lastStageVerse) sendToStage(lastStageVerse);
+}
+if (secondaryBelow) secondaryBelow.onchange = onSecondaryOrderChange;
+if (secondaryAbove) secondaryAbove.onchange = onSecondaryOrderChange;
 if (ndiPreviewBtn) {
   ndiPreviewBtn.onclick = () => {
     wsSend({ action: "ndi_preview" });
@@ -1565,54 +1290,13 @@ if (ndiPreviewBtn) {
 }
 
 const micSelect = $("micSelect");
-const micDeviceList = $("micDeviceList");
-const micPanelNote = $("micPanelNote");
-
-function renderMicDevices(devices, selected) {
-  if (selected) selectedMic = selected;
-  if (micSelect) {
-    micSelect.innerHTML = (devices || []).map(d =>
-      `<option value="${d.name}">${d.name}${d.is_default ? " (default)" : ""}</option>`
-    ).join("");
-    if (selectedMic) micSelect.value = selectedMic;
-  }
-  if (!micDeviceList) return;
-  if (!devices?.length) {
-    micDeviceList.innerHTML = `<div class="mic-device-empty">No microphones found — Window Verse will use the system default.</div>`;
-    return;
-  }
-  const activeName = selectedMic || devices.find(d => d.is_default)?.name || devices[0].name;
-  micDeviceList.innerHTML = devices.map(d => {
-    const isActive = d.name === activeName;
-    const tags = [
-      d.is_default ? `<span class="mic-device-tag default">Default</span>` : "",
-      isActive ? `<span class="mic-device-tag active-tag">Active</span>` : "",
-    ].filter(Boolean).join("");
-    return `<button type="button" class="mic-device-item${isActive ? " active" : ""}" data-mic-name="${d.name.replace(/"/g, "&quot;")}">
-      <span class="mic-device-dot"></span>
-      <span class="mic-device-name">${d.name}</span>
-      <span class="mic-device-tags">${tags}</span>
-    </button>`;
-  }).join("");
-  micDeviceList.querySelectorAll(".mic-device-item").forEach(btn => {
-    btn.onclick = () => {
-      const name = btn.dataset.micName;
-      selectedMic = name;
-      wsSend({ action: "set_mic", name });
-      renderMicDevices(devices, name);
-      if (micPanelNote) micPanelNote.textContent = `Active input: ${name}. Press Start on Live to begin listening.`;
-    };
-  });
-  if (micPanelNote && activeName) {
-    micPanelNote.textContent = `Active input: ${activeName}. ${devices.length} device${devices.length !== 1 ? "s" : ""} available.`;
-  }
-}
+if (micSelect) micSelect.onchange = () => wsSend({ action: "set_mic", name: micSelect.value });
 
 function pushDisplaySettings() {
   wsSend({ action: "set_display", settings: displaySettings });
   if (lastStageVerse) sendToStage(lastStageVerse);
 }
-["dispTheme","dispFont","dispBold","dispItalic","dispSecItalic","dispSecAbove","dispBorder","dispTextScale","dispRefScale","dispBgMode","dispBgImage"].forEach(id => {
+["dispTheme","dispFont","dispBold","dispItalic","dispSecItalic","dispBorder","dispTextScale","dispRefScale","dispBgMode","dispBgImage"].forEach(id => {
   const el = $(id);
   if (!el) return;
   el.onchange = el.oninput = () => {
@@ -1621,8 +1305,6 @@ function pushDisplaySettings() {
     displaySettings.primary_bold = !!$("dispBold")?.checked;
     displaySettings.primary_italic = !!$("dispItalic")?.checked;
     displaySettings.secondary_italic = !!$("dispSecItalic")?.checked;
-    displaySettings.secondary_above = !!$("dispSecAbove")?.checked;
-    secondaryAbovePrimary = displaySettings.secondary_above;
     displaySettings.show_border = !!$("dispBorder")?.checked;
     displaySettings.text_scale = parseFloat($("dispTextScale")?.value || "1");
     displaySettings.ref_scale = parseFloat($("dispRefScale")?.value || "1");
@@ -1636,14 +1318,10 @@ if ($("showJsonToggle")) {
     $("settingsJsonPanel")?.classList.toggle("show", $("showJsonToggle").checked);
   };
 }
-if ($("copyJsonBtn")) $("copyJsonBtn").onclick = copyJsonLog;
 
 function applyDisplayState(msg) {
   if (msg.settings) displaySettings = { ...displaySettings, ...msg.settings };
   if (msg.backgrounds) backgroundImages = msg.backgrounds;
-  if (typeof displaySettings.secondary_above === "boolean") {
-    secondaryAbovePrimary = displaySettings.secondary_above;
-  }
   if (typeof displaySettings.ndi_output_enabled === "boolean") {
     ndiEnabled = displaySettings.ndi_output_enabled;
     if ($("ndiEnabledToggle")) $("ndiEnabledToggle").checked = ndiEnabled;
@@ -1653,7 +1331,6 @@ function applyDisplayState(msg) {
   if ($("dispBold")) $("dispBold").checked = !!displaySettings.primary_bold;
   if ($("dispItalic")) $("dispItalic").checked = !!displaySettings.primary_italic;
   if ($("dispSecItalic")) $("dispSecItalic").checked = displaySettings.secondary_italic !== false;
-  if ($("dispSecAbove")) $("dispSecAbove").checked = !!displaySettings.secondary_above;
   if ($("dispBorder")) $("dispBorder").checked = !!displaySettings.show_border;
   if ($("dispTextScale")) $("dispTextScale").value = displaySettings.text_scale || 1;
   if ($("dispRefScale")) $("dispRefScale").value = displaySettings.ref_scale || 1;
@@ -1666,7 +1343,36 @@ function applyDisplayState(msg) {
 }
 
 function renderAudioDevices(msg) {
-  renderMicDevices(msg.devices || msg, msg.selected || selectedMic);
+  const devices = msg.devices || msg;
+  const selected = msg.selected || selectedMic || "";
+  if (micSelect) {
+    micSelect.innerHTML = (devices || []).map(d =>
+      `<option value="${d.name}" ${d.name === selected ? "selected" : ""}>${d.name}</option>`
+    ).join("");
+    if (selected) micSelect.value = selected;
+  }
+  if (!micDeviceList) return;
+  if (!devices?.length) {
+    micDeviceList.innerHTML = `<div style="color:var(--ink-40);font-size:12px">No microphone devices found</div>`;
+    return;
+  }
+  micDeviceList.innerHTML = devices.map(d => {
+    const active = d.name === selected || d.selected;
+    const tags = [
+      active ? '<span class="mic-device-tag">Active</span>' : "",
+      d.is_default ? '<span class="mic-device-tag">Default</span>' : "",
+    ].filter(Boolean).join(" ");
+    return `<div class="mic-device-row${active ? " active" : ""}" data-mic="${d.name.replace(/"/g, "&quot;")}">
+      <span>${d.name}</span>${tags ? `<span style="margin-left:auto;display:flex;gap:4px">${tags}</span>` : ""}
+    </div>`;
+  }).join("");
+  micDeviceList.querySelectorAll(".mic-device-row").forEach(row => {
+    row.onclick = () => {
+      selectedMic = row.dataset.mic;
+      wsSend({ action: "set_mic", name: selectedMic });
+      renderAudioDevices({ devices, selected: selectedMic });
+    };
+  });
 }
 
 // ── Sidebar navigation + panel mount ──
@@ -1683,17 +1389,17 @@ function mountSidePanels() {
       const wrap = document.createElement("div");
       wrap.className = "vmix-panel";
       steps.forEach(el => {
-        if (el.id === "frenchToggleRow") wrap.appendChild(el);
+        if (el.id === "secondaryLangRow" || el.id === "secondaryOrderRow") wrap.appendChild(el);
         else if (el.classList?.contains("vmix-status-row")) wrap.appendChild(el);
-        else if (el.classList?.contains("vmix-steps") && el.querySelector("b")?.textContent?.startsWith("Translation")) wrap.appendChild(el);
+        else if (el.classList?.contains("vmix-steps") && el.querySelector("#settingsVersionSelect")) wrap.appendChild(el);
+        else if (el.classList?.contains("vmix-steps") && el.querySelector("b")?.textContent?.startsWith("Bible")) wrap.appendChild(el);
       });
       bible.appendChild(wrap);
     }
     if (micPanel) {
       const wrap = document.createElement("div");
       wrap.className = "vmix-panel";
-      const micStep = settingsPanel.querySelector("#micDevicePanel")
-        || settingsPanel.querySelector("#micSelect")?.closest(".vmix-steps");
+      const micStep = settingsPanel.querySelector("#micDeviceList")?.closest(".vmix-steps");
       if (micStep) wrap.appendChild(micStep);
       micPanel.appendChild(wrap);
     }
@@ -1714,53 +1420,20 @@ function mountSidePanels() {
       dev.appendChild(wrap);
     }
   }
-  // Recall feed lives in live bottom dock — no mount needed here
-}
-
-function focusRecallDock() {
-  showView("live");
-  setDockTab("recall");
-  liveBottomDock?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-}
-
-function focusSearchDock() {
-  showView("live");
-  setDockTab("search");
-  setTimeout(() => searchInput?.focus(), 50);
-}
-
-function setDockTab(name) {
-  document.querySelectorAll(".dock-tab:not(.disabled)").forEach(t => {
-    t.classList.toggle("active", t.dataset.dockTab === name);
-  });
-  document.querySelectorAll(".dock-tab-panel").forEach(p => {
-    p.classList.toggle("active", p.dataset.dockPanel === name);
-  });
-}
-
-function initDockTabs() {
-  document.querySelectorAll(".dock-tab:not(.disabled)").forEach(tab => {
-    tab.onclick = () => setDockTab(tab.dataset.dockTab);
-  });
 }
 
 function showView(name) {
+  const viewName = name === "recall" ? "live" : name;
   if (name === "recall") {
-    focusRecallDock();
-    return;
-  }
-  if (name === "search") {
-    focusSearchDock();
-    return;
+    setTimeout(() => liveBottomDock?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 50);
   }
   document.querySelectorAll(".nav-item").forEach(n => n.classList.toggle("active", n.dataset.view === name));
-  document.querySelectorAll(".view").forEach(v => v.classList.toggle("active", v.id === "view-" + name));
-  if (name === "mic") wsSend({ action: "get_audio_devices" });
+  document.querySelectorAll(".view").forEach(v => v.classList.toggle("active", v.id === "view-" + viewName));
 }
 document.querySelectorAll(".nav-item").forEach(item => {
   item.onclick = () => showView(item.dataset.view);
 });
-if (menuToggle) menuToggle.onclick = () => sidebar?.classList.toggle("collapsed");
+if (gotoRecallBtn) gotoRecallBtn.onclick = () => showView("recall");
 if (headerLogDot) headerLogDot.onclick = () => showView("logs");
 if (clearLogsBtn) clearLogsBtn.onclick = () => {
   if (logFeed) logFeed.innerHTML = "";
@@ -1784,7 +1457,6 @@ function initColumnDrag() {
   let dragEl = null;
   mainGrid.querySelectorAll(".col[data-col]").forEach(col => {
     col.addEventListener("dragstart", e => {
-      if (e.target.closest(".col-resize-handle")) { e.preventDefault(); return; }
       dragEl = col;
       col.classList.add("dragging");
       e.dataTransfer.effectAllowed = "move";
@@ -1806,127 +1478,90 @@ function initColumnDrag() {
 }
 
 function initLayoutResize() {
-  if (!mainGrid) return;
-  const cols = () => [...mainGrid.querySelectorAll(".col[data-col]")];
-  let widths = [1, 1, 1];
+  const dock = $("liveBottomDock");
+  const dockResizer = $("dockResizer");
+  const sidebarResizer = $("sidebarResizer");
+
   try {
-    const saved = JSON.parse(localStorage.getItem(COL_WIDTHS_KEY) || "null");
-    if (Array.isArray(saved) && saved.length === 3) widths = saved;
-  } catch {}
+    const savedWidths = JSON.parse(localStorage.getItem(COL_WIDTHS_KEY) || "null");
+    if (savedWidths && mainGrid) {
+      mainGrid.querySelectorAll(".col").forEach((col, i) => {
+        if (savedWidths[i]) col.style.flex = `0 0 ${savedWidths[i]}px`;
+      });
+    }
+  } catch { /* ignore */ }
 
-  function applyWidths() {
-    cols().forEach((col, i) => {
-      if (widths[i]) col.style.flex = `${widths[i]} 1 0`;
-    });
-  }
-  applyWidths();
-
-  mainGrid.querySelectorAll(".col-resize-handle").forEach(handle => {
+  mainGrid?.querySelectorAll(".col-resize-handle").forEach(handle => {
     handle.addEventListener("mousedown", e => {
       e.preventDefault();
-      e.stopPropagation();
-      const idx = parseInt(handle.dataset.resizeCol, 10);
-      if (idx >= cols().length - 1) return;
+      const col = handle.closest(".col");
+      if (!col) return;
       const startX = e.clientX;
-      const startWidths = cols().map(c => parseFloat(c.style.flex) || 1);
-      const totalFlex = startWidths.reduce((a, b) => a + b, 0);
+      const startW = col.getBoundingClientRect().width;
       handle.classList.add("active");
-      document.body.style.cursor = "col-resize";
-      document.body.style.userSelect = "none";
-
-      function onMove(ev) {
-        const rect = mainGrid.getBoundingClientRect();
-        const deltaFlex = ((ev.clientX - startX) / rect.width) * totalFlex;
-        const minFlex = totalFlex * 0.12;
-        let left = startWidths[idx] + deltaFlex;
-        let right = startWidths[idx + 1] - deltaFlex;
-        if (left < minFlex) { right -= (minFlex - left); left = minFlex; }
-        if (right < minFlex) { left -= (minFlex - right); right = minFlex; }
-        widths[idx] = left;
-        widths[idx + 1] = right;
-        applyWidths();
-      }
-      function onUp() {
+      const onMove = ev => {
+        const w = Math.max(160, startW + ev.clientX - startX);
+        col.style.flex = `0 0 ${w}px`;
+      };
+      const onUp = () => {
         handle.classList.remove("active");
-        document.body.style.cursor = "";
-        document.body.style.userSelect = "";
+        document.removeEventListener("mousemove", onMove);
+        document.removeEventListener("mouseup", onUp);
+        const widths = [...mainGrid.querySelectorAll(".col")].map(c => Math.round(c.getBoundingClientRect().width));
         localStorage.setItem(COL_WIDTHS_KEY, JSON.stringify(widths));
-        window.removeEventListener("mousemove", onMove);
-        window.removeEventListener("mouseup", onUp);
-      }
-      window.addEventListener("mousemove", onMove);
-      window.addEventListener("mouseup", onUp);
+      };
+      document.addEventListener("mousemove", onMove);
+      document.addEventListener("mouseup", onUp);
     });
   });
 
-  const dockResizer = $("dockResizer");
-  if (dockResizer && liveBottomDock) {
-    let dockH = 200;
-    try {
-      const saved = parseInt(localStorage.getItem(DOCK_HEIGHT_KEY), 10);
-      if (saved >= 100) dockH = saved;
-    } catch {}
-    liveBottomDock.style.height = dockH + "px";
-    liveBottomDock.style.setProperty("--dock-height", dockH + "px");
-
+  if (dock && dockResizer) {
+    const savedH = localStorage.getItem(DOCK_HEIGHT_KEY);
+    if (savedH) dock.style.height = savedH + "px";
     dockResizer.addEventListener("mousedown", e => {
       e.preventDefault();
       const startY = e.clientY;
-      const startH = dockH;
+      const startH = dock.getBoundingClientRect().height;
       dockResizer.classList.add("active");
-      document.body.style.cursor = "row-resize";
-      document.body.style.userSelect = "none";
-      function onMove(ev) {
-        const maxH = Math.min(window.innerHeight * 0.45, 480);
-        dockH = Math.max(100, Math.min(maxH, startH + (startY - ev.clientY)));
-        liveBottomDock.style.height = dockH + "px";
-        liveBottomDock.style.setProperty("--dock-height", dockH + "px");
-      }
-      function onUp() {
+      const onMove = ev => {
+        const h = Math.max(120, Math.min(window.innerHeight * 0.5, startH - (ev.clientY - startY)));
+        dock.style.height = h + "px";
+      };
+      const onUp = () => {
         dockResizer.classList.remove("active");
-        document.body.style.cursor = "";
-        document.body.style.userSelect = "";
-        localStorage.setItem(DOCK_HEIGHT_KEY, String(dockH));
-        window.removeEventListener("mousemove", onMove);
-        window.removeEventListener("mouseup", onUp);
-      }
-      window.addEventListener("mousemove", onMove);
-      window.addEventListener("mouseup", onUp);
+        document.removeEventListener("mousemove", onMove);
+        document.removeEventListener("mouseup", onUp);
+        localStorage.setItem(DOCK_HEIGHT_KEY, String(Math.round(dock.getBoundingClientRect().height)));
+      };
+      document.addEventListener("mousemove", onMove);
+      document.addEventListener("mouseup", onUp);
     });
   }
 
-  const sidebarResizer = $("sidebarResizer");
-  if (sidebarResizer && sidebar) {
-    let sbW = 220;
-    try {
-      const saved = parseInt(localStorage.getItem(SIDEBAR_WIDTH_KEY), 10);
-      if (saved >= 56) sbW = saved;
-    } catch {}
-    sidebar.style.width = sbW + "px";
-    sidebar.style.setProperty("--sidebar-width", sbW + "px");
-
+  if (sidebar && sidebarResizer) {
+    const savedSw = parseInt(localStorage.getItem(SIDEBAR_WIDTH_KEY) || "56", 10);
+    if (savedSw > 70) {
+      sidebar.style.width = savedSw + "px";
+      sidebar.classList.add("sidebar-wide");
+    }
     sidebarResizer.addEventListener("mousedown", e => {
       e.preventDefault();
       const startX = e.clientX;
-      const startW = sbW;
+      const startW = sidebar.getBoundingClientRect().width;
       sidebarResizer.classList.add("active");
-      document.body.style.cursor = "col-resize";
-      document.body.style.userSelect = "none";
-      function onMove(ev) {
-        sbW = Math.max(56, Math.min(360, startW + (ev.clientX - startX)));
-        sidebar.style.width = sbW + "px";
-        sidebar.style.setProperty("--sidebar-width", sbW + "px");
-      }
-      function onUp() {
+      const onMove = ev => {
+        const w = Math.max(56, Math.min(320, startW + ev.clientX - startX));
+        sidebar.style.width = w + "px";
+        sidebar.classList.toggle("sidebar-wide", w > 80);
+      };
+      const onUp = () => {
         sidebarResizer.classList.remove("active");
-        document.body.style.cursor = "";
-        document.body.style.userSelect = "";
-        localStorage.setItem(SIDEBAR_WIDTH_KEY, String(sbW));
-        window.removeEventListener("mousemove", onMove);
-        window.removeEventListener("mouseup", onUp);
-      }
-      window.addEventListener("mousemove", onMove);
-      window.addEventListener("mouseup", onUp);
+        document.removeEventListener("mousemove", onMove);
+        document.removeEventListener("mouseup", onUp);
+        localStorage.setItem(SIDEBAR_WIDTH_KEY, String(Math.round(sidebar.getBoundingClientRect().width)));
+      };
+      document.addEventListener("mousemove", onMove);
+      document.addEventListener("mouseup", onUp);
     });
   }
 }
@@ -1948,10 +1583,8 @@ function renderNdiState(msg) {
 }
 
 mountSidePanels();
-initDockTabs();
 initColumnDrag();
 initLayoutResize();
-if (window.matchMedia("(max-width: 900px)").matches) sidebar?.classList.add("collapsed");
 const ndiEnabledToggle = $("ndiEnabledToggle");
 if (ndiEnabledToggle) {
   ndiEnabledToggle.onchange = () => wsSend({ action: "set_ndi_enabled", enabled: ndiEnabledToggle.checked });
@@ -1992,14 +1625,10 @@ function onWsMessage({ data }) {
   try { msg = JSON.parse(data); } catch { return; }
   switch (msg.type) {
     case "startup_progress":
-      renderStartupStep(msg.step, msg.label, msg.status, msg.percent);
+      renderStartupStep(msg.step, msg.label, msg.status);
       break;
     case "status":
       if (msg.state === "ready") backendReady = true;
-      if (msg.state === "error") {
-        backendReady = false;
-        updateStartupBarVisibility("error");
-      }
       setStatus(msg.state);
       break;
     case "speech_started": showHearingIndicator(); break;
@@ -2019,7 +1648,6 @@ function onWsMessage({ data }) {
     case "library":
       backendReady = true;
       renderLibrary(msg);
-      wsSend({ action: "get_audio_devices" });
       if (sTxt.textContent === "connecting" || sTxt.textContent === "booting") {
         setStatus("ready");
       }
@@ -2037,25 +1665,29 @@ function onWsMessage({ data }) {
       if (typeof msg.opacity === "number" && stage) {
         stage.style.opacity = String(msg.opacity);
       }
+      if (typeof msg.show_secondary === "boolean") {
+        secondaryToggle.checked = msg.show_secondary;
+      }
       if (typeof msg.secondary_above === "boolean") {
         secondaryAbovePrimary = msg.secondary_above;
-        displaySettings.secondary_above = msg.secondary_above;
-        if ($("dispSecAbove")) $("dispSecAbove").checked = msg.secondary_above;
+        if (secondaryAbove) secondaryAbove.checked = msg.secondary_above;
+        if (secondaryBelow) secondaryBelow.checked = !msg.secondary_above;
         if (lastStageVerse) sendToStage(lastStageVerse);
       }
       break;
     case "ndi_preview_sent":
       if (ndiPreviewStatus) ndiPreviewStatus.textContent = "Test verse sent — check vMix NDI input now.";
+      if (lastStageVerse) sendToStage({
+        book: "John", chapter: 3, verse: 16,
+        text: "For God so loved the world, that he gave his only begotten Son.",
+        secondary_text: secondaryToggle && secondaryToggle.checked
+          ? "[French sample] Car Dieu a tant aimé le monde qu'il a donné son Fils unique."
+          : null,
+      });
       break;
     case "mic_startup_progress":
       if (micProgressBar) micProgressBar.style.width = (msg.percent || 0) + "%";
       if (micProgress) micProgress.classList.add("show");
-      if (micProgressLabel) {
-        micProgressLabel.classList.add("show");
-        micProgressLabel.textContent = msg.label
-          ? `${msg.label} (${msg.percent || 0}%)`
-          : `Opening microphone… ${msg.percent || 0}%`;
-      }
       break;
     case "system_log":
       appendSystemLog(msg);
@@ -2068,11 +1700,6 @@ function onWsMessage({ data }) {
       } else if (msg.code === "mic_start_failed") {
         backendReady = true;
         setStatus("ready");
-        if (micErrorInline) {
-          micErrorInline.textContent = (msg.message || "Microphone failed to start.")
-            + " Check Microphone in the sidebar and Windows privacy settings.";
-          micErrorInline.classList.add("show");
-        }
       }
       break;
     case "ndi_state":
@@ -2098,27 +1725,15 @@ function onWsMessage({ data }) {
 }
 
 connectWs();
-setStartupProgress(3, "Connecting…");
-updateStartupBarVisibility("connecting");
+setStatus("disconnected");
 
 // ── Controls ──
-micBtn.onclick = () => {
-  if (!backendReady) {
-    showToast("Backend still loading — please wait for all startup steps to finish.");
-    return;
-  }
-  if (micErrorInline) {
-    micErrorInline.classList.remove("show");
-    micErrorInline.textContent = "";
-  }
-  setStatus("starting");
-  wsSend({ action: "start_mic" });
-};
+micBtn.onclick  = () => wsSend({ action: "start_mic" });
 stopBtn.onclick = () => wsSend({ action: "stop" });
-searchInput?.addEventListener("keydown", e => {
+searchInput.addEventListener("keydown", e => {
   if (e.key === "Enter") {
     const q = searchInput.value.trim();
-    if (q) wsSend({ action: "search_verse", query: q, mode: "all" });
+    if (q) wsSend({ action: "search_verse", query: q });
   }
 });
 </script>

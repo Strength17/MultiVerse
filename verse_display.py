@@ -82,9 +82,9 @@ class DisplaySettings:
         return {
             "bg": (0, 0, 0),
             "bg_alpha": 255,
-            "text": (245, 242, 234),
-            "reference": (201, 168, 106),
-            "secondary": (245, 242, 234),
+            "text": (255, 255, 255),
+            "reference": (255, 255, 255),
+            "secondary": (255, 255, 255),
             "separator": (35, 36, 41),
         }
 

@@ -85,6 +85,7 @@ purge_bad_corrections()
 from app_config import load_config
 from bible_library import BibleLibrary
 from ndi_sender import NDISender
+from version import APP_VERSION
 
 APP_CONFIG = load_config()
 
@@ -721,6 +722,7 @@ class WindowVerseServer:
         await websocket.send(json.dumps({
             "type": "hardware_profile",
             "os": "Windows 11",
+            "app_version": APP_VERSION,
             "cpu": None,
             "cpu_cores": None,
             "ram_gb": None,

@@ -19,7 +19,7 @@ python assets/make_icon.py
 pyinstaller windowverse.spec --noconfirm
 ```
 
-Output: `dist/Window Verse/Window Verse.exe`
+Output: `dist/WindowVerse/WindowVerse.exe`
 
 ## Build installer
 
@@ -27,7 +27,7 @@ Output: `dist/Window Verse/Window Verse.exe`
 iscc installer\Window Verse.iss
 ```
 
-Output: `installer/output/Window Verse-Setup-1.1.0.exe`
+Output: `installer/output/WindowVerse-Setup-0.0.0.0.exe`
 
 ## Run without packaging
 
@@ -94,7 +94,7 @@ Place test Bible DBs under `Documents\Window Verse\data\` and re-run the checkli
 iscc installer\Window Verse.iss
 ```
 
-Output: `installer/output/Window Verse-Setup-1.1.0.exe`
+Output: `installer/output/WindowVerse-Setup-0.0.0.0.exe`
 
 ## User data locations (installed app)
 
