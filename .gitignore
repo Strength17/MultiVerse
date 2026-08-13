@@ -57,4 +57,6 @@ build/
 *.spec
 !multiverse.spec
 installer/output/
+release/
 *.zip
+!release/.gitkeep

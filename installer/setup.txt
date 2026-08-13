@@ -1,0 +1,114 @@
+MultiVerse — Setup requirements
+Version: 0.0.1.0
+
+================================================================================
+THE ONE THING (if this fails, MultiVerse cannot work)
+================================================================================
+
+Windows on-device ENGLISH speech recognition must work BEFORE you install or
+open MultiVerse.
+
+Verify on this PC:
+  1. Open Notepad (or any text field).
+  2. Press Win+H (Windows voice typing).
+  3. Speak clearly in English.
+  4. English text must appear accurately as you talk.
+
+MultiVerse uses the same Windows dictation engine. If Win+H does not work,
+only works online, or produces garbage text, MultiVerse will not detect verses
+and transcripts will be wrong. Fix Windows speech first — no app setting can
+compensate for a broken Win+H test.
+
+================================================================================
+REQUIRED BEFORE INSTALL
+================================================================================
+
+  [ ] Windows 11 (64-bit)
+  [ ] Working microphone (built-in or USB)
+  [ ] Win+H voice typing test passed (see above)
+  [ ] English (United States) language installed
+  [ ] Microphone allowed for desktop apps
+
+================================================================================
+WINDOWS SETTINGS TO CHECK
+================================================================================
+
+Language
+  Settings → Time & language → Language & region
+  → Add English (United States) if missing
+  → Set as preferred speech language if prompted
+
+Speech / voice typing
+  Settings → Time & language → Speech
+  → Turn on speech recognition / voice typing
+  → Enable offline speech recognition for English (if shown on your PC)
+
+Microphone privacy
+  Settings → Privacy & security → Microphone
+  → Microphone access: On
+  → Let desktop apps access your microphone: On
+
+Optional quick test (offline)
+  Turn Wi-Fi off briefly, repeat the Win+H test. On-device dictation should
+  still work for English if offline packs are installed.
+
+================================================================================
+INSTALL
+================================================================================
+
+  1. Run MultiVerse-Setup-0.0.1.0.exe from this folder.
+  2. Follow the installer (default location is fine).
+  3. Launch MultiVerse from the Start menu or desktop shortcut.
+
+================================================================================
+AFTER INSTALL (before first live use)
+================================================================================
+
+Bible databases
+  Copy your Bible database files to:
+    Documents\MultiVerse\data\<Version>\<Language>\
+  Example:
+    Documents\MultiVerse\data\NKJV\English\NKJV.sqlite3
+  See README_DATA.txt in the install folder or project docs for folder layout.
+
+First run
+  1. Open MultiVerse and wait until loading finishes (Start button enables).
+  2. Press Start to open the microphone.
+  3. Speak a verse reference (e.g. "Genesis chapter 1 verse 1") to confirm
+     detection works.
+
+Transcripts
+  Session transcripts auto-save to:
+    Documents\MultiVerse\Transcription\
+
+================================================================================
+OPTIONAL (only if you use these features)
+================================================================================
+
+NDI / vMix output
+  Install NDI Tools runtime on the same network as vMix.
+  In MultiVerse: enable NDI in config if not already on; add NDI source in vMix.
+
+French secondary text on screen
+  Requires a French Bible database in Documents\MultiVerse\data\.
+  Live speech transcription remains English-only (Windows dictation).
+
+================================================================================
+WHAT MULTIVERSE DOES NOT DO
+================================================================================
+
+  • Does not install or configure Windows speech for you
+  • Does not transcribe non-English speech reliably (mixed-language audio
+    will produce junk for non-English parts)
+  • Does not include full Bible libraries in the installer — you supply DB files
+
+================================================================================
+SUPPORT CHECKLIST IF SOMETHING FAILS
+================================================================================
+
+  1. Re-run the Win+H test in Notepad.
+  2. Confirm microphone is selected in MultiVerse Settings → Microphone.
+  3. Confirm Bible DB path exists under Documents\MultiVerse\data\.
+  4. Check Documents\MultiVerse\logs\ for error details (not shown in transcript).
+
+================================================================================
