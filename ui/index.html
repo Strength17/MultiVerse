@@ -1211,7 +1211,7 @@ function saveTranscript() {
   const a = document.createElement("a");
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
   a.href = url;
-  a.download = `Window Verse_Transcript_${stamp}.txt`;
+  a.download = `WindowVerse_Transcript_${stamp}.txt`;
   document.body.appendChild(a);
   a.click();
   a.remove();
@@ -1406,7 +1406,7 @@ clearBtn.onclick = () => {
 // distinctive so it's unambiguous in vMix's window list.
 function openProjector() {
   if (projectorWin && !projectorWin.closed) { projectorWin.focus(); return; }
-  projectorWin = window.open("", "Window VerseProjector", "width=1920,height=1080");
+  projectorWin = window.open("", "WindowVerseProjector", "width=1920,height=1080");
   projectorWin.document.write(`<!DOCTYPE html><html><head><title>Window Verse — Projector</title>
     <style>
       html,body{margin:0;height:100%;background:#000;color:#f5f2ea;font-family:'Source Serif 4',serif;}
