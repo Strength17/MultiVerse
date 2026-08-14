@@ -72,7 +72,7 @@ def winrt_install_hint(missing: list[str] | None = None) -> str:
     extra = f" ({', '.join(pkgs)})" if pkgs else ""
     return (
         f"Install Windows speech packages{extra}: "
-        "pip install -r requirements_winrt.txt --break-system-packages — then restart MultiVerse."
+        "pip install -r requirements_winrt.txt --break-system-packages — then restart WindowVerse."
     )
 
 

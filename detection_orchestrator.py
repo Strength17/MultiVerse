@@ -38,7 +38,7 @@ from vector_search import VectorSearchEngine
 from console_output import write_line
 from transcriber import RollingTranscriptBuffer
 
-logger = logging.getLogger("multiverse.orchestrator")
+logger = logging.getLogger("windowverse.orchestrator")
 
 CONFIDENCE_BANDS = {
     "high":   (0.80, 1.01),

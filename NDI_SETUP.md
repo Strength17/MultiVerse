@@ -18,7 +18,7 @@ window, no third-party screen-grab tool.
    pip install -r requirements_winrt.txt --break-system-packages
    ```
    (this now includes `cyndilib` and `pillow`).
-3. Start Window Verse as usual (`Start Window Verse.bat` or `python server.py`).
+3. Start Window Verse as usual (`Start WindowVerse.bat` or `python server.py`).
    You'll see in the terminal:
    ```
    NDI sender 'Window Verse' started (1920x1080 @ 3.0fps)

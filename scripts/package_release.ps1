@@ -9,14 +9,14 @@ $Root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 Set-Location $Root
 
 $Version = (Select-String -Path "version.py" -Pattern 'APP_VERSION\s*=\s*"([^"]+)"').Matches[0].Groups[1].Value
-$ExeName = "MultiVerse-Setup-$Version.exe"
+$ExeName = "WindowVerse-Setup-$Version.exe"
 $ExeSrc = Join-Path $Root "installer\output\$ExeName"
 $SetupSrc = Join-Path $Root "installer\setup.txt"
-$ReleaseDir = Join-Path $Root "release\MultiVerse-$Version"
-$ZipPath = Join-Path $Root "release\MultiVerse-$Version.zip"
+$ReleaseDir = Join-Path $Root "release\WindowVerse-$Version"
+$ZipPath = Join-Path $Root "release\WindowVerse-$Version.zip"
 
 if (-not (Test-Path $ExeSrc)) {
-    Write-Error "Missing installer: $ExeSrc`nBuild first: pyinstaller multiverse.spec --noconfirm; iscc installer\MultiVerse.iss"
+    Write-Error "Missing installer: $ExeSrc`nBuild first: pyinstaller windowverse.spec --noconfirm; iscc installer\WindowVerse.iss"
 }
 if (-not (Test-Path $SetupSrc)) {
     Write-Error "Missing prerequisites file: $SetupSrc"
@@ -25,7 +25,7 @@ if (-not (Test-Path $SetupSrc)) {
 # Keep setup.txt version line in sync with version.py
 $SetupText = Get-Content $SetupSrc -Raw
 $SetupText = $SetupText -replace '(?m)^Version: .*$', "Version: $Version"
-$SetupText = $SetupText -replace 'MultiVerse-Setup-[0-9.]+\.exe', $ExeName
+$SetupText = $SetupText -replace 'WindowVerse-Setup-[0-9.]+\.exe', $ExeName
 
 New-Item -ItemType Directory -Force -Path $ReleaseDir | Out-Null
 Copy-Item -Force $ExeSrc (Join-Path $ReleaseDir $ExeName)

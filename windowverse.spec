@@ -1,5 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
-"""PyInstaller spec for MultiVerse desktop app."""
+"""PyInstaller spec for WindowVerse desktop app."""
 
 import sys
 from pathlib import Path
@@ -15,8 +15,8 @@ a = Analysis(
         (str(ROOT / 'config'), 'config'),
         (str(ROOT / 'data' / 'README_DATA.txt'), 'data'),
         (str(ROOT / 'data' / 'backgrounds' / 'README.txt'), 'data/backgrounds'),
-        (str(ROOT / 'assets' / 'multiverse.ico'), 'assets'),
-        (str(ROOT / 'assets' / 'multiverse_logo.png'), 'assets'),
+        (str(ROOT / 'assets' / 'windowverse.ico'), 'assets'),
+        (str(ROOT / 'assets' / 'windowverse_logo.png'), 'assets'),
         (str(ROOT / 'NDI_SETUP.md'), '.'),
         (str(ROOT / 'COMMANDS.md'), '.'),
     ],
@@ -50,7 +50,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name='MultiVerse',
+    name='WindowVerse',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -61,7 +61,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=str(ROOT / 'assets' / 'multiverse.ico'),
+    icon=str(ROOT / 'assets' / 'windowverse.ico'),
 )
 
 coll = COLLECT(
@@ -71,5 +71,5 @@ coll = COLLECT(
     strip=False,
     upx=True,
     upx_exclude=[],
-    name='MultiVerse',
+    name='WindowVerse',
 )

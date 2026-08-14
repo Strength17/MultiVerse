@@ -46,7 +46,7 @@ import numpy as np
 
 from narrative_passages import NARRATIVE_PASSAGES, NarrativePassage, PASSAGE_BY_ID
 
-logger = logging.getLogger("multiverse.narrative_tracker")
+logger = logging.getLogger("windowverse.narrative_tracker")
 
 # Tuning constants (defaults; overridden via DetectionConfig from config.ini)
 ROLLING_WINDOW_SECONDS = 45

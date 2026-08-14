@@ -1,6 +1,6 @@
-# MultiVerse
+# WindowVerse
 
-Live Bible verse display for church services. Speak a reference or paraphrase a passage — MultiVerse detects it, shows it on screen, and can send it to vMix over NDI.
+Live Bible verse display for church services. Speak a reference or paraphrase a passage — WindowVerse detects it, shows it on screen, and can send it to vMix over NDI.
 
 **Version:** 0.0.1.0
 
@@ -8,11 +8,11 @@ Live Bible verse display for church services. Speak a reference or paraphrase a 
 
 ## Download
 
-**[Download MultiVerse 0.0.1.0 (ZIP)](https://github.com/Strength17/WindowVerse/releases/download/0.0.1.0/MultiVerse-0.0.1.0.zip)**
+**[Download WindowVerse 0.0.1.0 (ZIP)](https://github.com/Strength17/WindowVerse/releases/download/0.0.1.0/WindowVerse-0.0.1.0.zip)**
 
 The ZIP contains:
 
-- `MultiVerse-Setup-0.0.1.0.exe` — installer
+- `WindowVerse-Setup-0.0.1.0.exe` — installer
 - `setup.txt` — full checklist (read this first)
 
 ---
@@ -21,14 +21,14 @@ The ZIP contains:
 
 ### The one test that must pass
 
-MultiVerse uses **Windows voice typing**. If this fails, the app cannot work.
+WindowVerse uses **Windows voice typing**. If this fails, the app cannot work.
 
 1. Open **Notepad**
 2. Press **Win + H**
 3. Speak in **English**
 4. English text must appear as you talk
 
-Fix Windows speech settings before installing MultiVerse. See `setup.txt` in the download for details.
+Fix Windows speech settings before installing WindowVerse. See `setup.txt` in the download for details.
 
 ### Quick checklist
 
@@ -42,10 +42,10 @@ Fix Windows speech settings before installing MultiVerse. See `setup.txt` in the
 
 ## Install
 
-1. Download and unzip **MultiVerse-0.0.1.0.zip**
+1. Download and unzip **WindowVerse-0.0.1.0.zip**
 2. Read **setup.txt**
-3. Run **MultiVerse-Setup-0.0.1.0.exe**
-4. Launch **MultiVerse** from the Start menu
+3. Run **WindowVerse-Setup-0.0.1.0.exe**
+4. Launch **WindowVerse** from the Start menu
 
 ---
 
@@ -54,26 +54,26 @@ Fix Windows speech settings before installing MultiVerse. See `setup.txt` in the
 The installer does **not** include Bible text files. Copy your database after install:
 
 ```
-Documents\MultiVerse\data\NKJV\English\NKJV.sqlite3
+Documents\WindowVerse\data\NKJV\English\NKJV.sqlite3
 ```
 
 Example layout:
 
 ```
-Documents\MultiVerse\data\
+Documents\WindowVerse\data\
   NKJV\
     English\NKJV.sqlite3
     French\FreBBB.db          (optional — for on-screen French text)
   backgrounds\                (optional — custom background images)
 ```
 
-Restart MultiVerse after adding files. New versions in that folder are picked up automatically.
+Restart WindowVerse after adding files. New versions in that folder are picked up automatically.
 
 ---
 
 ## First use
 
-1. Open MultiVerse and wait until **Start** is enabled (loading bar finishes).
+1. Open WindowVerse and wait until **Start** is enabled (loading bar finishes).
 2. Click **Start** to open the microphone.
 3. Say a reference: *"Genesis chapter 1 verse 1"*
 4. The verse appears in **Live Output** (and on NDI if enabled).
@@ -101,16 +101,16 @@ Open the sidebar → **Settings** for:
 Transcripts save to:
 
 ```
-Documents\MultiVerse\Transcription\
+Documents\WindowVerse\Transcription\
 ```
 
 ---
 
 ## Optional: vMix / NDI
 
-1. Install [NDI Tools](https://ndi.video/tools/) on the MultiVerse PC.
-2. In vMix: **Add Input → NDI → MultiVerse**
-3. In MultiVerse: **Recall → vMix** tab → send a test verse to confirm.
+1. Install [NDI Tools](https://ndi.video/tools/) on the WindowVerse PC.
+2. In vMix: **Add Input → NDI → WindowVerse**
+3. In WindowVerse: **Recall → vMix** tab → send a test verse to confirm.
 
 See **NDI_SETUP.md** in the install folder for troubleshooting.
 
@@ -123,7 +123,7 @@ See **NDI_SETUP.md** in the install folder for troubleshooting.
 | **Speech language** | English only for live transcription (Windows dictation) |
 | **French on screen** | Supported if you add a French Bible database; speech is still English |
 | **Offline use** | Verse detection works offline after the first-time model cache is built |
-| **Logs** | `Documents\MultiVerse\logs\` — errors never appear in the transcript |
+| **Logs** | `Documents\WindowVerse\logs\` — errors never appear in the transcript |
 
 ---
 
@@ -139,8 +139,8 @@ python desktop_app.py
 Build the release package:
 
 ```powershell
-pyinstaller multiverse.spec --noconfirm
-iscc installer\MultiVerse.iss
+pyinstaller windowverse.spec --noconfirm
+iscc installer\WindowVerse.iss
 powershell -File scripts\package_release.ps1
 ```
 

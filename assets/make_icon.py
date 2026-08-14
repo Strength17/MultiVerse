@@ -1,4 +1,4 @@
-"""Build multiverse.ico from the official WV logo PNG."""
+"""Build windowverse.ico from the official WV logo PNG."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -6,8 +6,8 @@ from pathlib import Path
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parent
-SRC = ROOT / "multiverse_logo.png"
-OUT = ROOT / "multiverse.ico"
+SRC = ROOT / "windowverse_logo.png"
+OUT = ROOT / "windowverse.ico"
 
 
 def main() -> None:

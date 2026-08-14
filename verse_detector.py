@@ -50,7 +50,7 @@ from bible_books import (
 )
 from reference_context import ReferenceContext
 
-logger = logging.getLogger("multiverse.verse_detector")
+logger = logging.getLogger("windowverse.verse_detector")
 
 # ── Spoken number tables ──────────────────────────────────────────────────────
 _ONES = ["zero", "one", "two", "three", "four", "five", "six", "seven",

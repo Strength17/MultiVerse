@@ -7,7 +7,7 @@ import threading
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-logger = logging.getLogger("multiverse.static")
+logger = logging.getLogger("windowverse.static")
 HTTP_PORT = 8766
 
 
@@ -65,7 +65,7 @@ def start_static_server(ui_root: Path, backgrounds_root: Path, port: int = HTTP_
     _Handler.ui_root = ui_root.resolve()
     _Handler.backgrounds_root = backgrounds_root.resolve()
     server = ThreadingHTTPServer(("127.0.0.1", port), _Handler)
-    thread = threading.Thread(target=server.serve_forever, daemon=True, name="multiverse-http")
+    thread = threading.Thread(target=server.serve_forever, daemon=True, name="windowverse-http")
     thread.start()
     logger.info("Static UI server at http://127.0.0.1:%d/ui/index.html", port)
     return server

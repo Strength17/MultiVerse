@@ -1,12 +1,12 @@
-; MultiVerse Inno Setup installer script
+; WindowVerse Inno Setup installer script
 ; Requires Inno Setup 6+ (iscc.exe on PATH)
 
-#define MyAppName "MultiVerse"
+#define MyAppName "WindowVerse"
 #define MyAppVersion "0.0.1.0"
 #define MyAppPublisher "Strength Awa"
-#define MyAppURL "https://github.com/strength17/multiverse"
-#define MyAppExeName "MultiVerse.exe"
-#define BuildDir "..\\dist\\MultiVerse"
+#define MyAppURL "https://github.com/strength17/windowverse"
+#define MyAppExeName "WindowVerse.exe"
+#define BuildDir "..\\dist\\WindowVerse"
 
 [Setup]
 AppId={{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}
@@ -18,8 +18,8 @@ DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 OutputDir=output
-OutputBaseFilename=MultiVerse-Setup-{#MyAppVersion}
-SetupIconFile=..\assets\multiverse.ico
+OutputBaseFilename=WindowVerse-Setup-{#MyAppVersion}
+SetupIconFile=..\assets\windowverse.ico
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
@@ -49,11 +49,11 @@ var
 begin
   if CurStep = ssPostInstall then
   begin
-    UserData := ExpandConstant('{userdocs}\MultiVerse\data');
+    UserData := ExpandConstant('{userdocs}\WindowVerse\data');
     if not DirExists(UserData) then
       CreateDir(UserData);
   end;
 end;
 
 [Messages]
-WelcomeLabel2=This will install [name/ver] on your computer.%n%nBible databases and background images go in Documents\MultiVerse\data\ — see README_DATA.txt after install.
+WelcomeLabel2=This will install [name/ver] on your computer.%n%nBible databases and background images go in Documents\WindowVerse\data\ — see README_DATA.txt after install.

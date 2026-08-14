@@ -3,7 +3,7 @@ bible_schema.py
 
 Automatic schema detection for Bible SQLite databases.
 
-Problem this solves: MultiVerse previously guessed at table/column names
+Problem this solves: WindowVerse previously guessed at table/column names
 ("bible" table with b/c/v/t columns, or BookName/Chapter/VerseNumber/
 VerseText) and silently failed when a different Bible database didn't
 match those guesses. This module actually inspects the database file
@@ -26,7 +26,7 @@ from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import Optional
 
-logger = logging.getLogger("multiverse.bible_schema")
+logger = logging.getLogger("windowverse.bible_schema")
 
 CACHE_PATH = Path("data/schema_cache.json")
 

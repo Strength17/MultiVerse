@@ -29,7 +29,7 @@ from bible_books import (
     testament_matches,
 )
 
-logger = logging.getLogger("multiverse.verse_navigation")
+logger = logging.getLogger("windowverse.verse_navigation")
 
 
 @dataclass(frozen=True)

@@ -19,7 +19,7 @@ import logging
 import pickle
 from pathlib import Path
 
-logger = logging.getLogger("multiverse.index_cache")
+logger = logging.getLogger("windowverse.index_cache")
 
 
 def _file_hash(path: str | Path) -> str:

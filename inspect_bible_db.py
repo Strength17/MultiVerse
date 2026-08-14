@@ -2,7 +2,7 @@
 inspect_bible_db.py
 
 Standalone utility — run this any time you add or swap in a new Bible
-SQLite file, BEFORE running server.py, to see exactly how MultiVerse
+SQLite file, BEFORE running server.py, to see exactly how WindowVerse
 will interpret it.
 
 Usage:

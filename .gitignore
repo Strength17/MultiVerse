@@ -36,7 +36,7 @@ data/**/*.sqlite3
 logs/*.log
 logs/transcript_*.log
 logs/*.png
-logs/multiverse.pid
+logs/windowverse.pid
 logs/windowverse.pid
 !logs/.gitkeep
 
@@ -55,7 +55,7 @@ build/
 
 # ── Packaging / misc ─────────────────────────────────────────────────────
 *.spec
-!multiverse.spec
+!windowverse.spec
 installer/output/
 release/
 *.zip

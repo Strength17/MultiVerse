@@ -1,6 +1,6 @@
 Place your Bible database files here when running from source.
 
-INSTALLED DESKTOP APP: use Documents\MultiVerse\data\ instead (same layout below).
+INSTALLED DESKTOP APP: use Documents\WindowVerse\data\ instead (same layout below).
 
 Expected folder layout for multiple versions/languages:
 

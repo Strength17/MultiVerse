@@ -6,7 +6,7 @@ import logging
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
-logger = logging.getLogger("multiverse.narrative_settings")
+logger = logging.getLogger("windowverse.narrative_settings")
 
 USER_DETECTION_FILE = "detection_user.json"
 

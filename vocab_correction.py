@@ -39,7 +39,7 @@ from bible_books import (
     resolve_stt_book_alias,
 )
 
-logger = logging.getLogger("multiverse.vocab_correction")
+logger = logging.getLogger("windowverse.vocab_correction")
 
 _LEARNED_PATH = Path(__file__).parent / "data" / "corrections_learned.json"
 _CANONICAL_NAMES = [name for _, name, _ in BOOKS]

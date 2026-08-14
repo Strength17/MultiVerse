@@ -1,4 +1,4 @@
-# MultiVerse -- Windows-native STT build
+# WindowVerse -- Windows-native STT build
 # Install with: pip install -r requirements_winrt.txt --break-system-packages
 #
 # Removed vs. the old build: faster-whisper, pywhispercpp, silero-vad,

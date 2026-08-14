@@ -71,7 +71,7 @@ def _configure_logging():
     import os
     log_dir = Path(os.environ.get("WINDOWVERSE_LOGS_DIR") or os.environ.get("MULTIVERSE_LOGS_DIR", "logs"))
     log_dir.mkdir(parents=True, exist_ok=True)
-    log_file = log_dir / "multiverse.log"
+    log_file = log_dir / "windowverse.log"
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(name)s %(levelname)s %(message)s",
@@ -339,7 +339,7 @@ class WindowVerseServer:
             )
             raise RuntimeError(
                 "English NKJV database failed verification. Place NKJV.sqlite3 in "
-                "Documents\\MultiVerse\\data\\NKJV\\English\\ — not the French file."
+                "Documents\\WindowVerse\\data\\NKJV\\English\\ — not the French file."
             )
         self._report_startup("self_check", "Verifying verse lookups", "done")
         logger.info("Startup self-check passed — anchor verses match expected text")
@@ -1043,9 +1043,9 @@ class WindowVerseServer:
             return None
         out_dir = self._user_dirs["transcription"]
         stamp = time.strftime("%Y-%m-%d_%H-%M-%S")
-        path = out_dir / f"MultiVerse_{stamp}.txt"
+        path = out_dir / f"WindowVerse_{stamp}.txt"
         lines = [
-            f"MultiVerse session — saved {time.strftime('%Y-%m-%d %H:%M:%S')}",
+            f"WindowVerse session — saved {time.strftime('%Y-%m-%d %H:%M:%S')}",
             "=" * 60,
             "",
         ]
@@ -1635,7 +1635,7 @@ class WindowVerseServer:
         start_static_server(ui_root, self._user_dirs["backgrounds"], port=HTTP_PORT)
 
         async with websockets.serve(self.handle_client, HOST, PORT):
-            logger.info("MultiVerse listening on ws://%s:%d — booting", HOST, PORT)
+            logger.info("WindowVerse listening on ws://%s:%d — booting", HOST, PORT)
             await self._broadcast({"type": "status", "state": "booting"})
 
             try:
@@ -1745,7 +1745,7 @@ def main():
     elif not Path(db_path).exists():
         logger.error(
             "No English NKJV database found. Expected: "
-            "Documents\\MultiVerse\\data\\NKJV\\English\\NKJV.sqlite3"
+            "Documents\\WindowVerse\\data\\NKJV\\English\\NKJV.sqlite3"
         )
         sys.exit(1)
 

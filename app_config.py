@@ -82,7 +82,7 @@ class AppConfig:
 @dataclass(frozen=True)
 class NDIConfig:
     enabled: bool = True
-    sender_name: str = "MultiVerse"
+    sender_name: str = "WindowVerse"
     width: int = 1920
     height: int = 1080
     fps: float = 3.0
@@ -230,7 +230,7 @@ def load_config(path: str | None = None) -> WindowVerseConfig:
 
     lib_defaults = LibraryConfig()
     import os
-    data_root = os.environ.get("MULTIVERSE_DATA_ROOT") or cfg.get(
+    data_root = os.environ.get("WINDOWVERSE_DATA_ROOT") or cfg.get(
         "library", "data_root", fallback=lib_defaults.data_root)
     library = LibraryConfig(
         data_root=data_root,
@@ -246,8 +246,8 @@ def load_config(path: str | None = None) -> WindowVerseConfig:
     )
 
     db_path = cfg.get("database", "db_path", fallback="data/NKJV.SQLite3")
-    if os.environ.get("MULTIVERSE_DATA_ROOT") and not Path(db_path).is_absolute():
-        db_path = str(Path(os.environ["MULTIVERSE_DATA_ROOT"]) / Path(db_path).name)
+    if os.environ.get("WINDOWVERSE_DATA_ROOT") and not Path(db_path).is_absolute():
+        db_path = str(Path(os.environ["WINDOWVERSE_DATA_ROOT"]) / Path(db_path).name)
 
     return WindowVerseConfig(
         detection=detection,

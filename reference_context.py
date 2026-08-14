@@ -31,7 +31,7 @@ import logging
 import time
 from dataclasses import dataclass
 
-logger = logging.getLogger("multiverse.reference_context")
+logger = logging.getLogger("windowverse.reference_context")
 
 
 @dataclass

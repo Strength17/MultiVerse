@@ -28,7 +28,7 @@ from functools import lru_cache
 
 import numpy as np
 
-logger = logging.getLogger("multiverse.vector_search")
+logger = logging.getLogger("windowverse.vector_search")
 
 EMBEDDING_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 
@@ -126,7 +126,7 @@ class VectorSearchEngine:
         # var alone has known buggy interactions in some library versions
         # where it skips the local cache check instead of using it -- so
         # we set both, with local_files_only as the primary guarantee).
-        allow_download = os.environ.get("MULTIVERSE_ALLOW_MODEL_DOWNLOAD", "0") == "1"
+        allow_download = os.environ.get("WINDOWVERSE_ALLOW_MODEL_DOWNLOAD", "0") == "1"
 
         if not allow_download:
             os.environ["HF_HUB_OFFLINE"] = "1"
@@ -146,7 +146,7 @@ class VectorSearchEngine:
                 f"cache and offline mode is on, so it can't be downloaded now.\n\n"
                 f"Fix: run this ONCE on a machine with internet access "
                 f"(or temporarily enable it on this one):\n\n"
-                f"  set MULTIVERSE_ALLOW_MODEL_DOWNLOAD=1\n"
+                f"  set WINDOWVERSE_ALLOW_MODEL_DOWNLOAD=1\n"
                 f"  python -c \"from sentence_transformers import SentenceTransformer; "
                 f"SentenceTransformer('{EMBEDDING_MODEL_NAME}')\"\n\n"
                 f"After that one-time download (~90MB, cached to "

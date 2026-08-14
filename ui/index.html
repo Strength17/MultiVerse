@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MultiVerse — Live Service</title>
+<title>WindowVerse — Live Service</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -857,11 +857,11 @@ body {
         <div class="vmix-stat"><span class="dot" id="vmixDbDot"></span><span id="vmixDbTxt">Bible DB: —</span></div>
         <button class="btn small" id="vmixOpenBtn">⧉ Open Projector Window</button>
       </div>
-      <div class="vmix-note">MultiVerse broadcasts the current verse as a real NDI video source — vMix (or any NDI receiver) adds it like a normal camera input. The projector window above is an alternative fallback (via vMix's own Desktop Capture) if you'd rather not install the NDI runtime.</div>
+      <div class="vmix-note">WindowVerse broadcasts the current verse as a real NDI video source — vMix (or any NDI receiver) adds it like a normal camera input. The projector window above is an alternative fallback (via vMix's own Desktop Capture) if you'd rather not install the NDI runtime.</div>
       <div class="vmix-steps">
-        1. Install the free <b>NDI Runtime</b> (or NDI Tools) from ndi.video once on the machine running MultiVerse.<br>
-        2. <code>pip install cyndilib pillow --break-system-packages</code>, then start MultiVerse as usual — the NDI source starts automatically if <code>[ndi] enabled = true</code> in <code>config/config.ini</code>.<br>
-        3. In vMix: <b>Add Input → NDI</b> — the source named (by default) <code>MultiVerse</code> appears in the list automatically on the same network.<br>
+        1. Install the free <b>NDI Runtime</b> (or NDI Tools) from ndi.video once on the machine running WindowVerse.<br>
+        2. <code>pip install cyndilib pillow --break-system-packages</code>, then start WindowVerse as usual — the NDI source starts automatically if <code>[ndi] enabled = true</code> in <code>config/config.ini</code>.<br>
+        3. In vMix: <b>Add Input → NDI</b> — the source named (by default) <code>WindowVerse</code> appears in the list automatically on the same network.<br>
         4. Add it to a layer/overlay channel as with any other source. It updates automatically whenever a verse is auto-displayed, and clears when you go off-air.<br><br>
         <button class="btn small" id="ndiPreviewBtn">▶ Send test verse to NDI (matches Live Output layout)</button>
         <span id="ndiPreviewStatus" style="margin-left:8px;font-size:12px;color:var(--ink-60)"></span><br><br>
@@ -887,7 +887,7 @@ body {
       <details class="vmix-steps settings-advanced" open>
         <summary>Story narration detection</summary>
         <p class="sensitivity-hint" style="margin-top:8px">
-          When you retell a Bible story in your own words, MultiVerse matches your speech against known narratives.
+          When you retell a Bible story in your own words, WindowVerse matches your speech against known narratives.
           Slide toward <b>Sensitive</b> if real stories are missed; toward <b>Strict</b> if casual talk triggers wrongly.
         </p>
         <label style="display:block;margin:12px 0 6px">
@@ -925,7 +925,7 @@ body {
           <input type="number" id="silenceSaveCustom" min="5" max="600" step="1" value="10"
             style="margin-top:4px;width:120px;padding:6px 8px;border-radius:6px;border:1px solid var(--line);background:var(--panel-alt);color:var(--ink)">
         </label>
-        <p class="sensitivity-hint">Mic stays on; only the transcript is saved to Documents\MultiVerse\Transcription.</p>
+        <p class="sensitivity-hint">Mic stays on; only the transcript is saved to Documents\WindowVerse\Transcription.</p>
       </details>
       <details class="vmix-steps settings-advanced">
         <summary>Verse appearance (Live Output, NDI, projector)</summary>
@@ -1316,14 +1316,14 @@ function saveTranscript() {
     appendInfoLog("Nothing transcribed yet this session — nothing to save.");
     return;
   }
-  const header = `MultiVerse transcript — session started ${sessionLines[0].ts}, saved ${new Date().toLocaleString()}\n${"=".repeat(60)}\n\n`;
+  const header = `WindowVerse transcript — session started ${sessionLines[0].ts}, saved ${new Date().toLocaleString()}\n${"=".repeat(60)}\n\n`;
   const body = sessionLines.map(l => `[${l.ts}] ${l.text}`).join("\n");
   const blob = new Blob([header + body], { type: "text/plain;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
   a.href = url;
-  a.download = `MultiVerse_Transcript_${stamp}.txt`;
+  a.download = `WindowVerse_Transcript_${stamp}.txt`;
   document.body.appendChild(a);
   a.click();
   a.remove();
@@ -1555,8 +1555,8 @@ function markOnAir(d) {
 // distinctive so it's unambiguous in vMix's window list.
 function openProjector() {
   if (projectorWin && !projectorWin.closed) { projectorWin.focus(); return; }
-  projectorWin = window.open("", "MultiVerseProjector", "width=1920,height=1080");
-  projectorWin.document.write(`<!DOCTYPE html><html><head><title>MultiVerse — Projector</title>
+  projectorWin = window.open("", "WindowVerseProjector", "width=1920,height=1080");
+  projectorWin.document.write(`<!DOCTYPE html><html><head><title>WindowVerse — Projector</title>
     <style>
       body{margin:0;background:#000;color:#f5f2ea;font-family:'Source Serif 4',serif;
            height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;

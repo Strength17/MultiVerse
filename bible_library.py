@@ -38,7 +38,7 @@ from pathlib import Path
 
 from bible_db import BibleDB
 
-logger = logging.getLogger("multiverse.bible_library")
+logger = logging.getLogger("windowverse.bible_library")
 
 _DB_EXTENSIONS = {".sqlite3", ".sqlite", ".db"}
 

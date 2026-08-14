@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 import subprocess
 
-logger = logging.getLogger("multiverse.audio_devices")
+logger = logging.getLogger("windowverse.audio_devices")
 
 
 def list_input_devices() -> list[dict]:

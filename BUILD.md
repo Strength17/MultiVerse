@@ -24,7 +24,7 @@ Output: `dist/WindowVerse/WindowVerse.exe`
 ## Build installer
 
 ```powershell
-iscc installer\Window Verse.iss
+iscc installer\WindowVerse.iss
 ```
 
 Output: `installer/output/WindowVerse-Setup-0.0.0.0.exe`
@@ -35,7 +35,7 @@ Output: `installer/output/WindowVerse-Setup-0.0.0.0.exe`
 python desktop_app.py
 ```
 
-Or legacy browser mode: `Start Window Verse.bat` (opens UI at http://127.0.0.1:8766/ui/index.html once server is up).
+Or legacy browser mode: `Start WindowVerse.bat` (opens UI at http://127.0.0.1:8766/ui/index.html once server is up).
 
 ## Testing before building the installer
 
@@ -44,7 +44,7 @@ Do **not** run PyInstaller or Inno Setup until dev testing passes. Use this orde
 ### 1. Dev run (primary test mode)
 
 ```powershell
-cd "c:\Users\Strength Awa\Desktop\BUSINESS\Multiverse"
+cd "c:\Users\Strength Awa\Desktop\BUSINESS\WindowVerse"
 .\.venv\Scripts\Activate.ps1
 python desktop_app.py
 ```
@@ -91,7 +91,7 @@ Place test Bible DBs under `Documents\Window Verse\data\` and re-run the checkli
 ### 5. Installer (explicit approval only)
 
 ```powershell
-iscc installer\Window Verse.iss
+iscc installer\WindowVerse.iss
 ```
 
 Output: `installer/output/WindowVerse-Setup-0.0.0.0.exe`

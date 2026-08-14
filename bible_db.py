@@ -21,7 +21,7 @@ from typing import Optional
 
 from bible_schema import resolve_schema, SchemaMapping, SchemaDetectionError
 
-logger = logging.getLogger("multiverse.bible_db")
+logger = logging.getLogger("windowverse.bible_db")
 
 RANGE_CACHE_PATH = Path("data/range_cache.json")
 

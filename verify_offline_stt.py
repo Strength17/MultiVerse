@@ -33,7 +33,7 @@ def _network_reachable() -> bool:
 
 async def main():
     print("=" * 60)
-    print("MultiVerse -- Windows offline STT verification")
+    print("WindowVerse -- Windows offline STT verification")
     print("=" * 60)
 
     if _network_reachable():

@@ -29,7 +29,7 @@ from __future__ import annotations
 import asyncio
 import logging
 
-logger = logging.getLogger("multiverse.osc_control")
+logger = logging.getLogger("windowverse.osc_control")
 
 OSC_PORT = 8000
 

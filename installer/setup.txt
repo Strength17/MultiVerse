@@ -1,12 +1,12 @@
-MultiVerse — Setup requirements
+WindowVerse — Setup requirements
 Version: 0.0.1.0
 
 ================================================================================
-THE ONE THING (if this fails, MultiVerse cannot work)
+THE ONE THING (if this fails, WindowVerse cannot work)
 ================================================================================
 
 Windows on-device ENGLISH speech recognition must work BEFORE you install or
-open MultiVerse.
+open WindowVerse.
 
 Verify on this PC:
   1. Open Notepad (or any text field).
@@ -14,8 +14,8 @@ Verify on this PC:
   3. Speak clearly in English.
   4. English text must appear accurately as you talk.
 
-MultiVerse uses the same Windows dictation engine. If Win+H does not work,
-only works online, or produces garbage text, MultiVerse will not detect verses
+WindowVerse uses the same Windows dictation engine. If Win+H does not work,
+only works online, or produces garbage text, WindowVerse will not detect verses
 and transcripts will be wrong. Fix Windows speech first — no app setting can
 compensate for a broken Win+H test.
 
@@ -56,9 +56,9 @@ Optional quick test (offline)
 INSTALL
 ================================================================================
 
-  1. Run MultiVerse-Setup-0.0.1.0.exe from this folder.
+  1. Run WindowVerse-Setup-0.0.1.0.exe from this folder.
   2. Follow the installer (default location is fine).
-  3. Launch MultiVerse from the Start menu or desktop shortcut.
+  3. Launch WindowVerse from the Start menu or desktop shortcut.
 
 ================================================================================
 AFTER INSTALL (before first live use)
@@ -66,20 +66,20 @@ AFTER INSTALL (before first live use)
 
 Bible databases
   Copy your Bible database files to:
-    Documents\MultiVerse\data\<Version>\<Language>\
+    Documents\WindowVerse\data\<Version>\<Language>\
   Example:
-    Documents\MultiVerse\data\NKJV\English\NKJV.sqlite3
+    Documents\WindowVerse\data\NKJV\English\NKJV.sqlite3
   See README_DATA.txt in the install folder or project docs for folder layout.
 
 First run
-  1. Open MultiVerse and wait until loading finishes (Start button enables).
+  1. Open WindowVerse and wait until loading finishes (Start button enables).
   2. Press Start to open the microphone.
   3. Speak a verse reference (e.g. "Genesis chapter 1 verse 1") to confirm
      detection works.
 
 Transcripts
   Session transcripts auto-save to:
-    Documents\MultiVerse\Transcription\
+    Documents\WindowVerse\Transcription\
 
 ================================================================================
 OPTIONAL (only if you use these features)
@@ -87,14 +87,14 @@ OPTIONAL (only if you use these features)
 
 NDI / vMix output
   Install NDI Tools runtime on the same network as vMix.
-  In MultiVerse: enable NDI in config if not already on; add NDI source in vMix.
+  In WindowVerse: enable NDI in config if not already on; add NDI source in vMix.
 
 French secondary text on screen
-  Requires a French Bible database in Documents\MultiVerse\data\.
+  Requires a French Bible database in Documents\WindowVerse\data\.
   Live speech transcription remains English-only (Windows dictation).
 
 ================================================================================
-WHAT MULTIVERSE DOES NOT DO
+WHAT WINDOWVERSE DOES NOT DO
 ================================================================================
 
   • Does not install or configure Windows speech for you
@@ -107,8 +107,8 @@ SUPPORT CHECKLIST IF SOMETHING FAILS
 ================================================================================
 
   1. Re-run the Win+H test in Notepad.
-  2. Confirm microphone is selected in MultiVerse Settings → Microphone.
-  3. Confirm Bible DB path exists under Documents\MultiVerse\data\.
-  4. Check Documents\MultiVerse\logs\ for error details (not shown in transcript).
+  2. Confirm microphone is selected in WindowVerse Settings → Microphone.
+  3. Confirm Bible DB path exists under Documents\WindowVerse\data\.
+  4. Check Documents\WindowVerse\logs\ for error details (not shown in transcript).
 
 ================================================================================
