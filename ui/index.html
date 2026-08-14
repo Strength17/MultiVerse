@@ -120,6 +120,9 @@ body {
   display: flex; flex-direction: column; min-height: 0; min-width: 160px;
   overflow: hidden; position: relative; flex: 1 1 0;
 }
+/* The broadcast column is the one the operator actually reads from, so it
+   starts wider than the two feed columns (still drag-resizable). */
+.col[data-col="stage"] { flex: 1.6 1 0; min-width: 320px; }
 .col-resize-handle {
   position: absolute; top: 0; right: -3px; bottom: 0; width: 6px;
   cursor: col-resize; z-index: 5; touch-action: none;
@@ -214,15 +217,26 @@ body {
 .stage {
   flex: 1 1 0; min-height: 280px; height: 100%; max-height: 100%;
   background: #000000;
-  display: flex; align-items: center; justify-content: center;
+  display: flex; align-items: center;
+  /* "safe" keeps the top of an over-long verse reachable instead of
+     centring it out of the scroll range. */
+  justify-content: center; justify-content: safe center;
   flex-direction: column; padding: 4% 5%; text-align: center;
   border-radius: 10px; border: 1px solid rgba(255,255,255,0.08);
-  backdrop-filter: blur(8px); overflow: hidden;
+  backdrop-filter: blur(8px); overflow-y: auto; overflow-x: hidden;
+  scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.28) transparent;
   background-size: cover; background-position: center;
 }
+.stage::-webkit-scrollbar { width: 10px; }
+.stage::-webkit-scrollbar-track { background: transparent; }
+.stage::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.28); border-radius: 6px;
+  border: 3px solid transparent; background-clip: content-box;
+}
+.stage::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.45); background-clip: content-box; }
 .stage-content {
   width: 100%; max-width: 100%; display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 0;
+  align-items: center; justify-content: center; gap: 0; flex-shrink: 0;
 }
 .stage.theme-light { background-color: rgba(255,255,255,0.94); color: #141418; }
 .stage.theme-light .stage-ref { color: #141418; text-shadow: none; }
@@ -498,7 +512,7 @@ body {
 .mic-progress-bar { height: 100%; width: 0%; background: linear-gradient(90deg, var(--gold), var(--green)); transition: width .25s; }
 
 /* ── Manual reference bar + preview strip (Live Output) ─────────────── */
-.ref-bar { display: flex; gap: 6px; padding: 8px 16px 0; flex-shrink: 0; }
+.ref-bar { display: flex; gap: 6px; padding: 8px 14px 2px; flex-shrink: 0; }
 .ref-bar input {
   background: var(--panel-alt); border: 1px solid var(--line); border-radius: 6px;
   color: var(--ink); font-size: 12px; padding: 6px 8px; min-width: 0;
@@ -512,9 +526,14 @@ body {
   background: rgba(217,164,65,0.06); flex-shrink: 0;
 }
 .preview-strip.empty { opacity: .5; border-style: dashed; }
+.preview-strip.on-air {
+  border-style: solid; border-color: rgba(224,90,78,0.75);
+  background: rgba(224,90,78,0.12); opacity: 1;
+}
 .preview-tag {
   font-size: 9px; letter-spacing: .12em; color: #d9a441; font-weight: 700; flex-shrink: 0;
 }
+.preview-strip.on-air .preview-tag { color: var(--red); }
 .preview-body {
   flex: 1; min-width: 0; font-size: 11.5px; color: var(--ink);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -608,7 +627,7 @@ body {
   <button class="btn small" id="menuToggle" title="Toggle menu">☰</button>
   <span class="header-log-dot" id="headerLogDot" title="Errors logged — open Logs"></span>
   <img class="app-logo" src="logo.png" alt="" width="34" height="34">
-  <div class="wordmark">Multi<em>Verse</em></div>
+  <div class="wordmark">Window<em>Verse</em></div>
   <div class="service-pill">Service <b>Live Sermon</b></div>
   <span class="version-pill" id="versionPill">NKJV</span>
   <div class="header-spacer"></div>
@@ -669,17 +688,8 @@ body {
       </div>
       <div class="stage-status"><span class="dot" id="liveDot"></span><span id="liveTxt">standby</span></div>
     </div>
-    <div class="ref-bar" id="refBar">
-      <input class="ref-book" id="refBook" list="bookOptions" placeholder="Book" autocomplete="off">
-      <datalist id="bookOptions"></datalist>
-      <input class="ref-num" id="refChapter" type="number" min="1" placeholder="Ch">
-      <input class="ref-num" id="refVerse" type="number" min="1" placeholder="V">
-      <button class="btn small" id="refGoBtn" title="Preview this reference (Ctrl+G to focus)">Go</button>
-      <button class="btn small" id="navPrevBtn" title="Previous verse (↑)">◀</button>
-      <button class="btn small" id="navNextBtn" title="Next verse (↓)">▶</button>
-    </div>
     <div class="preview-strip" id="previewStrip">
-      <div class="preview-tag">PREVIEW</div>
+      <div class="preview-tag" id="previewTag">PREVIEW</div>
       <div class="preview-body" id="previewBody">Nothing staged</div>
       <button class="btn start small" id="broadcastBtn" title="Broadcast preview (Ctrl+Enter)">▶ Broadcast</button>
     </div>
@@ -699,6 +709,15 @@ body {
 <div class="live-bottom-dock" id="liveBottomDock">
   <div class="dock-section dock-search">
     <div class="dock-hdr">Search</div>
+    <div class="ref-bar" id="refBar">
+      <input class="ref-book" id="refBook" list="bookOptions" placeholder="Book" autocomplete="off">
+      <datalist id="bookOptions"></datalist>
+      <input class="ref-num" id="refChapter" type="number" min="1" placeholder="Ch">
+      <input class="ref-num" id="refVerse" type="number" min="1" placeholder="V">
+      <button class="btn small" id="refGoBtn" title="Preview this reference (Ctrl+G to focus)">Go</button>
+      <button class="btn small" id="navPrevBtn" title="Previous verse (↑)">◀</button>
+      <button class="btn small" id="navNextBtn" title="Next verse (↓)">▶</button>
+    </div>
     <div class="search-toolbar">
       <select id="searchTestament" title="Search scope">
         <option value="all">All Bible</option>
@@ -1010,6 +1029,7 @@ const liveBottomDock=$("liveBottomDock");
 const refBook=$("refBook"), refChapter=$("refChapter"), refVerse=$("refVerse");
 const refGoBtn=$("refGoBtn"), navPrevBtn=$("navPrevBtn"), navNextBtn=$("navNextBtn");
 const previewStrip=$("previewStrip"), previewBody=$("previewBody"), broadcastBtn=$("broadcastBtn");
+const previewTag=$("previewTag");
 const bookOptions=$("bookOptions");
 const browserBooks=$("browserBooks"), browserChapters=$("browserChapters");
 const browserVerses=$("browserVerses"), browserVersesHdr=$("browserVersesHdr");
@@ -1371,6 +1391,10 @@ let displaySettings = {
 let backgroundImages = [];
 let userPressedStart = false;
 
+// Readability floors for the operator's stage box (col 3).
+const MIN_STAGE_BODY_PX = 20;
+const MIN_STAGE_REF_PX = 15;
+
 function estimateWrappedLines(text, charsPerLine) {
   if (!text || !text.trim()) return 0;
   const words = text.split(/\s+/);
@@ -1411,14 +1435,14 @@ function computeStageLayout(d) {
   const blockH = (n, px, lg) => n <= 0 ? 0 : n * px + Math.max(0, n - 1) * lg;
   for (let i = 0; i < 52; i++) {
     const cpl = Math.max(12, Math.floor(availW / Math.max(8, body * 0.52)));
-    ref = Math.max(13, body * 0.62 * rs);
+    ref = Math.max(MIN_STAGE_REF_PX, body * 0.62 * rs);
     lineGap = Math.max(3, body * 0.30);
     blockGap = Math.max(6, body * 0.40);
     const pLines = estimateWrappedLines(pFull, cpl);
     const sLines = sFull ? estimateWrappedLines(sFull, cpl) : 0;
     let total = ref + blockGap + blockH(pLines, body, lineGap);
     if (sLines) total += blockGap + blockH(sLines, body, lineGap);
-    if (total > availH) body = Math.max(11, body * 0.905);
+    if (total > availH) body = Math.max(MIN_STAGE_BODY_PX, body * 0.905);
     else if (total < availH * 0.86 && body < boxH * 0.12) body *= 1.05;
     else break;
   }
@@ -1426,6 +1450,8 @@ function computeStageLayout(d) {
   return { ref, body, lh, pFull, sFull };
 }
 
+// Shrinking stops at a size the operator can still read; anything longer
+// than that scrolls in the stage box instead of turning into fine print.
 function shrinkStageUntilFits() {
   const content = stage.querySelector(".stage-content");
   if (!content) return;
@@ -1433,10 +1459,15 @@ function shrinkStageUntilFits() {
     const overH = content.scrollHeight > stage.clientHeight + 2;
     const overW = content.scrollWidth > stage.clientWidth + 2;
     if (!overH && !overW) break;
+    let shrank = false;
     content.querySelectorAll(".stage-ref, .stage-text, .stage-secondary").forEach(el => {
+      const floor = el.classList.contains("stage-ref") ? MIN_STAGE_REF_PX : MIN_STAGE_BODY_PX;
       const px = parseFloat(getComputedStyle(el).fontSize) || 16;
-      el.style.fontSize = Math.max(10, px * 0.93) + "px";
+      if (px <= floor) return;
+      el.style.fontSize = Math.max(floor, px * 0.93) + "px";
+      shrank = true;
     });
+    if (!shrank) break;
   }
 }
 
@@ -1510,9 +1541,12 @@ function clearStage() {
 // broadcastFromPreview(); everything else only stages.
 let previewVerse = null;
 let broadcastVerse = null;
+let browserPreviewVerse = null;
 let isOnAir = false;
 
-function displayToPreview(d) {
+// Any click that stages a verse tells the server too, so the server's
+// nav_state and the operator's screen can't disagree about what is staged.
+function displayToPreview(d, { notifyServer = true } = {}) {
   if (!d) return;
   previewVerse = d;
   renderPreview(d);
@@ -1520,30 +1554,49 @@ function displayToPreview(d) {
   refBook.value = d.book || "";
   refChapter.value = d.chapter || "";
   refVerse.value = d.verse || "";
+  if (notifyServer) wsSend({ action: "stage_preview", verse: d });
 }
 
 function renderPreview(d) {
+  previewStrip.classList.remove("on-air");
+  if (previewTag) previewTag.textContent = "PREVIEW";
   if (!d) {
     previewVerse = null;
     previewStrip.classList.add("empty");
     previewBody.textContent = "Nothing staged";
     return;
   }
+  previewVerse = d;
   previewStrip.classList.remove("empty");
   previewBody.innerHTML = `<b>${d.book} ${d.chapter}:${d.verse}</b>${(d.text || "").slice(0, 220)}`;
 }
 
+// Broadcast follows what the operator can actually see: the preview strip
+// first, then the Scripture Browser's preview pane, then the highlighted
+// browser row.
+function currentBroadcastCandidate() {
+  return previewVerse || browserPreviewVerse || null;
+}
+
 function broadcastFromPreview(d) {
-  const verse = d || previewVerse;
+  const verse = d || currentBroadcastCandidate();
   if (!verse) { showToast("Nothing in preview to broadcast"); return; }
   wsSend({ action: "broadcast_verse", verse });
+  // The projector is where the congregation sees it — no point broadcasting
+  // into a window that was never opened.
+  if (!projectorWin || projectorWin.closed) openProjector();
 }
 
 function markOnAir(d) {
   broadcastVerse = d;
   isOnAir = true;
   previewVerse = null;
-  renderPreview(null);
+  renderPreview(d);
+  previewStrip.classList.remove("empty");
+  previewStrip.classList.add("on-air");
+  if (previewTag) previewTag.textContent = "ON AIR";
+  previewVerse = null;
+  renderBrowserPreview(d);
   sendToStage(d);
 }
 
@@ -1945,7 +1998,9 @@ function applyNavState(msg) {
   if (browserPrevBtn) browserPrevBtn.disabled = !msg.has_prev;
   if (browserNextBtn) browserNextBtn.disabled = !msg.has_next;
   isOnAir = !!msg.on_air;
-  if (!msg.preview) renderPreview(null);
+  // nav_state is a status echo, not a command: it must never wipe what the
+  // operator staged. Only preview_cleared empties the strip.
+  if (msg.preview) renderPreview(msg.preview);
 }
 ["dispTheme","dispFont","dispBold","dispItalic","dispSecItalic","dispBorder","dispTextScale","dispRefScale","dispBgMode","dispBgImage"].forEach(id => {
   const el = $(id);
@@ -2174,6 +2229,7 @@ function renderBrowserVerseList(verses) {
 }
 
 function renderBrowserPreview(d) {
+  browserPreviewVerse = d || null;
   if (!browserPreview) return;
   if (!d) {
     browserPreview.innerHTML = `<div class="browser-empty">Select a verse to preview it here</div>`;
@@ -2573,7 +2629,7 @@ function onWsMessage({ data }) {
       else showToast("No confident match found for that phrase");
       break;
     case "preview_verse":
-      displayToPreview(msg);
+      displayToPreview(msg, { notifyServer: false });
       break;
     case "broadcast_verse":
       markOnAir(msg);

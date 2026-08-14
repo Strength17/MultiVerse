@@ -11,8 +11,15 @@ COMMANDS = [
     ("Next verse, please.", "next"),
     ("next", "next"),
     ("go to the next verse", "next"),
+    ("continue", "next"),
+    ("carry on to the next verse", "next"),
+    ("forward one verse", "next"),
     ("previous verse", "prev"),
     ("go back one verse", "prev"),
+    ("back", "prev"),
+    ("go back", "prev"),
+    ("last verse", "prev"),
+    ("the verse before that", "prev"),
     ("read that again", "repeat"),
     ("repeat the verse", "repeat"),
     ("clear the screen", "clear"),
@@ -71,7 +78,8 @@ def main() -> None:
     # Bare next/prev need something on screen to step from.
     parser = fresh()
     assert parser.parse("next", {"now": clock, "finalized": True, "has_verse": False}) is None
-    print("OK: bare 'next' ignored with nothing on air")
+    assert parser.parse("back", {"now": clock + 5, "finalized": True, "has_verse": False}) is None
+    print("OK: bare 'next'/'back' ignored with nothing on air")
 
     # Interim (non-finalized) text never commands.
     parser = fresh()

@@ -1275,6 +1275,14 @@ class WindowVerseServer:
         elif action == "navigate_verse":
             direction = 1 if int(msg.get("direction", 1)) >= 0 else -1
             await self._navigate(direction, auto_broadcast=msg.get("broadcast"))
+        elif action == "stage_preview":
+            # The operator clicked a verse somewhere in the UI. The server
+            # has to know about it too, otherwise the next nav_state (which
+            # carries the server's idea of the preview) wipes it and
+            # Broadcast has nothing to send.
+            verse = msg.get("verse")
+            if verse:
+                await self._stage_preview(verse, source=verse.get("source") or "manual")
         elif action == "broadcast_verse":
             event = msg.get("verse") or self._preview
             if not event:

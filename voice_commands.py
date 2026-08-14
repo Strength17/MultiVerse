@@ -42,11 +42,17 @@ _PHRASES: list[tuple[str, str, float]] = [
     (INTENT_NEXT, r"next one(?: please)?", 0.9),
     (INTENT_NEXT, r"(?:scroll|move|go) (?:on |ahead )?(?:to the )?next", 0.9),
     (INTENT_NEXT, r"verse after (?:that|this)", 0.9),
+    (INTENT_NEXT, r"continue(?: reading| please)?", 0.85),
+    (INTENT_NEXT, r"(?:go |carry )?on(?: to the next)?(?: verse)", 0.85),
+    (INTENT_NEXT, r"forward(?: one)?(?: verse)?", 0.8),
     (INTENT_NEXT, r"next", 0.6),
     (INTENT_PREV, r"(?:go (?:to )?(?:the )?)?previous verse(?: please)?", 0.95),
     (INTENT_PREV, r"(?:verse )?before (?:that|this)", 0.9),
     (INTENT_PREV, r"(?:go |move )?back (?:one|a) verse", 0.95),
     (INTENT_PREV, r"(?:go|move) back", 0.75),
+    (INTENT_PREV, r"(?:go |take us )?back(?: please)?", 0.75),
+    (INTENT_PREV, r"(?:the )?(?:verse|one) before(?: that| this)?", 0.9),
+    (INTENT_PREV, r"(?:last|previous) verse(?: please)?", 0.95),
     (INTENT_PREV, r"previous(?: one)?", 0.7),
     (INTENT_REPEAT, r"(?:say|read) (?:that|it) again", 0.9),
     (INTENT_REPEAT, r"repeat (?:that|the verse|it)", 0.9),
@@ -69,7 +75,7 @@ _PUNCT_STRIP = re.compile(r"[^a-z0-9' ]+")
 
 # A bare "next"/"back" is only trusted when it stands alone as the whole
 # utterance — never as the tail of a longer sentence.
-_BARE_INTENTS = {INTENT_NEXT: "next", INTENT_PREV: "previous"}
+_BARE_INTENTS = {INTENT_NEXT: "next", INTENT_PREV: "back"}
 
 
 @dataclass
