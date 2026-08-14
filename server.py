@@ -20,11 +20,20 @@ WebSocket messages to UI:
   status             — booting/ready/starting/listening/stopped/error/idle_paused
   speech_started     — instant VAD trigger, before transcription finishes
   transcript_partial — every spoken chunk (feeds left panel)
-  detection          — verse detection (auto_display true/false)
+  detection          — verse detection from live speech (Suggestions only)
+  preview_verse      — verse staged for the operator, NOT on air
+  broadcast_verse    — verse pushed on air (stage + projector + NDI)
+  nav_state          — canonical position + whether next/prev exist
+  voice_command      — a spoken navigation command was acted on
+  bible_structure /
+  chapter_verses /
+  browser_results    — Scripture Browser data
   heartbeat          — periodic alive ping
 
 WebSocket actions from UI:
-  start_mic / stop / manual_search
+  start_mic / stop / manual_search / search_verse
+  get_bible_structure / get_chapter / lookup_reference / navigate_verse
+  broadcast_verse / clear_broadcast / load_search_results / set_voice_nav
 """
 
 from __future__ import annotations
@@ -54,6 +63,8 @@ from verse_display import (
 )
 from audio_devices import list_input_devices, set_default_input_device
 from error_catalog import log_entry
+from verse_navigation import VerseNavigator, VerseRef, parse_reference
+from voice_commands import VoiceCommandParser
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 def _configure_logging():
@@ -218,8 +229,16 @@ class WindowVerseServer:
         self._opacity = 1.0
         self._active_theme = "Selah"
         self._broadcast_mode = "off"
-        self._verse_queue: list[dict] = []
-        self._queue_position = -1
+
+        # ── Preview / broadcast split ────────────────────────────────────
+        # _preview is what the operator is looking at; _last_displayed is
+        # what the congregation is looking at. Navigation steps from the
+        # preview when there is one, so arrowing through a chapter never
+        # changes the screen until Broadcast.
+        self.navigator: VerseNavigator | None = None
+        self._preview: dict | None = None
+        self._nav_ref: VerseRef | None = None
+        self._voice_parser = VoiceCommandParser()
 
         # Detection (regex + semantic embedding + narrative tracking) runs
         # here, off the main event loop. A single worker keeps chunks
@@ -292,6 +311,9 @@ class WindowVerseServer:
             )
             raise
         self._report_startup("bible_db", "Loading Bible database", "done")
+        self.navigator = VerseNavigator(
+            self.bible_db, wrap_books=self._detection_user.voice_nav_wrap_books,
+        )
 
         self._report_startup("detection", "Initializing detection engine", "running")
         self.orchestrator = DetectionOrchestrator(
@@ -481,6 +503,15 @@ class WindowVerseServer:
         # whenever it's ready -- "coming back below" the transcript instead
         # of blocking it. Detection matches against corrected_text (so
         # "book of John chapter 4 verse 24" still resolves), never raw_text.
+
+        # ── Spoken navigation, checked BEFORE detection ───────────────────
+        # "next verse" isn't a verse quote; if it were fed to detection it
+        # would either match nothing or, worse, semantically match some
+        # unrelated passage. Handled and consumed here when it's clearly a
+        # command (see voice_commands.py for the false-positive rules).
+        if await self._maybe_handle_voice_command(corrected_text, now):
+            return
+
         latency_ms = (chunk_result.end_ts - chunk_result.start_ts) * 1000
         asyncio.ensure_future(self._run_detection_background(
             corrected_text, latency_ms, chunk_result.start_ts, chunk_result.end_ts, now
@@ -628,8 +659,14 @@ class WindowVerseServer:
 
     async def _handle_detection(self, event: dict, now: float):
         """Apply cooldown logic, then broadcast. Terminal print already done
-        inside detect() — this is WebSocket-only."""
-        source  = event.get("source", "semantic")
+        inside detect() — this is WebSocket-only.
+
+        Speech detections are the ONLY thing that lands in the UI's
+        Suggestions column (type "detection"). Whether the verse also goes
+        on air is a user setting: on by default, matching the behaviour
+        operators are used to, but switchable to preview-first."""
+        source  = event.get("source") or "semantic"
+        event["source"] = source
         min_gap = AUTO_DISPLAY_COOLDOWN.get(source, AUTO_DISPLAY_COOLDOWN["semantic"])
 
         # Secondary-language lookup: English primary + optional French below.
@@ -646,15 +683,177 @@ class WindowVerseServer:
             await self._broadcast({"type": "detection", **event, "auto_display": False})
             return
 
-        self._last_display_at = now
-        self._last_displayed  = event
         # Terminal JSONL already printed in orchestrator.detect() — no double-print here.
-        await self._broadcast({"type": "detection", **event, "auto_display": True})
+        auto = bool(self._detection_user.transcript_auto_broadcast)
+        await self._broadcast({"type": "detection", **event, "auto_display": auto})
+        if auto:
+            self._last_display_at = now
+            await self._go_on_air(event)
+        else:
+            await self._stage_preview(event)
 
+    def _reference_results(self, query: str) -> list[dict] | None:
+        """A typed reference ("John 3:16", "1 Cor 13") answers itself — the
+        semantic index is only for phrase searches. Returns None when the
+        query isn't a reference so the caller falls through to search."""
+        if not self.navigator:
+            return None
+        parsed = parse_reference(query)
+        if parsed is None:
+            return None
+        book_number, chapter, verse = parsed
+        if verse is None:
+            verses = self.navigator.chapter_verses(book_number, chapter)
+            return [self._attach_secondary_text(v) for v in verses] or None
+        ref = self.navigator.resolve_ref(book_number, chapter, verse)
+        if ref is None:
+            return None
+        event = self.navigator.verse_event(ref, source="reference")
+        return [self._attach_secondary_text(event)] if event else None
+
+    # ── Spoken navigation ────────────────────────────────────────────────────
+    async def _maybe_handle_voice_command(self, text: str, now: float) -> bool:
+        """Returns True when *text* was a navigation command and has been
+        acted on — the caller then skips verse detection for that chunk."""
+        if not self._detection_user.voice_nav_enabled or not self._mic_listening:
+            return False
+        if self._detection_user.voice_nav_respects_story_mode and self._narrative_is_active():
+            return False
+        command = self._voice_parser.parse(text, {
+            "now": now,
+            "finalized": True,
+            "has_verse": bool(self._preview or self._last_displayed),
+        })
+        if command is None:
+            return False
+
+        logger.info("Voice command: %s (%.2f) from %r",
+                    command.intent, command.confidence, command.matched_phrase)
+        await self._broadcast({
+            "type": "voice_command",
+            "intent": command.intent,
+            "confidence": command.confidence,
+            "matched_phrase": command.matched_phrase,
+        })
+        auto = bool(self._detection_user.voice_nav_auto_broadcast)
+        if command.intent == "next":
+            await self._navigate(1, auto_broadcast=auto)
+        elif command.intent == "prev":
+            await self._navigate(-1, auto_broadcast=auto)
+        elif command.intent == "repeat":
+            await self._go_on_air(self._last_displayed or self._preview)
+        elif command.intent == "clear":
+            await self._clear_broadcast()
+        elif command.intent == "broadcast":
+            await self._go_on_air(self._preview or self._last_displayed)
+        return True
+
+    def _narrative_is_active(self) -> bool:
+        """True while the narrative tracker is following a story — spoken
+        'next' during story mode belongs to the story, not the operator."""
+        tracker = self.narrative_tracker
+        return bool(tracker and tracker.state.passage is not None)
+
+    # ── Preview / broadcast pipeline ─────────────────────────────────────────
+    def _ref_from_event(self, event: dict | None) -> VerseRef | None:
+        if not event or not self.navigator:
+            return None
+        return self.navigator.resolve_ref(
+            event.get("book_number") or event.get("book"),
+            event.get("chapter"), event.get("verse"),
+        )
+
+    def _nav_state_payload(self) -> dict:
+        ref = self._nav_ref
+        payload: dict = {
+            "type": "nav_state",
+            "reference": ref.to_dict() if ref else None,
+            "has_next": False,
+            "has_prev": False,
+            "on_air": bool(self._last_displayed) and self._on_air,
+            "preview": self._preview,
+        }
+        if ref and self.navigator:
+            payload["has_next"] = self.navigator.next_verse(ref) is not None
+            payload["has_prev"] = self.navigator.prev_verse(ref) is not None
+        return payload
+
+    async def _stage_preview(self, event: dict | None, source: str | None = None):
+        """Show a verse to the operator only — no stage, no NDI, no projector."""
+        if not event:
+            return
+        event = dict(event)
+        if source:
+            event["source"] = source
+        event.setdefault("triggered", True)
+        event = self._attach_secondary_text(event)
+        self._preview = event
+        self._nav_ref = self._ref_from_event(event) or self._nav_ref
+        await self._broadcast({"type": "preview_verse", **event})
+        await self._broadcast(self._nav_state_payload())
+
+    async def _go_on_air(self, event: dict | None):
+        """Push a verse to stage, projector and NDI. Everything that ends up
+        in front of the congregation goes through here."""
+        if not event:
+            return
+        event = self._attach_secondary_text(dict(event))
+        self._last_displayed = event
+        self._last_display_at = time.time()
+        self._on_air = True
+        # The preview has been "taken" — clearing it means the arrows now
+        # follow what's on air instead of a stale staged verse.
+        self._preview = None
+        self._nav_ref = self._ref_from_event(event) or self._nav_ref
+        await self._broadcast({"type": "broadcast_verse", **event})
         try:
             self._push_ndi(event)
         except Exception:
             logger.exception("NDI update failed — display pipeline unaffected")
+        await self._broadcast(self._nav_state_payload())
+
+    async def _clear_broadcast(self):
+        self._on_air = False
+        self._last_displayed = None
+        await self._broadcast({"type": "broadcast_state", "on_air": False})
+        try:
+            self.ndi_sender.clear()
+            self._ndi_broadcasting = False
+        except Exception:
+            logger.exception("NDI clear failed")
+        await self._broadcast(self._nav_state_payload())
+
+    async def _navigate(self, direction: int, *, auto_broadcast: bool | None = None):
+        """Step one verse from the current position (preview first, then
+        whatever is on air). Stops at the ends of the canon unless the user
+        has asked navigation to wrap."""
+        if not self.navigator:
+            return
+        ref = self._nav_ref or self._ref_from_event(self._preview) or self._ref_from_event(self._last_displayed)
+        if ref is None:
+            await self._emit_system_log(
+                "generic", "Nothing to navigate from — pick a verse first.",
+            )
+            return
+        target = self.navigator.navigate(ref, direction)
+        if target is None:
+            await self._emit_system_log(
+                "generic",
+                "End of the Bible reached — navigation stops at Genesis 1:1 / Revelation 22:21.",
+            )
+            return
+        event = self.navigator.verse_event(target, source="navigation")
+        if not event:
+            return
+        self._nav_ref = target
+        if auto_broadcast is None:
+            # Nothing staged and something already on air => the operator is
+            # walking the live verse forward, so keep the screen following.
+            auto_broadcast = bool(self._last_displayed) and self._preview is None
+        if auto_broadcast:
+            await self._go_on_air(event)
+        else:
+            await self._stage_preview(event)
 
     def _push_ndi(self, event: dict):
         if not self._display.ndi_output_enabled:
@@ -920,6 +1119,9 @@ class WindowVerseServer:
                 "available": getattr(self.ndi_sender, "_available", False),
             }))
             await websocket.send(json.dumps(self._audio_devices_payload()))
+        # Sent even while still booting so the reference bar and arrows
+        # start out in a known (disabled) state instead of guessing.
+        await websocket.send(json.dumps(self._nav_state_payload()))
 
     async def handle_client(self, websocket):
         self._clients.add(websocket)
@@ -976,6 +1178,20 @@ class WindowVerseServer:
         elif action == "search_verse":
             query = msg.get("query", "")
             testament = msg.get("testament") or self._detection_user.clamped_search_testament()
+            # A typed reference answers itself; only phrases need the index.
+            direct = self._reference_results(query)
+            if direct is not None:
+                await websocket.send(json.dumps({
+                    "type": "search_results",
+                    "query": query,
+                    "testament": testament,
+                    "results": direct,
+                    "old_testament": [],
+                    "new_testament": [],
+                }))
+                if len(direct) == 1:
+                    await self._stage_preview(direct[0], source="reference")
+                return
             try:
                 grouped = await asyncio.to_thread(self._search_query_multi, query, testament)
                 for bucket in ("results", "old_testament", "new_testament"):
@@ -1006,6 +1222,111 @@ class WindowVerseServer:
                 "query": query,
                 "result": result,
             }))
+            # A manual search is the operator looking something up, not the
+            # preacher quoting it — it stages, it never goes straight on air.
+            if result:
+                await self._stage_preview(result, source="search")
+        elif action == "get_bible_structure":
+            testament = (msg.get("testament") or "all").lower()
+            books = self.navigator.list_books(testament) if self.navigator else []
+            await websocket.send(json.dumps({
+                "type": "bible_structure",
+                "testament": testament,
+                "books": books,
+            }))
+        elif action == "get_chapter":
+            if not self.navigator:
+                return
+            book_number = msg.get("book_number") or msg.get("book")
+            ref = self.navigator.resolve_ref(book_number, msg.get("chapter"))
+            if ref is None:
+                await self._emit_system_log(
+                    "generic", f"No chapter data for {book_number} {msg.get('chapter')}",
+                )
+                return
+            verses = await asyncio.to_thread(
+                self.navigator.chapter_verses, ref.book_number, ref.chapter,
+            )
+            await websocket.send(json.dumps({
+                "type": "chapter_verses",
+                "book_number": ref.book_number,
+                "book": ref.book,
+                "chapter": ref.chapter,
+                "chapters": self.navigator.list_chapters(ref.book_number),
+                "verses": verses,
+            }))
+        elif action == "lookup_reference":
+            if not self.navigator:
+                return
+            ref = self.navigator.resolve_ref(
+                msg.get("book"), msg.get("chapter"), msg.get("verse"),
+            )
+            if ref is None:
+                await self._emit_system_log(
+                    "generic",
+                    f"Could not find {msg.get('book')} {msg.get('chapter')}:{msg.get('verse')} "
+                    f"in {self._current_version} ({self._current_language}).",
+                )
+                return
+            event = self.navigator.verse_event(ref, source="manual")
+            await self._stage_preview(event)
+            if msg.get("broadcast"):
+                await self._go_on_air(event)
+        elif action == "navigate_verse":
+            direction = 1 if int(msg.get("direction", 1)) >= 0 else -1
+            await self._navigate(direction, auto_broadcast=msg.get("broadcast"))
+        elif action == "broadcast_verse":
+            event = msg.get("verse") or self._preview
+            if not event:
+                await self._emit_system_log("generic", "Nothing in preview to broadcast.")
+                return
+            await self._go_on_air(event)
+        elif action == "clear_broadcast":
+            await self._clear_broadcast()
+        elif action == "clear_preview":
+            self._preview = None
+            await self._broadcast({"type": "preview_cleared"})
+            await self._broadcast(self._nav_state_payload())
+        elif action == "load_search_results":
+            # Search → Scripture Browser handoff. The browser owns the list;
+            # a single result is staged for preview but still needs Broadcast.
+            query = msg.get("query", "")
+            testament = msg.get("testament") or self._detection_user.clamped_search_testament()
+            results = self._reference_results(query)
+            if results is None:
+                try:
+                    grouped = await asyncio.to_thread(self._search_query_multi, query, testament)
+                    results = [self._attach_secondary_text(hit) for hit in grouped.get("results") or []]
+                except Exception:
+                    logger.exception("Browser search failed for query %r", query)
+                    results = []
+            await websocket.send(json.dumps({
+                "type": "browser_results",
+                "query": query,
+                "testament": testament,
+                "results": results,
+            }))
+            if len(results) == 1:
+                await self._stage_preview(results[0], source="search")
+        elif action == "set_voice_nav":
+            from dataclasses import replace
+            from narrative_settings import save_detection_user
+
+            du = self._detection_user
+            for key in ("voice_nav_enabled", "voice_nav_auto_broadcast",
+                        "voice_nav_wrap_books", "voice_nav_respects_story_mode",
+                        "transcript_auto_broadcast"):
+                if key in msg:
+                    du = replace(du, **{key: bool(msg[key])})
+            self._detection_user = du
+            save_detection_user(self._detection_user_path, self._detection_user)
+            if self.navigator:
+                self.navigator.wrap_books = du.voice_nav_wrap_books
+            self._voice_parser.reset()
+            await self._broadcast({
+                "type": "detection_state",
+                "settings": self._detection_user.to_ui_dict(),
+            })
         elif action == "switch_version":
             await self._switch_version(
                 msg.get("version"), msg.get("language", "English"), websocket
@@ -1212,9 +1533,14 @@ class WindowVerseServer:
 
         self.orchestrator = new_orchestrator
         self.bible_db = db
+        self.navigator = VerseNavigator(
+            db, wrap_books=self._detection_user.voice_nav_wrap_books,
+        )
         self._current_version = version
         self._current_language = language
         self._last_displayed = None
+        self._preview = None
+        self._nav_ref = None
         self._last_display_at = 0.0
         logger.info("Switched active Bible version to %s / %s", version, language)
 
@@ -1232,15 +1558,14 @@ class WindowVerseServer:
 
     # ── OSC broadcast state ───────────────────────────────────────────────────
     def queue_advance(self, direction: int):
-        if not self._verse_queue:
+        """Thread-safe entry point for OSC /pew/next and /pew/prev — steps
+        the canonical navigator and pushes the result on air."""
+        loop = self._loop
+        if loop is None:
             return
-        self._queue_position = max(0, min(len(self._verse_queue) - 1,
-                                          self._queue_position + direction))
-        self._broadcast_threadsafe({
-            "type": "detection",
-            **self._verse_queue[self._queue_position],
-            "auto_display": True,
-        })
+        asyncio.run_coroutine_threadsafe(
+            self._navigate(1 if direction >= 0 else -1, auto_broadcast=True), loop,
+        )
 
     def set_on_air(self, value: bool):
         self._on_air = value

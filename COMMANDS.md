@@ -1,7 +1,42 @@
 # Window Verse — Command Cheat Sheet
 
-Quick reference for the Bible-DB schema detection workflow. Keep this
-handy so you don't have to remember flags.
+Quick reference for the operator shortcuts, voice commands and the
+Bible-DB schema detection workflow. Keep this handy so you don't have to
+remember flags.
+
+---
+
+## Keyboard shortcuts (Live Output)
+
+| Key | Action |
+|---|---|
+| `↓` | Next verse |
+| `↑` | Previous verse |
+| `Ctrl+Enter` | Broadcast whatever is in Preview |
+| `Escape` | Clear the preview |
+| `Ctrl+G` | Jump to the book/chapter/verse reference bar |
+
+Arrow keys are ignored while you're typing in a field, so the reference
+bar and search box behave normally.
+
+---
+
+## Voice navigation commands
+
+Off by default — turn on **Settings → Voice navigation**. Only acted on
+for finalised speech, never interim text, and only when a verse is
+already on air.
+
+| Say | Action |
+|---|---|
+| "next verse", "next" | Advance one verse |
+| "previous verse", "go back" | Back one verse |
+| "say that again", "repeat that" | Re-send the current verse |
+| "clear the screen", "hide that" | Clear the output |
+| "put it on screen", "show that" | Broadcast the preview |
+
+Anything containing a reference ("turn to John 3:16") is left to normal
+verse detection instead of being treated as a command.
 
 ---
 

@@ -259,7 +259,10 @@ def load_or_build_index(vector_engine, db_path: str | Path, cache_dir: str | Pat
         logger.info("Cached index loaded: %d verses", len(vector_engine._verse_lookup))
         return
 
-    logger.info("No valid cache found (hash=%s) — building fresh index", db_hash)
+    logger.info(
+        "No valid cache found (hash=%s) — building fresh index",
+        _file_hash(db_path),
+    )
     vector_engine.build_index(progress_callback=progress_callback)
 
     faiss.write_index(vector_engine._index, str(index_path))

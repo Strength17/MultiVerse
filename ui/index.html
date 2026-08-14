@@ -496,6 +496,84 @@ body {
 .mic-progress { height: 3px; background: var(--line); border-radius: 2px; overflow: hidden; margin-top: 8px; display: none; }
 .mic-progress.show { display: block; }
 .mic-progress-bar { height: 100%; width: 0%; background: linear-gradient(90deg, var(--gold), var(--green)); transition: width .25s; }
+
+/* ── Manual reference bar + preview strip (Live Output) ─────────────── */
+.ref-bar { display: flex; gap: 6px; padding: 8px 16px 0; flex-shrink: 0; }
+.ref-bar input {
+  background: var(--panel-alt); border: 1px solid var(--line); border-radius: 6px;
+  color: var(--ink); font-size: 12px; padding: 6px 8px; min-width: 0;
+}
+.ref-bar input:focus { outline: none; border-color: var(--gold); }
+.ref-book { flex: 1; }
+.ref-num { width: 52px; }
+.preview-strip {
+  display: flex; align-items: center; gap: 8px; margin: 8px 16px 0;
+  padding: 8px 10px; border: 1px dashed rgba(217,164,65,0.55); border-radius: 8px;
+  background: rgba(217,164,65,0.06); flex-shrink: 0;
+}
+.preview-strip.empty { opacity: .5; border-style: dashed; }
+.preview-tag {
+  font-size: 9px; letter-spacing: .12em; color: #d9a441; font-weight: 700; flex-shrink: 0;
+}
+.preview-body {
+  flex: 1; min-width: 0; font-size: 11.5px; color: var(--ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.preview-body b { font-family: var(--serif); color: #2b9bff; margin-right: 6px; }
+.preview-strip .btn { flex-shrink: 0; }
+
+/* ── Sub-tabs (Settings / More) ─────────────────────────────────────── */
+.subtabs { display: flex; gap: 6px; padding: 12px 20px 0; flex-shrink: 0; flex-wrap: wrap; }
+.subtab {
+  border: 1px solid var(--line); background: var(--panel-alt); color: var(--ink-60);
+  border-radius: 7px; padding: 6px 12px; font-size: 12px; cursor: pointer;
+}
+.subtab:hover { color: var(--ink); }
+.subtab.active { color: var(--gold); border-color: rgba(43,155,255,0.35); background: rgba(43,155,255,0.1); }
+.subview { display: none; }
+.subview.active { display: block; }
+.opt-row { display: flex; gap: 8px; align-items: flex-start; margin-top: 10px; font-size: 12.5px; cursor: pointer; }
+.opt-row small { color: var(--ink-40); font-size: 11px; }
+
+/* ── Scripture Browser ──────────────────────────────────────────────── */
+.browser { flex: 1; display: grid; grid-template-columns: 220px 150px 1fr 320px; gap: 1px; background: var(--line); min-height: 0; }
+.browser-col { background: var(--bg); display: flex; flex-direction: column; min-height: 0; padding: 12px; gap: 8px; }
+.browser-hdr { font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-40); }
+.browser-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+.browser-empty { color: var(--ink-40); font-size: 12px; padding: 8px 2px; }
+.browser-row {
+  padding: 6px 8px; border-radius: 6px; font-size: 12.5px; color: var(--ink-60);
+  cursor: pointer; border: 1px solid transparent;
+}
+.browser-row:hover { background: rgba(255,255,255,0.04); color: var(--ink); }
+.browser-row.active { color: var(--gold); border-color: rgba(43,155,255,0.35); background: rgba(43,155,255,0.1); }
+.browser-verse-num { font-family: var(--serif); color: #2b9bff; margin-right: 6px; }
+.chapter-grid { flex: 1; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(38px, 1fr)); gap: 4px; align-content: start; }
+.chapter-cell {
+  text-align: center; padding: 6px 0; border-radius: 6px; font-size: 12px;
+  border: 1px solid var(--line-soft); color: var(--ink-60); cursor: pointer;
+}
+.chapter-cell:hover { color: var(--ink); border-color: var(--ink-40); }
+.chapter-cell.active { color: var(--gold); border-color: rgba(43,155,255,0.35); background: rgba(43,155,255,0.1); }
+.preview-box {
+  flex: 1; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px;
+  padding: 14px; font-family: var(--serif); font-size: 15px; line-height: 1.6;
+}
+.preview-box .ref { color: #2b9bff; font-size: 13px; margin-bottom: 8px; }
+.preview-box .sec { color: var(--ink-60); font-style: italic; margin-top: 10px; }
+.preview-controls { display: flex; gap: 6px; }
+.preview-controls .btn.start { flex: 1; justify-content: center; }
+.seg { display: flex; gap: 4px; }
+.seg-btn {
+  flex: 1; border: 1px solid var(--line); background: var(--panel-alt); color: var(--ink-60);
+  border-radius: 6px; padding: 5px 0; font-size: 11.5px; cursor: pointer;
+}
+.seg-btn.active { color: var(--gold); border-color: rgba(43,155,255,0.35); background: rgba(43,155,255,0.1); }
+.search-more { font-size: 11px; color: var(--ink-60); padding: 6px 2px; }
+.search-open-browser {
+  font-size: 11.5px; color: var(--gold); cursor: pointer; padding: 6px 2px;
+}
+.search-open-browser:hover { text-decoration: underline; }
 </style>
 </head>
 <body>
@@ -508,13 +586,9 @@ body {
   <div class="sidebar-resizer" id="sidebarResizer" title="Drag to widen sidebar"></div>
   <div class="sidebar-hdr">Menu</div>
   <div class="nav-item active" data-view="live" title="Live"><span class="nav-icon">▣</span><span class="nav-label">Live</span></div>
-  <div class="nav-item" data-view="vmix" title="vMix / NDI"><span class="nav-icon">⛓</span><span class="nav-label">vMix / NDI</span></div>
-  <div class="nav-item" data-view="bible" title="Bible & Languages"><span class="nav-icon">📖</span><span class="nav-label">Bible & Languages</span></div>
-  <div class="nav-item" data-view="appearance" title="Appearance"><span class="nav-icon">✦</span><span class="nav-label">Appearance</span></div>
-  <div class="nav-item" data-view="mic" title="Microphone"><span class="nav-icon">🎙</span><span class="nav-label">Microphone</span></div>
-  <div class="nav-item" data-view="recall" title="Quick Recall"><span class="nav-icon">↺</span><span class="nav-label">Quick Recall</span></div>
-  <div class="nav-item" data-view="logs" id="navLogs" title="Logs"><span class="nav-icon">⚠</span><span class="nav-label">Logs</span><span class="nav-badge" id="logBadge" style="display:none">0</span></div>
-  <div class="nav-item" data-view="developer" title="Developer"><span class="nav-icon">{ }</span><span class="nav-label">Developer</span></div>
+  <div class="nav-item" data-view="scripture" title="Scripture Browser"><span class="nav-icon">📖</span><span class="nav-label">Scripture</span></div>
+  <div class="nav-item" data-view="settings" title="Settings"><span class="nav-icon">⚙</span><span class="nav-label">Settings</span></div>
+  <div class="nav-item" data-view="more" id="navLogs" title="More"><span class="nav-icon">⋯</span><span class="nav-label">More</span><span class="nav-badge" id="logBadge" style="display:none">0</span></div>
 </aside>
 
 <div class="workspace">
@@ -581,7 +655,7 @@ body {
     <div class="engine-body" id="engineBody">
       <div class="engine-empty" id="engineEmpty">
         <span class="spark">✦</span>
-        <p>Waiting for speech detection<br>Or search in the panel below</p>
+        <p>Waiting for speech detection<br>Verses detected from live speech appear here</p>
       </div>
     </div>
   </div>
@@ -594,6 +668,20 @@ body {
         <div><span class="col-label">Broadcast</span><span class="col-title">Live Output</span></div>
       </div>
       <div class="stage-status"><span class="dot" id="liveDot"></span><span id="liveTxt">standby</span></div>
+    </div>
+    <div class="ref-bar" id="refBar">
+      <input class="ref-book" id="refBook" list="bookOptions" placeholder="Book" autocomplete="off">
+      <datalist id="bookOptions"></datalist>
+      <input class="ref-num" id="refChapter" type="number" min="1" placeholder="Ch">
+      <input class="ref-num" id="refVerse" type="number" min="1" placeholder="V">
+      <button class="btn small" id="refGoBtn" title="Preview this reference (Ctrl+G to focus)">Go</button>
+      <button class="btn small" id="navPrevBtn" title="Previous verse (↑)">◀</button>
+      <button class="btn small" id="navNextBtn" title="Next verse (↓)">▶</button>
+    </div>
+    <div class="preview-strip" id="previewStrip">
+      <div class="preview-tag">PREVIEW</div>
+      <div class="preview-body" id="previewBody">Nothing staged</div>
+      <button class="btn start small" id="broadcastBtn" title="Broadcast preview (Ctrl+Enter)">▶ Broadcast</button>
     </div>
     <div class="stage-scroll">
       <div class="stage" id="stage">
@@ -634,27 +722,108 @@ body {
 </div><!-- live-workspace -->
 </div><!-- view-live -->
 
-<div class="view" id="view-vmix"><div class="side-scroll"><div class="vmix-panel" id="panel-vmix"></div></div></div>
-<div class="view" id="view-bible"><div class="side-scroll"><div class="vmix-panel" id="panel-bible"></div></div></div>
-<div class="view" id="view-appearance"><div class="side-scroll"><div class="vmix-panel" id="panel-appearance"></div></div></div>
-<div class="view" id="view-mic"><div class="side-scroll"><div class="vmix-panel" id="panel-mic"></div></div></div>
-<div class="view" id="view-recall"><div class="side-scroll">
-  <div class="vmix-steps">Recent verses are shown in the <b>Live</b> page bottom panel.<br><br>
-    <button class="btn small" id="gotoRecallBtn">Go to Recent Verses</button>
-  </div>
-</div></div>
-<div class="view" id="view-logs"><div class="side-scroll">
-  <div class="vmix-panel">
-    <div class="vmix-steps"><b>Logs & Diagnostics</b> — errors never appear in the transcript.
-      <div class="log-toolbar">
-        <button class="btn small" id="copyLogsBtn" title="Copy all logs">📋 Copy all</button>
-        <button class="btn small" id="clearLogsBtn">Clear</button>
+<!-- SCRIPTURE BROWSER -->
+<div class="view" id="view-scripture">
+  <div class="browser">
+    <div class="browser-col browser-books">
+      <div class="browser-hdr">Books</div>
+      <div class="seg" id="testamentSeg">
+        <button class="seg-btn active" data-testament="all">All</button>
+        <button class="seg-btn" data-testament="ot">OT</button>
+        <button class="seg-btn" data-testament="nt">NT</button>
+      </div>
+      <input class="search-input" id="browserBookFilter" placeholder="Filter books…">
+      <div class="browser-list" id="browserBooks"></div>
+    </div>
+    <div class="browser-col browser-chapters">
+      <div class="browser-hdr">Chapters</div>
+      <div class="chapter-grid" id="browserChapters"></div>
+    </div>
+    <div class="browser-col browser-verses">
+      <div class="browser-hdr" id="browserVersesHdr">Verses</div>
+      <div class="browser-list" id="browserVerses">
+        <div class="browser-empty">Pick a book and chapter</div>
       </div>
     </div>
-    <div class="log-feed" id="logFeed"></div>
+    <div class="browser-col browser-preview">
+      <div class="browser-hdr">Preview</div>
+      <div class="preview-box" id="browserPreview">
+        <div class="browser-empty">Select a verse to preview it here</div>
+      </div>
+      <div class="preview-controls">
+        <button class="btn small" id="browserPrevBtn" title="Previous verse">◀</button>
+        <button class="btn small" id="browserNextBtn" title="Next verse">▶</button>
+        <button class="btn start" id="browserBroadcastBtn">▶ Broadcast</button>
+      </div>
+    </div>
   </div>
-</div></div>
-<div class="view" id="view-developer"><div class="side-scroll"><div class="vmix-panel" id="panel-developer"></div></div></div>
+</div>
+
+<!-- SETTINGS (Output / Bible / Mic / Detection) -->
+<div class="view" id="view-settings">
+  <div class="subtabs" id="settingsTabs">
+    <button class="subtab active" data-sub="vmix">Output</button>
+    <button class="subtab" data-sub="bible">Bible</button>
+    <button class="subtab" data-sub="mic">Mic</button>
+    <button class="subtab" data-sub="detection">Detection &amp; Voice</button>
+  </div>
+  <div class="side-scroll">
+    <div class="subview active" id="sub-vmix">
+      <div class="vmix-panel" id="panel-vmix"></div>
+      <div class="vmix-panel" id="panel-appearance"></div>
+    </div>
+    <div class="subview" id="sub-bible"><div class="vmix-panel" id="panel-bible"></div></div>
+    <div class="subview" id="sub-mic"><div class="vmix-panel" id="panel-mic"></div></div>
+    <div class="subview" id="sub-detection">
+      <div class="vmix-panel">
+        <div class="vmix-steps"><b>Broadcast behaviour</b>
+          <label class="opt-row"><input type="checkbox" id="transcriptAutoBroadcast" checked>
+            <span>Put speech-detected verses straight on air<br>
+              <small>Off = detections only fill Preview; you press Broadcast.</small></span></label>
+        </div>
+        <div class="vmix-steps"><b>Voice navigation</b>
+          <label class="opt-row"><input type="checkbox" id="voiceNavEnabled">
+            <span>Listen for spoken commands<br>
+              <small>"next verse", "previous verse", "read that again", "clear the screen", "put it on screen". English only.</small></span></label>
+          <label class="opt-row"><input type="checkbox" id="voiceNavAutoBroadcast" checked>
+            <span>Spoken navigation goes straight on air</span></label>
+          <label class="opt-row"><input type="checkbox" id="voiceNavWrapBooks">
+            <span>Continue past the end of a book</span></label>
+          <label class="opt-row"><input type="checkbox" id="voiceNavRespectsStory" checked>
+            <span>Ignore spoken commands while story mode is tracking a passage</span></label>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MORE (Recall / Logs / Developer) -->
+<div class="view" id="view-more">
+  <div class="subtabs" id="moreTabs">
+    <button class="subtab active" data-sub="recall">Recent Verses</button>
+    <button class="subtab" data-sub="logs">Logs</button>
+    <button class="subtab" data-sub="developer">Developer</button>
+  </div>
+  <div class="side-scroll">
+    <div class="subview active" id="sub-recall">
+      <div class="vmix-steps">Recent verses are shown in the <b>Live</b> page bottom panel.<br><br>
+        <button class="btn small" id="gotoRecallBtn">Go to Recent Verses</button>
+      </div>
+    </div>
+    <div class="subview" id="sub-logs">
+      <div class="vmix-panel">
+        <div class="vmix-steps"><b>Logs & Diagnostics</b> — errors never appear in the transcript.
+          <div class="log-toolbar">
+            <button class="btn small" id="copyLogsBtn" title="Copy all logs">📋 Copy all</button>
+            <button class="btn small" id="clearLogsBtn">Clear</button>
+          </div>
+        </div>
+        <div class="log-feed" id="logFeed"></div>
+      </div>
+    </div>
+    <div class="subview" id="sub-developer"><div class="vmix-panel" id="panel-developer"></div></div>
+  </div>
+</div>
 
 </div><!-- workspace -->
 </div><!-- app-shell -->
@@ -838,6 +1007,15 @@ const startupProgressBar=$("startupProgressBar"), startupPct=$("startupPct");
 const startupMsgStage=$("startupMsgStage"), startupCurrentMsg=$("startupCurrentMsg");
 const micStatusPill=$("micStatusPill");
 const liveBottomDock=$("liveBottomDock");
+const refBook=$("refBook"), refChapter=$("refChapter"), refVerse=$("refVerse");
+const refGoBtn=$("refGoBtn"), navPrevBtn=$("navPrevBtn"), navNextBtn=$("navNextBtn");
+const previewStrip=$("previewStrip"), previewBody=$("previewBody"), broadcastBtn=$("broadcastBtn");
+const bookOptions=$("bookOptions");
+const browserBooks=$("browserBooks"), browserChapters=$("browserChapters");
+const browserVerses=$("browserVerses"), browserVersesHdr=$("browserVersesHdr");
+const browserPreview=$("browserPreview"), browserBookFilter=$("browserBookFilter");
+const browserPrevBtn=$("browserPrevBtn"), browserNextBtn=$("browserNextBtn");
+const browserBroadcastBtn=$("browserBroadcastBtn");
 const micRing=() => txEmpty.querySelector(".mic-ring");
 const micEmptyText=() => txEmpty.querySelector("p");
 const vmixWsDot=$("vmixWsDot"), vmixWsTxt=$("vmixWsTxt");
@@ -1154,7 +1332,11 @@ function saveTranscript() {
 saveBtn.onclick = saveTranscript;
 
 // ── Detection / Engine panel ──
-function renderDetection(d) {
+// Suggestions is a transcript-only column: the ONLY thing that puts a card
+// here is speech detection. Search, the Scripture Browser and manual
+// navigation all go to Preview instead, so a lookup mid-sermon never
+// pollutes the record of what was actually preached.
+function renderTranscriptDetection(d) {
   dets++;
   detCount.textContent = `${dets} detection${dets !== 1 ? "s" : ""}`;
   engineEmpty.style.display = "none";
@@ -1172,11 +1354,9 @@ function renderDetection(d) {
       ${d.latency_ms ? `<span class="meta-sep">·</span><span>${Math.round(d.latency_ms)}ms</span>` : ""}
       <span class="meta-sep">·</span><span>NKJV</span>
     </div>`;
-  card.onclick = () => sendToStage(d);
+  card.onclick = () => displayToPreview(d);
   engineBody.prepend(card);
   while (engineBody.childElementCount > 25) engineBody.removeChild(engineBody.lastChild);
-
-  if (d.auto_display) sendToStage(d);
   addToRecall(d);
 }
 
@@ -1311,11 +1491,61 @@ function sendToStage(d) {
   }
 }
 clearBtn.onclick = () => {
+  wsSend({ action: "clear_broadcast" });
+  clearStage();
+};
+
+function clearStage() {
+  broadcastVerse = null;
+  isOnAir = false;
+  lastStageVerse = null;
   stage.innerHTML = `<div class="stage-empty">No verse on air</div>`;
   liveDot.classList.remove("on");
   liveTxt.textContent = "standby";
   if (projectorWin && !projectorWin.closed) projectorWin.postMessage({ type: "clear" }, "*");
-};
+}
+
+// ── Preview → Broadcast ──
+// Nothing reaches the stage, the projector or NDI without going through
+// broadcastFromPreview(); everything else only stages.
+let previewVerse = null;
+let broadcastVerse = null;
+let isOnAir = false;
+
+function displayToPreview(d) {
+  if (!d) return;
+  previewVerse = d;
+  renderPreview(d);
+  renderBrowserPreview(d);
+  refBook.value = d.book || "";
+  refChapter.value = d.chapter || "";
+  refVerse.value = d.verse || "";
+}
+
+function renderPreview(d) {
+  if (!d) {
+    previewVerse = null;
+    previewStrip.classList.add("empty");
+    previewBody.textContent = "Nothing staged";
+    return;
+  }
+  previewStrip.classList.remove("empty");
+  previewBody.innerHTML = `<b>${d.book} ${d.chapter}:${d.verse}</b>${(d.text || "").slice(0, 220)}`;
+}
+
+function broadcastFromPreview(d) {
+  const verse = d || previewVerse;
+  if (!verse) { showToast("Nothing in preview to broadcast"); return; }
+  wsSend({ action: "broadcast_verse", verse });
+}
+
+function markOnAir(d) {
+  broadcastVerse = d;
+  isOnAir = true;
+  previewVerse = null;
+  renderPreview(null);
+  sendToStage(d);
+}
 
 // Opens a REAL separate OS window -- drag it onto the projector/second
 // display and fullscreen it (F11). Synced live via postMessage, so it
@@ -1388,7 +1618,7 @@ function addToRecall(d) {
   const row = document.createElement("div");
   row.className = "recall-item";
   row.innerHTML = `<span class="recall-ref">${d.book} ${d.chapter}:${d.verse}</span><span class="recall-snip">${d.text}</span>`;
-  row.onclick = () => sendToStage(d);
+  row.onclick = () => displayToPreview(d);
   recallFeed.prepend(row);
   while (recallFeed.childElementCount > 40) recallFeed.removeChild(recallFeed.lastChild);
 }
@@ -1558,12 +1788,17 @@ function sendDetectionSettings() {
   });
 }
 
+// Search is a lookup tool, not a broadcast trigger: it shows a handful of
+// matches inline, sends the rest to the Scripture Browser, and a click
+// only ever stages a verse for Preview.
+const SEARCH_INLINE_LIMIT = 3;
+let lastSearchQuery = "";
+
 function renderSearchResults(msg) {
   if (!searchResults) return;
   searchResults.innerHTML = "";
+  lastSearchQuery = msg.query || "";
   const all = msg.results || [];
-  const ot = msg.old_testament || [];
-  const nt = msg.new_testament || [];
   if (!all.length) {
     searchResults.appendChild(Object.assign(document.createElement("div"), {
       className: "search-empty",
@@ -1572,40 +1807,47 @@ function renderSearchResults(msg) {
     return;
   }
 
-  function addGroup(title, items) {
-    if (!items.length) return;
-    const hdr = document.createElement("div");
-    hdr.className = "search-group-hdr";
-    hdr.textContent = title;
-    searchResults.appendChild(hdr);
-    for (const hit of items) {
-      const row = document.createElement("div");
-      row.className = "search-hit";
-      const pct = Math.round((hit.confidence || 0) * 100);
-      const type = (hit.match_type || hit.source || "match").replace(/_/g, " ");
-      row.innerHTML = `
-        <div class="search-hit-ref">${hit.book} ${hit.chapter}:${hit.verse}</div>
-        <div class="search-hit-text">${hit.text || ""}</div>
-        <div class="search-hit-meta">${type}${pct ? ` · ${pct}%` : ""}</div>`;
-      row.onclick = () => {
-        const d = { ...hit, source: "search", auto_display: true };
-        renderDetection(d);
-        sendToStage(d);
-      };
-      searchResults.appendChild(row);
-    }
-  }
+  const count = document.createElement("div");
+  count.className = "search-group-hdr";
+  count.textContent = `${all.length} match${all.length !== 1 ? "es" : ""}`;
+  searchResults.appendChild(count);
 
-  const filt = (msg.testament || searchTestamentFilter || "all").toLowerCase();
-  if (filt === "ot") addGroup("Old Testament", ot.length ? ot : all);
-  else if (filt === "nt") addGroup("New Testament", nt.length ? nt : all);
-  else {
-    addGroup("Old Testament", ot);
-    addGroup("New Testament", nt);
+  for (const hit of all.slice(0, SEARCH_INLINE_LIMIT)) {
+    searchResults.appendChild(buildSearchRow(hit));
   }
+  if (all.length > SEARCH_INLINE_LIMIT) {
+    searchResults.appendChild(Object.assign(document.createElement("div"), {
+      className: "search-more",
+      textContent: `+${all.length - SEARCH_INLINE_LIMIT} more…`,
+    }));
+  }
+  const open = document.createElement("div");
+  open.className = "search-open-browser";
+  open.textContent = "Open all in Scripture Browser →";
+  open.onclick = () => openSearchInBrowser(msg.query || "", msg.testament);
+  searchResults.appendChild(open);
+}
 
-  const top = all[0];
-  if (top) renderDetection({ ...top, source: "search", auto_display: true });
+function buildSearchRow(hit) {
+  const row = document.createElement("div");
+  row.className = "search-hit";
+  const pct = Math.round((hit.confidence || 0) * 100);
+  const type = (hit.match_type || hit.source || "match").replace(/_/g, " ");
+  row.innerHTML = `
+    <div class="search-hit-ref">${hit.book} ${hit.chapter}:${hit.verse}</div>
+    <div class="search-hit-text">${hit.text || ""}</div>
+    <div class="search-hit-meta">${type}${pct ? ` · ${pct}%` : ""}</div>`;
+  row.onclick = () => displayToPreview({ ...hit, source: "search" });
+  return row;
+}
+
+function openSearchInBrowser(query, testament) {
+  showView("scripture");
+  wsSend({
+    action: "load_search_results",
+    query: query || lastSearchQuery,
+    testament: testament || searchTestamentFilter || "all",
+  });
 }
 
 function updateNarrativeSensitivityUI(level) {
@@ -1671,6 +1913,39 @@ function applyDetectionState(msg) {
   if (typeof msg.settings.silence_save_seconds === "number") {
     updateSilenceSaveUI(msg.settings.silence_save_seconds, msg.settings.silence_save_preset);
   }
+  for (const [id, key] of Object.entries(VOICE_TOGGLES)) {
+    if (typeof msg.settings[key] === "boolean" && $(id)) $(id).checked = msg.settings[key];
+  }
+}
+
+// Detection & voice toggles are persisted server-side, so the UI only
+// mirrors them: change → send → the server echoes detection_state back.
+const VOICE_TOGGLES = {
+  transcriptAutoBroadcast: "transcript_auto_broadcast",
+  voiceNavEnabled: "voice_nav_enabled",
+  voiceNavAutoBroadcast: "voice_nav_auto_broadcast",
+  voiceNavWrapBooks: "voice_nav_wrap_books",
+  voiceNavRespectsStory: "voice_nav_respects_story_mode",
+};
+Object.entries(VOICE_TOGGLES).forEach(([id, key]) => {
+  const el = $(id);
+  if (!el) return;
+  el.onchange = () => wsSend({ action: "set_voice_nav", [key]: el.checked });
+});
+
+function applyNavState(msg) {
+  const ref = msg.reference;
+  if (ref && document.activeElement !== refBook) {
+    refBook.value = ref.book || "";
+    refChapter.value = ref.chapter || "";
+    refVerse.value = ref.verse || "";
+  }
+  if (navPrevBtn) navPrevBtn.disabled = !msg.has_prev;
+  if (navNextBtn) navNextBtn.disabled = !msg.has_next;
+  if (browserPrevBtn) browserPrevBtn.disabled = !msg.has_prev;
+  if (browserNextBtn) browserNextBtn.disabled = !msg.has_next;
+  isOnAir = !!msg.on_air;
+  if (!msg.preview) renderPreview(null);
 }
 ["dispTheme","dispFont","dispBold","dispItalic","dispSecItalic","dispBorder","dispTextScale","dispRefScale","dispBgMode","dispBgImage"].forEach(id => {
   const el = $(id);
@@ -1795,21 +2070,207 @@ function mountSidePanels() {
       });
       dev.appendChild(wrap);
     }
+    // Story narration + search/transcript tuning belong with the other
+    // detection controls, otherwise they'd stay orphaned in the legacy tab.
+    const detection = $("sub-detection")?.querySelector(".vmix-panel");
+    if (detection) {
+      settingsPanel.querySelectorAll("details.settings-advanced").forEach(el => {
+        if (el.querySelector("#narrativeSensitivity") || el.querySelector("#settingsSearchTestament")) {
+          detection.appendChild(el);
+        }
+      });
+    }
   }
 }
 
-function showView(name) {
-  const viewName = name === "recall" ? "live" : name;
-  if (name === "recall") {
-    setTimeout(() => liveBottomDock?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 50);
+// ── Scripture Browser ────────────────────────────────────────────────
+// Book/chapter/verse structure comes from the backend (the active Bible
+// file is the authority on what exists), never from a hardcoded table.
+let bibleBooks = [];
+let browserTestament = "all";
+let browserBook = null, browserChapter = null;
+let structureRequested = false;
+
+function ensureBibleStructure() {
+  if (structureRequested || !ws || ws.readyState !== WebSocket.OPEN) return;
+  structureRequested = true;
+  wsSend({ action: "get_bible_structure", testament: "all" });
+}
+
+function applyBibleStructure(msg) {
+  bibleBooks = msg.books || [];
+  if (bookOptions) {
+    bookOptions.innerHTML = "";
+    for (const b of bibleBooks) {
+      const opt = document.createElement("option");
+      opt.value = b.book;
+      bookOptions.appendChild(opt);
+    }
   }
-  document.querySelectorAll(".nav-item").forEach(n => n.classList.toggle("active", n.dataset.view === name));
+  renderBrowserBooks();
+}
+
+function renderBrowserBooks() {
+  if (!browserBooks) return;
+  const filter = (browserBookFilter?.value || "").trim().toLowerCase();
+  browserBooks.innerHTML = "";
+  const shown = bibleBooks.filter(b =>
+    (browserTestament === "all" || (b.testament || "").toLowerCase() === browserTestament) &&
+    (!filter || b.book.toLowerCase().includes(filter)));
+  if (!shown.length) {
+    browserBooks.innerHTML = `<div class="browser-empty">No books match</div>`;
+    return;
+  }
+  for (const b of shown) {
+    const row = document.createElement("div");
+    row.className = "browser-row" + (browserBook === b.book_number ? " active" : "");
+    row.textContent = b.book;
+    row.onclick = () => selectBrowserBook(b.book_number);
+    browserBooks.appendChild(row);
+  }
+}
+
+function selectBrowserBook(bookNumber, chapter) {
+  browserBook = bookNumber;
+  renderBrowserBooks();
+  wsSend({ action: "get_chapter", book_number: bookNumber, chapter: chapter || 1 });
+}
+
+function applyChapterVerses(msg) {
+  browserBook = msg.book_number;
+  browserChapter = msg.chapter;
+  renderBrowserBooks();
+
+  browserChapters.innerHTML = "";
+  for (const ch of msg.chapters || []) {
+    const cell = document.createElement("div");
+    cell.className = "chapter-cell" + (ch === msg.chapter ? " active" : "");
+    cell.textContent = ch;
+    cell.onclick = () => wsSend({ action: "get_chapter", book_number: msg.book_number, chapter: ch });
+    browserChapters.appendChild(cell);
+  }
+
+  browserVersesHdr.textContent = `${msg.book} ${msg.chapter}`;
+  renderBrowserVerseList(msg.verses || []);
+}
+
+function renderBrowserVerseList(verses) {
+  browserVerses.innerHTML = "";
+  if (!verses.length) {
+    browserVerses.innerHTML = `<div class="browser-empty">No verses here</div>`;
+    return;
+  }
+  for (const v of verses) {
+    const row = document.createElement("div");
+    row.className = "browser-row";
+    row.innerHTML = `<span class="browser-verse-num">${v.verse}</span>${v.text || ""}`;
+    row.onclick = () => {
+      browserVerses.querySelectorAll(".browser-row").forEach(r => r.classList.remove("active"));
+      row.classList.add("active");
+      displayToPreview({ ...v, source: "browser" });
+    };
+    browserVerses.appendChild(row);
+  }
+}
+
+function renderBrowserPreview(d) {
+  if (!browserPreview) return;
+  if (!d) {
+    browserPreview.innerHTML = `<div class="browser-empty">Select a verse to preview it here</div>`;
+    return;
+  }
+  const sec = d.secondary_text ? `<div class="sec">${d.secondary_text}</div>` : "";
+  browserPreview.innerHTML =
+    `<div class="ref">${d.book} ${d.chapter}:${d.verse}</div><div>${d.text || ""}</div>${sec}`;
+}
+
+function applyBrowserResults(msg) {
+  const results = msg.results || [];
+  browserVersesHdr.textContent = results.length
+    ? `${results.length} result${results.length !== 1 ? "s" : ""} for "${msg.query}"`
+    : `No results for "${msg.query}"`;
+  renderBrowserVerseList(results);
+  browserChapters.innerHTML = "";
+}
+
+document.querySelectorAll("#testamentSeg .seg-btn").forEach(btn => {
+  btn.onclick = () => {
+    browserTestament = btn.dataset.testament;
+    document.querySelectorAll("#testamentSeg .seg-btn")
+      .forEach(b => b.classList.toggle("active", b === btn));
+    renderBrowserBooks();
+  };
+});
+if (browserBookFilter) browserBookFilter.oninput = renderBrowserBooks;
+if (browserBroadcastBtn) browserBroadcastBtn.onclick = () => broadcastFromPreview();
+if (browserPrevBtn) browserPrevBtn.onclick = () => wsSend({ action: "navigate_verse", direction: -1, broadcast: false });
+if (browserNextBtn) browserNextBtn.onclick = () => wsSend({ action: "navigate_verse", direction: 1, broadcast: false });
+
+// ── Manual reference bar (Live Output) ───────────────────────────────
+function goToReference() {
+  const book = refBook.value.trim();
+  if (!book) { showToast("Type a book name first"); return; }
+  wsSend({
+    action: "lookup_reference",
+    book,
+    chapter: parseInt(refChapter.value, 10) || 1,
+    verse: parseInt(refVerse.value, 10) || 1,
+  });
+}
+if (refGoBtn) refGoBtn.onclick = goToReference;
+[refBook, refChapter, refVerse].forEach(el => {
+  if (el) el.addEventListener("keydown", e => { if (e.key === "Enter") goToReference(); });
+});
+if (navPrevBtn) navPrevBtn.onclick = () => wsSend({ action: "navigate_verse", direction: -1 });
+if (navNextBtn) navNextBtn.onclick = () => wsSend({ action: "navigate_verse", direction: 1 });
+if (broadcastBtn) broadcastBtn.onclick = () => broadcastFromPreview();
+
+// ── Keyboard shortcuts (see COMMANDS.md) ─────────────────────────────
+document.addEventListener("keydown", e => {
+  const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
+  if (e.ctrlKey && e.key === "Enter") { e.preventDefault(); broadcastFromPreview(); return; }
+  if (e.ctrlKey && (e.key === "g" || e.key === "G")) { e.preventDefault(); refBook?.focus(); refBook?.select(); return; }
+  if (e.key === "Escape" && !typing) { renderPreview(null); renderBrowserPreview(null); wsSend({ action: "clear_preview" }); return; }
+  if (typing || e.ctrlKey || e.altKey || e.metaKey) return;
+  if (e.key === "ArrowDown") { e.preventDefault(); wsSend({ action: "navigate_verse", direction: 1 }); }
+  else if (e.key === "ArrowUp") { e.preventDefault(); wsSend({ action: "navigate_verse", direction: -1 }); }
+});
+
+// The sidebar is four entries; everything else lives behind a sub-tab.
+// SUBVIEW_HOME maps the old view names (still used by deep links like the
+// header error dot) onto their new home.
+const SUBVIEW_HOME = {
+  vmix: "settings", appearance: "settings", bible: "settings",
+  mic: "settings", detection: "settings",
+  logs: "more", developer: "more", recall: "more",
+};
+
+function showSubview(view, sub) {
+  const host = $("view-" + view);
+  if (!host || !sub) return;
+  host.querySelectorAll(".subtab").forEach(t => t.classList.toggle("active", t.dataset.sub === sub));
+  host.querySelectorAll(".subview").forEach(s => s.classList.toggle("active", s.id === "sub-" + sub));
+}
+
+function showView(name, sub) {
+  const home = SUBVIEW_HOME[name];
+  const viewName = home || name;
+  if (home) sub = sub || name;
+  document.querySelectorAll(".nav-item").forEach(n => n.classList.toggle("active", n.dataset.view === viewName));
   document.querySelectorAll(".view").forEach(v => v.classList.toggle("active", v.id === "view-" + viewName));
+  if (sub) showSubview(viewName, sub);
+  if (viewName === "scripture") ensureBibleStructure();
 }
 document.querySelectorAll(".nav-item").forEach(item => {
   item.onclick = () => showView(item.dataset.view);
 });
-if (gotoRecallBtn) gotoRecallBtn.onclick = () => showView("recall");
+document.querySelectorAll(".subtab").forEach(tab => {
+  tab.onclick = () => showSubview(tab.closest(".view").id.replace("view-", ""), tab.dataset.sub);
+});
+if (gotoRecallBtn) gotoRecallBtn.onclick = () => {
+  showView("live");
+  setTimeout(() => liveBottomDock?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 50);
+};
 if (headerLogDot) headerLogDot.onclick = () => showView("logs");
 if (clearLogsBtn) clearLogsBtn.onclick = () => {
   if (logFeed) logFeed.innerHTML = "";
@@ -1963,6 +2424,7 @@ function renderNdiState(msg) {
 }
 
 mountSidePanels();
+renderPreview(null);
 initColumnDrag();
 initLayoutResize();
 const ndiEnabledToggle = $("ndiEnabledToggle");
@@ -1993,6 +2455,8 @@ function connectWs() {
     backendReady = false;
     resetStartupBar();
     setStatus("connecting");
+    structureRequested = false;
+    ensureBibleStructure();
   };
   ws.onclose = () => { backendReady = false; setStatus("disconnected"); scheduleReconnect(); };
   ws.onerror = () => { backendReady = false; setStatus("error"); };
@@ -2017,7 +2481,7 @@ function onWsMessage({ data }) {
     case "transcript_live": updateInterim(msg.text); break;
     case "transcript_partial": appendTranscript(msg.text); break;
     case "detection":
-      renderDetection(msg);
+      renderTranscriptDetection(msg);
       appendJson({
         book: msg.book, chapter: msg.chapter, verse: msg.verse,
         source: msg.source, confidence: msg.confidence,
@@ -2029,6 +2493,10 @@ function onWsMessage({ data }) {
       break;
     case "library":
       backendReady = true;
+      // The Bible file changed (or finished loading) — book/chapter
+      // structure has to come from the new one.
+      structureRequested = false;
+      ensureBibleStructure();
       renderLibrary(msg);
       if (sTxt.textContent === "connecting" || sTxt.textContent === "booting") {
         setStatus("ready");
@@ -2099,13 +2567,36 @@ function onWsMessage({ data }) {
       break;
     case "search_result":
     case "manual_search_result":
-      if (msg.result) {
-        renderDetection({ ...msg.result, source: msg.type === "search_result" ? "search" : "semantic (manual)", auto_display: true });
-        appendJson(msg.result);
-      } else {
-        engineEmpty.style.display = "flex";
-        engineEmpty.querySelector("p").textContent = "No confident match found for that phrase.";
-      }
+      // Manual lookups stage only — the server sends preview_verse for the
+      // actual verse, this branch just logs it.
+      if (msg.result) appendJson(msg.result);
+      else showToast("No confident match found for that phrase");
+      break;
+    case "preview_verse":
+      displayToPreview(msg);
+      break;
+    case "broadcast_verse":
+      markOnAir(msg);
+      addToRecall(msg);
+      break;
+    case "preview_cleared":
+      renderPreview(null);
+      renderBrowserPreview(null);
+      break;
+    case "nav_state":
+      applyNavState(msg);
+      break;
+    case "voice_command":
+      showToast(`Voice: ${msg.intent}`);
+      break;
+    case "bible_structure":
+      applyBibleStructure(msg);
+      break;
+    case "chapter_verses":
+      applyChapterVerses(msg);
+      break;
+    case "browser_results":
+      applyBrowserResults(msg);
       break;
     case "display_state":
       applyDisplayState(msg);

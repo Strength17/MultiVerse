@@ -328,6 +328,82 @@ class BibleDB:
             "translation": translation or self.translation,
         }
 
+    def get_max_chapter(self, book_number: int) -> Optional[int]:
+        """Highest chapter number this file holds for *book_number*."""
+        return self._max_chapter.get(int(book_number))
+
+    def get_chapter_verse_count(self, book_number: int, chapter: int) -> Optional[int]:
+        """Highest verse number this file holds for book/chapter."""
+        return self._max_verse.get(int(book_number), {}).get(int(chapter))
+
+    def list_book_numbers(self) -> list[int]:
+        """Canonical book numbers actually present in this file, in order."""
+        return sorted(self._max_chapter.keys())
+
+    def list_chapters(self, book_number: int) -> list[int]:
+        """Chapter numbers present for *book_number*, ascending."""
+        chapters = self._max_verse.get(int(book_number))
+        if chapters:
+            return sorted(chapters.keys())
+        s = self.schema
+        book_val = self._book_lookup_value(book_number)
+        try:
+            with self._connect() as conn:
+                rows = conn.execute(
+                    f'SELECT DISTINCT "{s.col_chapter}" AS c FROM "{s.table}" '
+                    f'WHERE "{s.col_book}" = ? ORDER BY "{s.col_chapter}"',
+                    (book_val,),
+                ).fetchall()
+            return [row["c"] for row in rows]
+        except Exception as e:
+            logger.error("list_chapters failed (table=%s): %s", s.table, e)
+            return []
+
+    def list_verse_numbers(self, book_number: int, chapter: int) -> list[int]:
+        """Verse numbers present for book/chapter, ascending. Read from the
+        DB rather than assuming 1..max — some exports have gaps."""
+        s = self.schema
+        book_val = self._book_lookup_value(book_number)
+        try:
+            with self._connect() as conn:
+                rows = conn.execute(
+                    f'SELECT "{s.col_verse}" AS v FROM "{s.table}" '
+                    f'WHERE "{s.col_book}" = ? AND "{s.col_chapter}" = ? '
+                    f'ORDER BY "{s.col_verse}"',
+                    (book_val, chapter),
+                ).fetchall()
+            return [row["v"] for row in rows]
+        except Exception as e:
+            logger.error("list_verse_numbers failed (table=%s): %s", s.table, e)
+            return []
+
+    def fetch_chapter(self, book_number: int, chapter: int,
+                      translation: Optional[str] = None) -> list[dict]:
+        """Every verse of one chapter, ascending — for the Scripture Browser."""
+        s = self.schema
+        book_val = self._book_lookup_value(book_number)
+        try:
+            with self._connect() as conn:
+                rows = conn.execute(
+                    f'SELECT "{s.col_verse}" AS v, "{s.col_text}" AS t FROM "{s.table}" '
+                    f'WHERE "{s.col_book}" = ? AND "{s.col_chapter}" = ? '
+                    f'ORDER BY "{s.col_verse}"',
+                    (book_val, chapter),
+                ).fetchall()
+        except Exception as e:
+            logger.error("fetch_chapter failed (table=%s): %s", s.table, e)
+            return []
+        from bible_books import BOOK_NUMBER_TO_CANONICAL
+        book_name = BOOK_NUMBER_TO_CANONICAL.get(book_number, str(book_number))
+        return [{
+            "book_number": book_number,
+            "book": book_name,
+            "chapter": chapter,
+            "verse": row["v"],
+            "text": _clean_verse_text(row["t"]),
+            "translation": translation or self.translation,
+        } for row in rows]
+
     def fetch_all_verses(self, translation: Optional[str] = None) -> list[dict]:
         """Return all verses for building the semantic index."""
         s = self.schema

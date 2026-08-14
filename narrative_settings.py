@@ -73,6 +73,16 @@ class DetectionUserSettings:
     narrative_sensitivity: int = 3
     search_testament: str = "all"  # all | ot | nt
     silence_save_seconds: float = 10.0
+    # Spoken navigation ("next verse") is opt-in: it listens to the same
+    # dictation stream as detection, so it stays off until asked for.
+    voice_nav_enabled: bool = False
+    voice_nav_auto_broadcast: bool = True
+    voice_nav_wrap_books: bool = False
+    voice_nav_respects_story_mode: bool = True
+    # Speech detections keep going straight on air (pre-0.0.2.0 behaviour);
+    # turn this off to make every verse — spoken or manual — go to preview
+    # first and wait for Broadcast.
+    transcript_auto_broadcast: bool = True
 
     def clamped_sensitivity(self) -> int:
         return max(1, min(5, int(self.narrative_sensitivity)))
@@ -107,6 +117,11 @@ class DetectionUserSettings:
             "search_testament": self.clamped_search_testament(),
             "silence_save_seconds": silence,
             "silence_save_preset": preset_match if preset_match is not None else "custom",
+            "voice_nav_enabled": bool(self.voice_nav_enabled),
+            "voice_nav_auto_broadcast": bool(self.voice_nav_auto_broadcast),
+            "voice_nav_wrap_books": bool(self.voice_nav_wrap_books),
+            "voice_nav_respects_story_mode": bool(self.voice_nav_respects_story_mode),
+            "transcript_auto_broadcast": bool(self.transcript_auto_broadcast),
             **self.narrative_thresholds(),
         }
 
