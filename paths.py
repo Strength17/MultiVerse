@@ -168,6 +168,22 @@ def _migrate_bible_data(bundled_data: Path, user_data: Path) -> None:
                 pass
             break
 
+    # Anything else shipped as data/<Version>/<Language>/*.sqlite3 (the French
+    # edition, extra versions) is seeded the same way, so a source checkout and
+    # an installed copy see the same library.
+    for src in bundled_data.glob("*/*/*"):
+        if not src.is_file() or src.suffix.lower() not in (".sqlite3", ".db", ".sqlite"):
+            continue
+        dst = user_data / src.parent.parent.name / src.parent.name / src.name
+        if dst.exists():
+            continue
+        try:
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src, dst)
+            logger.info("Seeded %s database to %s", src.parent.name, dst)
+        except Exception:
+            logger.exception("Could not seed bundled Bible file %s", src)
+
     for name in ("bible_vectors.index", "bible_verse_map.pkl"):
         src = bundled_data / name
         dst = user_data / name
