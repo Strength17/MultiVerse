@@ -94,7 +94,18 @@ body {
   background: rgba(22,23,27,0.95); border: 1px solid var(--line); color: var(--ink);
   box-shadow: 0 8px 32px rgba(0,0,0,0.45); z-index: 9999;
 }
-.action-toast.show { display: block; }
+.action-toast.show { display: block; animation: toast-in .28s ease-out; }
+.action-toast.success { border-color: var(--green); color: var(--green); }
+.action-toast.success::before { content: "✓ "; font-weight: 700; }
+.action-toast.leaving { animation: toast-out .4s ease-in forwards; }
+@keyframes toast-in {
+  from { opacity: 0; transform: translate(-50%, 14px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+@keyframes toast-out {
+  from { opacity: 1; transform: translate(-50%, 0); }
+  to   { opacity: 0; transform: translate(-50%, 14px); }
+}
 .btn {
   font-family: var(--sans); font-size: 12.5px; font-weight: 600;
   padding: 8px 16px; border-radius: 7px; border: 1px solid var(--line);
@@ -207,15 +218,28 @@ body {
 }
 
 /* ── Col 3: Live Output / Broadcast ── */
+/* The whole column scrolls, not just the black box: the operator can reach
+   the preview strip, the stage and the French line under it with one
+   scrollbar even when the window is short. */
+.col-scroll {
+  flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden;
+  display: flex; flex-direction: column;
+  scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.28) transparent;
+}
+.col-scroll::-webkit-scrollbar { width: 10px; }
+.col-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.28); border-radius: 6px;
+  border: 3px solid transparent; background-clip: content-box;
+}
 .stage-scroll {
-  flex: 1; min-height: 0; overflow: hidden;
+  flex: 1 0 auto; min-height: 340px; overflow: visible;
   display: flex; flex-direction: column; margin: 0 16px; padding: 14px 0;
 }
 .stage-status { display: flex; align-items: center; gap: 6px; font-size: 10.5px; }
 .stage-status .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--line); }
 .stage-status .dot.on { background: var(--red); box-shadow: 0 0 0 3px rgba(224,90,78,.15); }
 .stage {
-  flex: 1 1 0; min-height: 280px; height: 100%; max-height: 100%;
+  flex: 1 1 auto; min-height: 320px;
   background: #000000;
   display: flex; align-items: center;
   /* "safe" keeps the top of an over-long verse reachable instead of
@@ -507,6 +531,29 @@ body {
 .mic-device-row:hover { border-color: var(--ink-40); }
 .mic-device-row.active { border-color: var(--gold); background: rgba(43,155,255,0.08); }
 .mic-device-tag { font-size: 10px; padding: 2px 6px; border-radius: 4px; background: var(--panel-alt); color: var(--ink-60); }
+.mic-active {
+  margin: 8px 0 4px; padding: 9px 11px; border-radius: 7px; max-width: 420px;
+  border: 1px solid var(--gold); background: rgba(43,155,255,0.08);
+  font-size: 13px; color: var(--ink);
+}
+.mic-active b { display: block; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--gold); margin-bottom: 3px; }
+
+/* Master on/off switch (voice commands) */
+.master-row { display: flex; align-items: center; gap: 14px; cursor: pointer; }
+.master-label { flex: 1; }
+.switch { position: relative; width: 46px; height: 26px; flex: 0 0 auto; }
+.switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+.switch .slider {
+  position: absolute; inset: 0; border-radius: 999px; background: var(--panel-alt);
+  border: 1px solid var(--line); transition: background .15s, border-color .15s;
+}
+.switch .slider::before {
+  content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px;
+  border-radius: 50%; background: var(--ink-60); transition: transform .15s, background .15s;
+}
+.switch input:checked + .slider { background: rgba(43,155,255,0.25); border-color: var(--gold); }
+.switch input:checked + .slider::before { transform: translateX(20px); background: var(--gold); }
+#voiceNavOptions.disabled { display: none; }
 .json-copy-row { display: flex; align-items: center; gap: 8px; margin: 8px 0; }
 #menuToggle { display: none; }
 .tabbar, .tab-body { display: none !important; }
@@ -539,7 +586,7 @@ body {
 .preview-strip.on-air .preview-tag { color: var(--red); }
 .preview-body {
   flex: 1; min-width: 0; font-size: 11.5px; color: var(--ink);
-  max-height: 74px; overflow-y: auto; line-height: 1.45;
+  line-height: 1.45;
 }
 .preview-body b { font-family: var(--serif); color: #2b9bff; margin-right: 6px; }
 .preview-body .sec {
@@ -613,10 +660,7 @@ body {
 }
 .seg-btn.active { color: var(--gold); border-color: rgba(43,155,255,0.35); background: rgba(43,155,255,0.1); }
 .search-more { font-size: 11px; color: var(--ink-60); padding: 6px 2px; }
-.search-open-browser {
-  font-size: 11.5px; color: var(--gold); cursor: pointer; padding: 6px 2px;
-}
-.search-open-browser:hover { text-decoration: underline; }
+.search-open-browser { width: 100%; justify-content: center; margin-top: 6px; }
 
 /* Voice keyword editor */
 .kw-intent { margin-top: 14px; }
@@ -727,13 +771,15 @@ body {
       </div>
       <div class="stage-status"><span class="dot" id="liveDot"></span><span id="liveTxt">standby</span></div>
     </div>
-    <div class="preview-strip" id="previewStrip">
-      <div class="preview-tag" id="previewTag">PREVIEW</div>
-      <div class="preview-body" id="previewBody">Nothing staged</div>
-    </div>
-    <div class="stage-scroll">
-      <div class="stage" id="stage">
-        <div class="stage-empty">No verse on air</div>
+    <div class="col-scroll" id="stageColScroll">
+      <div class="preview-strip" id="previewStrip">
+        <div class="preview-tag" id="previewTag">PREVIEW</div>
+        <div class="preview-body" id="previewBody">Nothing staged</div>
+      </div>
+      <div class="stage-scroll">
+        <div class="stage" id="stage">
+          <div class="stage-empty">No verse on air</div>
+        </div>
       </div>
     </div>
     <div class="stage-controls">
@@ -832,7 +878,6 @@ body {
 <div class="view" id="view-settings">
   <div class="subtabs" id="settingsTabs">
     <button class="subtab active" data-sub="vmix">Output</button>
-    <button class="subtab" data-sub="bible">Bible</button>
     <button class="subtab" data-sub="mic">Mic</button>
     <button class="subtab" data-sub="detection">Detection &amp; Voice</button>
   </div>
@@ -841,7 +886,6 @@ body {
       <div class="vmix-panel" id="panel-vmix"></div>
       <div class="vmix-panel" id="panel-appearance"></div>
     </div>
-    <div class="subview" id="sub-bible"><div class="vmix-panel" id="panel-bible"></div></div>
     <div class="subview" id="sub-mic"><div class="vmix-panel" id="panel-mic"></div></div>
     <div class="subview" id="sub-detection">
       <div class="vmix-panel">
@@ -850,21 +894,27 @@ body {
             <span>Put speech-detected verses straight on air<br>
               <small>Off = detections only fill Preview; you press Broadcast.</small></span></label>
         </div>
-        <div class="vmix-steps"><b>Voice navigation</b>
-          <label class="opt-row"><input type="checkbox" id="voiceNavEnabled">
-            <span>Listen for spoken commands<br>
-              <small>"next verse", "previous verse", "read that again", "clear the screen", "put it on screen". English only.</small></span></label>
-          <label class="opt-row"><input type="checkbox" id="voiceNavAutoBroadcast" checked>
-            <span>Spoken navigation goes straight on air</span></label>
-          <label class="opt-row"><input type="checkbox" id="voiceNavWrapBooks">
-            <span>Continue past the end of a book</span></label>
-          <label class="opt-row"><input type="checkbox" id="voiceNavRespectsStory" checked>
-            <span>Ignore spoken commands while story mode is tracking a passage</span></label>
+        <div class="vmix-steps">
+          <label class="master-row" for="voiceNavEnabled">
+            <span class="master-label"><b>Voice commands</b><br>
+              <small>"next verse", "previous verse", "read that again", "clear the screen", "put it on screen". English only.</small></span>
+            <span class="switch"><input type="checkbox" id="voiceNavEnabled" checked><span class="slider"></span></span>
+          </label>
         </div>
-        <div class="vmix-steps"><b>Spoken keywords</b>
-          <small>Untick a stock phrase to stop it firing, or add your own wording.
-            Custom phrases must be said on their own.</small>
-          <div id="voiceKeywords"></div>
+        <div id="voiceNavOptions">
+          <div class="vmix-steps"><b>Voice navigation options</b>
+            <label class="opt-row"><input type="checkbox" id="voiceNavAutoBroadcast" checked>
+              <span>Spoken navigation goes straight on air</span></label>
+            <label class="opt-row"><input type="checkbox" id="voiceNavWrapBooks">
+              <span>Continue past the end of a book</span></label>
+            <label class="opt-row"><input type="checkbox" id="voiceNavRespectsStory" checked>
+              <span>Ignore spoken commands while story mode is tracking a passage</span></label>
+          </div>
+          <div class="vmix-steps"><b>Spoken keywords &amp; custom commands</b>
+            <small>Untick a stock phrase to stop it firing, or type your own wording and press
+              Add. Custom phrases must be said on their own.</small>
+            <div id="voiceKeywords"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -945,16 +995,10 @@ body {
   </div>
   <div class="tab-panel" id="tab-settings">
     <div class="vmix-panel">
-      <div class="vmix-status-row">
-        <div class="vmix-stat"><span id="libraryStatusTxt">Scanning for Bible versions…</span></div>
-      </div>
-      <div class="vmix-steps">
-        <b>Bible version</b><br>
-        Detected automatically from the <code>data/</code> folder — drop a new version's database file in there (see <code>NDI_SETUP.md</code> for the folder layout) and it appears here without restarting.<br><br>
-        <select class="version-select" id="settingsVersionSelect" style="margin-top:6px;max-width:280px" disabled><option>Loading…</option></select>
-      </div>
       <div class="vmix-steps">
         <b>Microphone</b><br>
+        <div class="mic-active" id="micActive">Detecting microphone…</div>
+        <small style="color:var(--ink-40)">Click a device to use it instead.</small>
         <div class="mic-device-list" id="micDeviceList"></div>
         <select class="version-select" id="micSelect" style="display:none"><option>Loading devices…</option></select>
       </div>
@@ -1039,12 +1083,6 @@ body {
         </div>
         <div class="settings-json" id="settingsJsonPanel"><div id="jsonFeedSettings"></div></div>
       </details>
-      <div class="vmix-steps" id="secondaryLangRow" style="display:none">
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
-          <input type="checkbox" id="secondaryToggle">
-          <span>Also show <b id="secondaryLangName">—</b> translation when available</span>
-        </label>
-      </div>
       <div class="vmix-steps" id="secondaryOrderRow" style="display:none">
         <span style="display:block;margin-bottom:6px;color:var(--ink-60);font-size:12px">Secondary language position (Live Output + NDI + projector):</span>
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:4px">
@@ -1100,11 +1138,8 @@ const vmixWsDot=$("vmixWsDot"), vmixWsTxt=$("vmixWsTxt");
 const vmixWinDot=$("vmixWinDot"), vmixWinTxt=$("vmixWinTxt");
 const vmixDbDot=$("vmixDbDot"), vmixDbTxt=$("vmixDbTxt");
 const vmixOpenBtn=$("vmixOpenBtn");
-const settingsVersionSelect=$("settingsVersionSelect");
-const secondaryLangRow=$("secondaryLangRow"), secondaryLangName=$("secondaryLangName"), secondaryToggle=$("secondaryToggle");
 const secondaryOrderRow=$("secondaryOrderRow"), secondaryBelow=$("secondaryBelow"), secondaryAbove=$("secondaryAbove"), secondaryOrderLang=$("secondaryOrderLang");
 const ndiPreviewBtn=$("ndiPreviewBtn"), ndiPreviewStatus=$("ndiPreviewStatus");
-const libraryStatusTxt=$("libraryStatusTxt");
 const sidebar=$("sidebar"), mainGrid=$("mainGrid"), logFeed=$("logFeed");
 const logBadge=$("logBadge"), headerLogDot=$("headerLogDot"), navLogs=$("navLogs");
 const micProgress=$("micProgress"), micProgressBar=$("micProgressBar");
@@ -1252,12 +1287,17 @@ function renderStartupStep(step, label, status, percent) {
   }
 }
 
-function showToast(msg) {
+function showToast(msg, { success = false, duration = 3200 } = {}) {
   if (!actionToast) return;
   actionToast.textContent = msg;
+  actionToast.classList.remove("leaving");
+  actionToast.classList.toggle("success", success);
   actionToast.classList.add("show");
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => actionToast.classList.remove("show"), 3200);
+  toastTimer = setTimeout(() => {
+    actionToast.classList.add("leaving");
+    setTimeout(() => actionToast.classList.remove("show", "leaving"), 400);
+  }, duration);
 }
 
 // ── Transcript ──
@@ -1329,6 +1369,9 @@ function appendSystemLog(msg) {
   };
   logFeed.prepend(row);
   while (logFeed.childElementCount > 100) logFeed.removeChild(logFeed.lastChild);
+  // The sidebar badge means "something needs your attention" — routine
+  // info entries (a saved transcript) must never light it up red.
+  if (level === "info") return;
   if (logBadge) { logBadge.style.display = ""; logBadge.textContent = String(logCount); }
   if (headerLogDot) headerLogDot.classList.add("show");
   if (navLogs) navLogs.classList.add("has-errors");
@@ -1567,17 +1610,6 @@ function sendToStage(d) {
   requestAnimationFrame(() => shrinkStageUntilFits());
   liveDot.classList.add("on");
   liveTxt.textContent = "on air";
-  if (projectorWin && !projectorWin.closed) {
-    projectorWin.postMessage({
-      type: "verse",
-      reference_display: d.reference_display,
-      primary_version_label: d.primary_version_label || "[NKJV]",
-      secondary_version_label: d.secondary_version_label || "[LSG]",
-      book: d.book, chapter: d.chapter, verse: d.verse,
-      text: d.text, secondary_text: d.secondary_text || null,
-      secondary_above: secondaryAbovePrimary,
-    }, "*");
-  }
 }
 clearBtn.onclick = () => {
   wsSend({ action: "clear_broadcast" });
@@ -1591,7 +1623,6 @@ function clearStage() {
   stage.innerHTML = `<div class="stage-empty">No verse on air</div>`;
   liveDot.classList.remove("on");
   liveTxt.textContent = "standby";
-  if (projectorWin && !projectorWin.closed) projectorWin.postMessage({ type: "clear" }, "*");
 }
 
 // ── Preview → Broadcast ──
@@ -1648,7 +1679,7 @@ function broadcastFromPreview(d) {
   wsSend({ action: "broadcast_verse", verse });
   // The projector is where the congregation sees it — no point broadcasting
   // into a window that was never opened.
-  if (!projectorWin || projectorWin.closed) openProjector();
+  if (!projectorNative && (!projectorWin || projectorWin.closed)) openProjector();
 }
 
 function markOnAir(d) {
@@ -1665,43 +1696,27 @@ function markOnAir(d) {
 }
 
 // Opens a REAL separate OS window -- drag it onto the projector/second
-// display and fullscreen it (F11). Synced live via postMessage, so it
-// mirrors col 3 exactly, not a copy that can drift out of sync. This is
-// also the exact window vMix's Local Desktop Capture picks up by name
-// (see the vMix / NDI Output tab) -- its title is deliberately fixed and
-// distinctive so it's unambiguous in vMix's window list.
+// display and fullscreen it (F11). Its title is fixed and distinctive so
+// vMix's Local Desktop Capture can pick it out of the window list.
+// In the desktop shell the projector is a second native window created by
+// Python; window.open() there leaves the WebView2 sandbox and Windows hands
+// the request to whatever claims http:// — the Microsoft Store on a machine
+// with no default browser. The projector page talks to the backend directly,
+// so it stays in sync without postMessage either way.
+let projectorNative = false;
+
 function openProjector() {
+  const api = window.pywebview && window.pywebview.api;
+  if (api && api.open_projector) {
+    projectorNative = true;
+    api.open_projector();
+    vmixWinDot.className = "dot ok";
+    vmixWinTxt.textContent = "Projector window: open — ready for Local Desktop Capture";
+    return;
+  }
   if (projectorWin && !projectorWin.closed) { projectorWin.focus(); return; }
-  projectorWin = window.open("", "WindowVerseProjector", "width=1920,height=1080");
-  projectorWin.document.write(`<!DOCTYPE html><html><head><title>WindowVerse — Projector</title>
-    <style>
-      body{margin:0;background:#000;color:#f5f2ea;font-family:'Source Serif 4',serif;
-           height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
-           text-align:center;padding:6vw;}
-      .ref{color:#2b9bff;font-size:3vw;margin-bottom:1.4vw;text-shadow:0 0 12px rgba(43,155,255,0.35);}
-      .txt{font-size:4.2vw;line-height:1.5;max-width:88%;color:#fff;font-weight:700;}
-      .sec{color:#fff;font-style:italic;font-size:3.2vw;line-height:1.5;max-width:88%;margin-top:1.4vw;padding-top:1.4vw;}
-      .sec.above{margin-top:0;margin-bottom:1.4vw;padding-top:0;padding-bottom:1.4vw;border-top:none;border-bottom:1px dashed #333;}
-      .empty{color:#333;font-size:2vw;}
-    </style></head><body><div id="root"><div class="empty">No verse on air</div></div>
-    <script>
-      window.addEventListener("message", (e) => {
-        const root = document.getElementById("root");
-        if (e.data.type === "verse") {
-          const ref = '<div class="ref">'+e.data.book+' '+e.data.chapter+':'+e.data.verse+'</div>';
-          const txt = '<div class="txt">'+e.data.text+'</div>';
-          const sec = e.data.secondary_text
-            ? '<div class="sec'+(e.data.secondary_above?' above':'')+'">'+e.data.secondary_text+'</div>'
-            : '';
-          root.innerHTML = e.data.secondary_above && e.data.secondary_text
-            ? ref + sec + txt
-            : ref + txt + sec;
-        } else if (e.data.type === "clear") {
-          root.innerHTML = '<div class="empty">No verse on air</div>';
-        }
-      });
-    <\/script></body></html>`);
-  projectorWin.document.close();
+  projectorWin = window.open("projector.html", "WindowVerseProjector",
+                             "width=1920,height=1080");
   vmixWinDot.className = "dot ok";
   vmixWinTxt.textContent = "Projector window: open — ready for Local Desktop Capture";
 }
@@ -1722,7 +1737,7 @@ if (stageScroll && typeof ResizeObserver !== "undefined") {
 // be closed by the operator (or by accident) at any point mid-service --
 // the vMix tab's dot should reflect reality, not just "was opened once".
 setInterval(() => {
-  const open = projectorWin && !projectorWin.closed;
+  const open = projectorNative || (projectorWin && !projectorWin.closed);
   vmixWinDot.className = "dot" + (open ? " ok" : " bad");
   vmixWinTxt.textContent = open
     ? "Projector window: open — ready for Local Desktop Capture"
@@ -1919,37 +1934,17 @@ function renderLibrary(msg) {
   secondaryLanguage = msg.secondary_language || null;
   if (typeof msg.secondary_above === "boolean") secondaryAbovePrimary = msg.secondary_above;
 
-  const versions = msg.versions || [];
-  const optionsHtml = versions.length
-    ? versions.map(v => v.languages.map(lang =>
-        `<option value="${v.version}::${lang}" ${v.version === currentVersion && lang === currentLanguage ? "selected" : ""}>${v.version}${v.languages.length > 1 ? " — " + lang : ""}</option>`
-      ).join("")).join("")
-    : `<option>No Bible DB found in data/</option>`;
-
-  if (settingsVersionSelect) {
-    settingsVersionSelect.innerHTML = optionsHtml;
-    settingsVersionSelect.disabled = versions.length === 0;
-  }
   if (versionPill) versionPill.textContent = currentVersion || "NKJV";
 
-  if (libraryStatusTxt) {
-    libraryStatusTxt.textContent = versions.length
-      ? `${versions.length} version${versions.length !== 1 ? "s" : ""} detected in data/ — currently on ${currentVersion} (${currentLanguage})`
-      : "No Bible database found under data/ — see NDI_SETUP.md for the expected folder layout.";
-  }
 
-  if (secondaryLangRow) {
+  // The secondary translation is always on when a second language exists —
+  // only its position above/below the primary is a choice.
+  if (secondaryOrderRow) {
+    secondaryOrderRow.style.display = secondaryLanguage ? "" : "none";
     if (secondaryLanguage) {
-      secondaryLangRow.style.display = "";
-      secondaryOrderRow.style.display = "";
-      secondaryLangName.textContent = secondaryLanguage;
-      secondaryOrderLang.textContent = secondaryLanguage;
-      secondaryToggle.checked = !!msg.show_secondary;
+      if (secondaryOrderLang) secondaryOrderLang.textContent = secondaryLanguage;
       if (secondaryAbovePrimary) secondaryAbove.checked = true;
       else secondaryBelow.checked = true;
-    } else {
-      secondaryLangRow.style.display = "none";
-      secondaryOrderRow.style.display = "none";
     }
   }
   if (lastStageVerse) sendToStage(lastStageVerse);
@@ -1964,17 +1959,6 @@ function wsSend(payload) {
   return false;
 }
 
-function onVersionChosen(value) {
-  const [version, language] = value.split("::");
-  if (!version || version === currentVersion && language === currentLanguage) return;
-  wsSend({ action: "switch_version", version, language });
-}
-if (settingsVersionSelect) settingsVersionSelect.onchange = () => onVersionChosen(settingsVersionSelect.value);
-if (secondaryToggle) {
-  secondaryToggle.onchange = () => {
-    wsSend({ action: "set_show_translation", enabled: secondaryToggle.checked });
-  };
-}
 function onSecondaryOrderChange() {
   const above = secondaryAbove && secondaryAbove.checked;
   if (above === secondaryAbovePrimary) return;
@@ -2060,6 +2044,7 @@ function renderSearchResults(msg) {
       className: "search-empty",
       textContent: `No matches found for "${msg.query || ""}". Try different wording or All Bible.`,
     }));
+    resetDockHeight();
     return;
   }
 
@@ -2068,20 +2053,42 @@ function renderSearchResults(msg) {
   count.textContent = `${all.length} match${all.length !== 1 ? "es" : ""}`;
   searchResults.appendChild(count);
 
-  for (const hit of all.slice(0, SEARCH_INLINE_LIMIT)) {
-    searchResults.appendChild(buildSearchRow(hit));
+  // A short result set is worth reading in place; a long one would bury the
+  // stage, so it stays a count plus a way into the browser.
+  if (all.length <= SEARCH_INLINE_LIMIT) {
+    for (const hit of all) searchResults.appendChild(buildSearchRow(hit));
   }
-  if (all.length > SEARCH_INLINE_LIMIT) {
-    searchResults.appendChild(Object.assign(document.createElement("div"), {
-      className: "search-more",
-      textContent: `+${all.length - SEARCH_INLINE_LIMIT} more…`,
-    }));
-  }
-  const open = document.createElement("div");
-  open.className = "search-open-browser";
-  open.textContent = "Open all in Scripture Browser →";
+  const open = document.createElement("button");
+  open.className = "btn small search-open-browser";
+  open.textContent = all.length <= SEARCH_INLINE_LIMIT
+    ? "Open all in Scripture Browser →"
+    : `See all ${all.length} verses in Scripture Browser →`;
   open.onclick = () => openSearchInBrowser(msg.query || "", msg.testament);
   searchResults.appendChild(open);
+  fitDockToSearch();
+}
+
+// The dock grows to fit what the search actually returned (and shrinks back
+// afterwards) so results are never hidden behind their own scrollbar, while
+// the columns above just give up the space they no longer need.
+function fitDockToSearch() {
+  if (!liveBottomDock) return;
+  const section = searchResults?.closest(".dock-section");
+  if (!section) return;
+  requestAnimationFrame(() => {
+    const chrome = section.clientHeight - searchResults.clientHeight;
+    const wanted = chrome + searchResults.scrollHeight + 8;
+    const max = Math.round(window.innerHeight * 0.5);
+    const floor = Math.max(DOCK_MIN_HEIGHT, dockBaseHeight());
+    liveBottomDock.style.height =
+      Math.round(Math.min(max, Math.max(floor, wanted))) + "px";
+  });
+}
+
+// Back to whatever height the operator last chose (or the default) once the
+// results no longer need the extra room.
+function resetDockHeight() {
+  if (liveBottomDock) liveBottomDock.style.height = dockBaseHeight() + "px";
 }
 
 function buildSearchRow(hit) {
@@ -2172,7 +2179,18 @@ function applyDetectionState(msg) {
   for (const [id, key] of Object.entries(VOICE_TOGGLES)) {
     if (typeof msg.settings[key] === "boolean" && $(id)) $(id).checked = msg.settings[key];
   }
+  syncVoiceNavOptions();
 }
+
+// The sub-options only make sense while the master switch is on.
+function syncVoiceNavOptions() {
+  const on = !!$("voiceNavEnabled")?.checked;
+  $("voiceNavOptions")?.classList.toggle("disabled", !on);
+  if (on && !voiceKeywordsRequested && ws && ws.readyState === WebSocket.OPEN) {
+    voiceKeywordsRequested = wsSend({ action: "get_voice_keywords" });
+  }
+}
+let voiceKeywordsRequested = false;
 
 // Detection & voice toggles are persisted server-side, so the UI only
 // mirrors them: change → send → the server echoes detection_state back.
@@ -2186,8 +2204,12 @@ const VOICE_TOGGLES = {
 Object.entries(VOICE_TOGGLES).forEach(([id, key]) => {
   const el = $(id);
   if (!el) return;
-  el.onchange = () => wsSend({ action: "set_voice_nav", [key]: el.checked });
+  el.onchange = () => {
+    wsSend({ action: "set_voice_nav", [key]: el.checked });
+    if (id === "voiceNavEnabled") syncVoiceNavOptions();
+  };
 });
+syncVoiceNavOptions();
 
 function applyNavState(msg) {
   const ref = msg.reference;
@@ -2253,9 +2275,24 @@ function applyDisplayState(msg) {
   if (lastStageVerse) sendToStage(lastStageVerse);
 }
 
+const escapeHtml = s => String(s == null ? "" : s)
+  .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
 function renderAudioDevices(msg) {
   const devices = msg.devices || msg;
   const selected = msg.selected || selectedMic || "";
+  // "active" is the endpoint speech recognition actually opens, which is not
+  // the same string as the selection when the selection is "System Default".
+  const active = msg.active
+    || (devices || []).find(d => d.name === selected)?.name
+    || (devices || []).find(d => d.is_default)?.name
+    || "";
+  const micActive = $("micActive");
+  if (micActive) {
+    micActive.innerHTML = active
+      ? `<b>Detected microphone</b>${escapeHtml(active)}`
+      : `<b>Microphone</b>No input device detected`;
+  }
   if (micSelect) {
     micSelect.innerHTML = (devices || []).map(d =>
       `<option value="${d.name}" ${d.name === selected ? "selected" : ""}>${d.name}</option>`
@@ -2268,12 +2305,12 @@ function renderAudioDevices(msg) {
     return;
   }
   micDeviceList.innerHTML = devices.map(d => {
-    const active = d.name === selected || d.selected;
+    const isActive = d.name === active;
     const tags = [
-      active ? '<span class="mic-device-tag">Active</span>' : "",
+      isActive ? '<span class="mic-device-tag">In use</span>' : "",
       d.is_default ? '<span class="mic-device-tag">Default</span>' : "",
     ].filter(Boolean).join(" ");
-    return `<div class="mic-device-row${active ? " active" : ""}" data-mic="${d.name.replace(/"/g, "&quot;")}">
+    return `<div class="mic-device-row${isActive ? " active" : ""}" data-mic="${d.name.replace(/"/g, "&quot;")}">
       <span>${d.name}</span>${tags ? `<span style="margin-left:auto;display:flex;gap:4px">${tags}</span>` : ""}
     </div>`;
   }).join("");
@@ -2281,7 +2318,7 @@ function renderAudioDevices(msg) {
     row.onclick = () => {
       selectedMic = row.dataset.mic;
       wsSend({ action: "set_mic", name: selectedMic });
-      renderAudioDevices({ devices, selected: selectedMic });
+      renderAudioDevices({ devices, selected: selectedMic, active: selectedMic });
     };
   });
 }
@@ -2294,19 +2331,8 @@ function mountSidePanels() {
   const settingsPanel = document.querySelector("#tab-settings .vmix-panel");
   if (settingsPanel) {
     const steps = [...settingsPanel.children];
-    const bible = $("panel-bible"), appearance = $("panel-appearance");
+    const appearance = $("panel-appearance");
     const micPanel = $("panel-mic"), dev = $("panel-developer");
-    if (bible) {
-      const wrap = document.createElement("div");
-      wrap.className = "vmix-panel";
-      steps.forEach(el => {
-        if (el.id === "secondaryLangRow" || el.id === "secondaryOrderRow") wrap.appendChild(el);
-        else if (el.classList?.contains("vmix-status-row")) wrap.appendChild(el);
-        else if (el.classList?.contains("vmix-steps") && el.querySelector("#settingsVersionSelect")) wrap.appendChild(el);
-        else if (el.classList?.contains("vmix-steps") && el.querySelector("b")?.textContent?.startsWith("Bible")) wrap.appendChild(el);
-      });
-      bible.appendChild(wrap);
-    }
     if (micPanel) {
       const wrap = document.createElement("div");
       wrap.className = "vmix-panel";
@@ -2320,6 +2346,10 @@ function mountSidePanels() {
       settingsPanel.querySelectorAll("details.settings-advanced").forEach(el => {
         if (el.querySelector("#dispTheme")) wrap.appendChild(el);
       });
+      // Secondary-language position is a display choice, so it lives with the
+      // rest of the verse appearance controls now that the Bible tab is gone.
+      const orderRow = settingsPanel.querySelector("#secondaryOrderRow");
+      if (orderRow) wrap.appendChild(orderRow);
       appearance.appendChild(wrap);
     }
     if (dev) {
@@ -2662,6 +2692,13 @@ function initColumnDrag() {
   });
 }
 
+// A search may grow the dock past this, but never below what the operator
+// last dragged it to.
+const DOCK_MIN_HEIGHT = 190;
+function dockBaseHeight() {
+  return Math.max(DOCK_MIN_HEIGHT, parseInt(localStorage.getItem(DOCK_HEIGHT_KEY) || "0", 10) || 0);
+}
+
 function initLayoutResize() {
   const dock = $("liveBottomDock");
   const dockResizer = $("dockResizer");
@@ -2800,7 +2837,9 @@ function connectWs() {
     resetStartupBar();
     setStatus("connecting");
     structureRequested = false;
+    voiceKeywordsRequested = false;
     ensureBibleStructure();
+    syncVoiceNavOptions();
   };
   ws.onclose = () => { backendReady = false; setStatus("disconnected"); scheduleReconnect(); };
   ws.onerror = () => { backendReady = false; setStatus("error"); };
@@ -2892,6 +2931,14 @@ function onWsMessage({ data }) {
         break;
       }
       appendSystemLog(msg);
+      if (msg.code === "transcript_saved") {
+        const auto = /auto-save/i.test(msg.message || "");
+        const secs = Math.round(silenceSaveSeconds || 0);
+        showToast(
+          auto ? `Transcript saved after ${secs}s of silence` : "Transcript saved",
+          { success: true, duration: 6000 },
+        );
+      }
       if (msg.code === "matched_reference_missing_from_db") {
         vmixDbDot.className = "dot bad";
         vmixDbTxt.textContent = "Bible DB: missing row for last reference";

@@ -1,75 +1,87 @@
 """Enumerate Windows audio input devices for the Settings mic picker."""
 from __future__ import annotations
 
+import json
 import logging
 import subprocess
+import sys
 
 logger = logging.getLogger("windowverse.audio_devices")
 
+FALLBACK = [{"id": "default", "name": "System Default Microphone", "is_default": True}]
+
+# The MMDevices registry hive is the same list the Sound control panel shows:
+# every capture endpoint, its friendly name, and its state (1 = active). It
+# needs no extra modules and no WinRT projection, which is why the picker
+# reads it instead of guessing from PnP friendly-name patterns.
+_LIST_SCRIPT = r"""
+$ErrorActionPreference = 'SilentlyContinue'
+$root = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\MMDevices\Audio\Capture'
+$nameKey = '{a45c254e-df1c-4efd-8020-67d146a850e0},2'
+$descKey = '{b3f8fa53-0004-438e-9003-51a46e139bfc},6'
+$defaultId = ''
+try {
+  Add-Type -AssemblyName System.Runtime.WindowsRuntime | Out-Null
+  $defaultId = [Windows.Media.Devices.MediaDevice, Windows.Media.Devices, ContentType=WindowsRuntime]::GetDefaultAudioCaptureId(0)
+} catch {}
+$out = @()
+foreach ($key in Get-ChildItem $root) {
+  $props = Get-ItemProperty "$($key.PSPath)\Properties"
+  if ($key.GetValue('DeviceState') -ne 1) { continue }
+  $mic  = $props.$nameKey
+  $dev  = $props.$descKey
+  if (-not $mic -and -not $dev) { continue }
+  $label = if ($mic -and $dev) { "$mic ($dev)" } elseif ($dev) { $dev } else { $mic }
+  $guid = $key.PSChildName
+  $out += [ordered]@{
+    id = $guid
+    name = $label
+    is_default = [bool]($defaultId -and $defaultId.Contains($guid))
+  }
+}
+if ($out.Count -eq 0) {
+  $out += [ordered]@{ id = 'default'; name = 'System Default Microphone'; is_default = $true }
+}
+if (-not ($out | Where-Object { $_.is_default })) { $out[0].is_default = $true }
+ConvertTo-Json -Compress -InputObject @($out)
+"""
+
 
 def list_input_devices() -> list[dict]:
-    """Return [{id, name, is_default}, ...] using PowerShell + MMDevice API."""
-    ps = r"""
-Add-Type @"
-using System.Runtime.InteropServices;
-[Guid("A95664D2-9614-4F35-A746-DE8DB63617E6"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-interface IMMDeviceEnumerator { int f(); int GetDefaultAudioEndpoint(int dataFlow, int role, out object ppDevice); }
-"@ 2>$null
-$devices = @()
-try {
-  $code = @'
-import subprocess, json, re
-out = subprocess.check_output([
-  "powershell","-NoProfile","-Command",
-  "Get-CimInstance Win32_SoundDevice | Where-Object {$_.Status -eq 'OK'} | Select-Object -ExpandProperty Name"
-], text=True, errors='ignore')
-names = [n.strip() for n in out.splitlines() if n.strip()]
-print(json.dumps([{"id": str(i), "name": n, "is_default": i==0} for i,n in enumerate(names)]))
-'@
-} catch {}
-"""
+    """Return [{id, name, is_default}, ...] for active capture endpoints."""
+    if not sys.platform.startswith("win"):
+        return list(FALLBACK)
     try:
-        script = """
-$ErrorActionPreference = 'SilentlyContinue'
-Add-Type -AssemblyName System.Runtime.WindowsRuntime
-$devEnum = [Windows.Media.Devices.MediaDevice]::GetDefaultAudioCaptureId([Windows.Media.Capture.MediaCategory]::Communications)
-$all = [System.Collections.Generic.List[object]]::new()
-$i = 0
-try {
-  $sessions = Get-PnpDevice -Class AudioEndpoint -Status OK | Where-Object { $_.FriendlyName -match 'Microphone|Headset|Array|Input|Mic' }
-  foreach ($d in $sessions) {
-    $name = $d.FriendlyName
-    if ($name) {
-      $all.Add([ordered]@{ id = [string]$i; name = $name; is_default = ($i -eq 0) })
-      $i++
-    }
-  }
-} catch {}
-if ($all.Count -eq 0) {
-  $all.Add([ordered]@{ id = 'default'; name = 'System Default Microphone'; is_default = $true })
-}
-$all | ConvertTo-Json -Compress
-"""
         out = subprocess.check_output(
-            ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
-            text=True, timeout=15, errors="replace",
+            ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", _LIST_SCRIPT],
+            text=True, timeout=20, errors="replace",
         ).strip()
         if not out:
-            return [{"id": "default", "name": "System Default Microphone", "is_default": True}]
-        import json
+            return list(FALLBACK)
         data = json.loads(out)
         if isinstance(data, dict):
             data = [data]
-        return data
+        devices = [d for d in data if d.get("name")]
+        return devices or list(FALLBACK)
     except Exception:
         logger.exception("Failed to enumerate audio devices")
-        return [{"id": "default", "name": "System Default Microphone", "is_default": True}]
+        return list(FALLBACK)
+
+
+def default_input_device() -> dict | None:
+    """The endpoint WinRT will actually open, for display in Settings."""
+    for dev in list_input_devices():
+        if dev.get("is_default"):
+            return dev
+    return None
 
 
 def set_default_input_device(device_name: str) -> bool:
     """Best-effort: set Windows default comms capture device by friendly name."""
     if not device_name or device_name.startswith("System Default"):
         return True
+    if not sys.platform.startswith("win"):
+        return False
     script = f"""
 $ErrorActionPreference = 'SilentlyContinue'
 Import-Module AudioDeviceCmdlets -ErrorAction SilentlyContinue

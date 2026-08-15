@@ -73,9 +73,9 @@ class DetectionUserSettings:
     narrative_sensitivity: int = 3
     search_testament: str = "all"  # all | ot | nt
     silence_save_seconds: float = 10.0
-    # Spoken navigation ("next verse") is opt-in: it listens to the same
-    # dictation stream as detection, so it stays off until asked for.
-    voice_nav_enabled: bool = False
+    # Spoken navigation ("next verse") listens to the same dictation stream as
+    # detection and is on by default; the master switch lives in Settings.
+    voice_nav_enabled: bool = True
     voice_nav_auto_broadcast: bool = True
     voice_nav_wrap_books: bool = False
     voice_nav_respects_story_mode: bool = True
@@ -87,6 +87,10 @@ class DetectionUserSettings:
     # turn this off to make every verse — spoken or manual — go to preview
     # first and wait for Broadcast.
     transcript_auto_broadcast: bool = True
+    # Marks a settings file written after voice navigation became opt-out;
+    # older files are switched on once so the default actually reaches
+    # operators who already have settings on disk.
+    voice_nav_default_applied: bool = True
 
     def clamped_sensitivity(self) -> int:
         return max(1, min(5, int(self.narrative_sensitivity)))
@@ -141,6 +145,9 @@ def load_detection_user(path: Path) -> DetectionUserSettings:
         data = json.loads(path.read_text(encoding="utf-8"))
         known = set(DetectionUserSettings.__dataclass_fields__)
         filtered = {k: v for k, v in data.items() if k in known}
+        if not filtered.get("voice_nav_default_applied"):
+            filtered["voice_nav_enabled"] = True
+            filtered["voice_nav_default_applied"] = True
         return DetectionUserSettings(**filtered)
     except Exception:
         logger.exception("Failed to load %s — using defaults", path)

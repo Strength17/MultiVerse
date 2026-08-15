@@ -1042,10 +1042,20 @@ class WindowVerseServer:
         return {"results": hits, "old_testament": ot, "new_testament": nt}
 
     def _audio_devices_payload(self) -> dict:
+        devices = list_input_devices()
+        # "System Default Microphone" is a placeholder, not a device: resolve it
+        # so Settings names the endpoint speech recognition will actually open.
+        active = self._selected_mic
+        if active.startswith("System Default"):
+            active = next(
+                (d["name"] for d in devices if d.get("is_default")),
+                devices[0]["name"] if devices else active,
+            )
         return {
             "type": "audio_devices",
-            "devices": list_input_devices(),
+            "devices": devices,
             "selected": self._selected_mic,
+            "active": active,
         }
 
     def _mic_progress(self, step: str, percent: int, label: str = ""):
@@ -1186,6 +1196,11 @@ class WindowVerseServer:
                 "available": getattr(self.ndi_sender, "_available", False),
             }))
             await websocket.send(json.dumps(self._audio_devices_payload()))
+        # A projector window opened mid-service must catch up to whatever is
+        # already on air instead of showing "No verse on air".
+        if self._on_air and self._last_displayed:
+            await websocket.send(json.dumps(
+                {"type": "broadcast_verse", **self._last_displayed}))
         # Sent even while still booting so the reference bar and arrows
         # start out in a known (disabled) state instead of guessing.
         await websocket.send(json.dumps(self._nav_state_payload()))

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WindowVerse — Projector</title>
+<style>
+  html,body{margin:0;height:100%;background:#000;}
+  body{color:#f5f2ea;font-family:'Source Serif 4',Georgia,serif;
+       display:flex;align-items:center;justify-content:center;text-align:center;padding:5vw;
+       box-sizing:border-box;overflow:hidden;cursor:none;}
+  body.light{background:#f7f4ec;color:#14110c;}
+  .ref{color:#2b9bff;font-size:3vw;margin-bottom:1.4vw;text-shadow:0 0 12px rgba(43,155,255,.35);}
+  body.light .ref{color:#0b5cab;text-shadow:none;}
+  .txt{font-size:4.2vw;line-height:1.5;font-weight:700;}
+  .sec{font-style:italic;font-size:3.2vw;line-height:1.5;margin-top:1.4vw;}
+  .sec.above{margin-top:0;margin-bottom:1.4vw;}
+  .empty{color:#333;font-size:2vw;}
+  body.light .empty{color:#c3bcae;}
+</style>
+</head>
+<body>
+<div id="root"><div class="empty">No verse on air</div></div>
+<script>
+const root = document.getElementById("root");
+const esc = s => String(s == null ? "" : s)
+  .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+let secondaryAbove = false;
+
+function clear() { root.innerHTML = '<div class="empty">No verse on air</div>'; }
+
+function render(d) {
+  const refText = d.reference_display
+    || `${d.book || ""} ${d.chapter || ""}:${d.verse || ""}`.trim();
+  const ref = `<div class="ref">${esc(refText)}</div>`;
+  const txt = `<div class="txt">${esc(d.text)}</div>`;
+  const sec = d.secondary_text
+    ? `<div class="sec${secondaryAbove ? " above" : ""}">${esc(d.secondary_text)}</div>` : "";
+  root.innerHTML = secondaryAbove && sec ? ref + sec + txt : ref + txt + sec;
+}
+
+// The projector is a first-class client of the backend rather than a
+// document.write() child window: it survives the operator window reloading,
+// can live on a second display, and never depends on postMessage.
+let ws = null;
+function connect() {
+  ws = new WebSocket(`ws://${location.hostname}:8765`);
+  ws.onmessage = e => {
+    let m; try { m = JSON.parse(e.data); } catch { return; }
+    if (m.type === "broadcast_verse") render(m);
+    else if (m.type === "broadcast_state" && m.on_air === false) clear();
+    else if (m.type === "library" && typeof m.secondary_above === "boolean") {
+      secondaryAbove = m.secondary_above;
+    } else if (m.type === "display_state" && m.settings) {
+      document.body.classList.toggle("light", m.settings.theme === "light");
+    }
+  };
+  ws.onclose = () => setTimeout(connect, 1000);
+}
+connect();
+
+// Only two keys matter on a projector screen.
+addEventListener("keydown", e => {
+  if (e.key === "F11") { e.preventDefault();
+    document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen(); }
+  if (e.key === "Escape" && document.fullscreenElement) document.exitFullscreen();
+});
+</script>
+</body>
+</html>

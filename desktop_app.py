@@ -73,6 +73,35 @@ def _preload_ml_stack() -> None:
         logger.warning("ML preload failed (paraphrase search may not work): %s", exc)
 
 
+class DesktopApi:
+    """Bridge the UI can call from JavaScript.
+
+    The projector used to be a `window.open()` child window; inside WebView2
+    that request escapes to the shell, which on a machine without a default
+    browser association hands it to the Microsoft Store. Creating a real
+    second webview window keeps it inside the app.
+    """
+
+    def __init__(self, url: str):
+        self._url = url
+        self._window = None
+
+    def open_projector(self) -> bool:
+        import webview
+
+        if self._window is not None and self._window in webview.windows:
+            self._window.show()
+            return True
+        self._window = webview.create_window(
+            "WindowVerse — Projector",
+            url=self._url,
+            width=1280,
+            height=720,
+            background_color="#000000",
+        )
+        return True
+
+
 def main():
     bootstrap_install()
     _ensure_winrt_dependencies()
@@ -92,6 +121,7 @@ def main():
     if not icon.exists():
         icon = app_root() / "assets" / "windowverse.ico"
 
+    api = DesktopApi(f"http://127.0.0.1:{HTTP_PORT}/ui/projector.html")
     window = webview.create_window(
         "WindowVerse — Live Service",
         url=url,
@@ -99,6 +129,7 @@ def main():
         height=900,
         min_size=(1100, 700),
         background_color="#000000",
+        js_api=api,
     )
     webview.start(debug=False)
 
