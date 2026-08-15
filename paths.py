@@ -56,13 +56,8 @@ def user_data_root() -> Path:
     return _USER_ROOT
 
 
-def _env(name: str, legacy: str | None = None) -> str | None:
-    val = os.environ.get(name)
-    if val:
-        return val
-    if legacy:
-        return os.environ.get(legacy)
-    return None
+def _env(name: str) -> str | None:
+    return os.environ.get(name) or None
 
 
 def ensure_user_dirs() -> dict[str, Path]:
@@ -95,7 +90,7 @@ def ensure_user_dirs() -> dict[str, Path]:
 
 
 def config_path() -> Path:
-    env = _env("WINDOWVERSE_CONFIG", "MULTIVERSE_CONFIG")
+    env = _env("WINDOWVERSE_CONFIG")
     if env:
         return Path(env)
     user_cfg = user_data_root() / "config" / "config.ini"

@@ -21,6 +21,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 from bible_books import (
+    BOOK_NUMBER_TO_ABBREV,
     BOOK_NUMBER_TO_CANONICAL,
     NAME_TO_BOOK,
     SINGLE_CHAPTER_BOOKS,
@@ -124,6 +125,7 @@ class VerseNavigator:
             out.append({
                 "book_number": number,
                 "book": name,
+                "abbrev": BOOK_NUMBER_TO_ABBREV.get(number, name[:3]),
                 "book_french": french_book_name(name),
                 "testament": book_testament(number),
                 "chapters": len(self.list_chapters(number)),

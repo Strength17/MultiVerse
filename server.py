@@ -69,7 +69,7 @@ from voice_commands import VoiceCommandParser
 # ── Logging ───────────────────────────────────────────────────────────────────
 def _configure_logging():
     import os
-    log_dir = Path(os.environ.get("WINDOWVERSE_LOGS_DIR") or os.environ.get("MULTIVERSE_LOGS_DIR", "logs"))
+    log_dir = Path(os.environ.get("WINDOWVERSE_LOGS_DIR", "logs"))
     log_dir.mkdir(parents=True, exist_ok=True)
     log_file = log_dir / "windowverse.log"
     logging.basicConfig(
@@ -186,7 +186,7 @@ class WindowVerseServer:
 
         # ── Bible version/language library (auto-discovered from disk) ──
         data_root = os.environ.get("WINDOWVERSE_DATA_ROOT") or os.environ.get(
-            "MULTIVERSE_DATA_ROOT", self.config.library.data_root
+            "WINDOWVERSE_DATA_ROOT", self.config.library.data_root
         )
         self.library = BibleLibrary(data_root)
         self.library.rescan()
@@ -239,6 +239,7 @@ class WindowVerseServer:
         self._preview: dict | None = None
         self._nav_ref: VerseRef | None = None
         self._voice_parser = VoiceCommandParser()
+        self._apply_voice_keywords()
 
         # Detection (regex + semantic embedding + narrative tracking) runs
         # here, off the main event loop. A single worker keeps chunks
@@ -712,6 +713,71 @@ class WindowVerseServer:
         return [self._attach_secondary_text(event)] if event else None
 
     # ── Spoken navigation ────────────────────────────────────────────────────
+    def _apply_voice_keywords(self) -> None:
+        """Push the operator's keyword edits into the live parser."""
+        du = self._detection_user
+        self._voice_parser.set_keywords(
+            list(du.voice_nav_disabled_keywords or []),
+            dict(du.voice_nav_custom_keywords or {}),
+        )
+
+    def _voice_keyword_payload(self) -> dict:
+        from voice_commands import INTENTS, builtin_keywords
+
+        du = self._detection_user
+        disabled = {k.strip().lower() for k in (du.voice_nav_disabled_keywords or [])}
+        custom = du.voice_nav_custom_keywords or {}
+        builtin = builtin_keywords()
+        return {
+            "type": "voice_keywords",
+            "intents": [
+                {
+                    "intent": intent,
+                    "builtin": [
+                        {"phrase": p, "enabled": p.strip().lower() not in disabled}
+                        for p in builtin.get(intent, [])
+                    ],
+                    "custom": list(custom.get(intent) or []),
+                }
+                for intent in INTENTS
+            ],
+        }
+
+    async def _update_voice_keywords(self, msg: dict) -> None:
+        """add / remove / enable / disable a spoken phrase for one intent."""
+        from dataclasses import replace
+
+        from narrative_settings import save_detection_user
+        from voice_commands import INTENTS
+
+        du = self._detection_user
+        op = (msg.get("op") or "").strip().lower()
+        intent = (msg.get("intent") or "").strip().lower()
+        phrase = (msg.get("phrase") or "").strip()
+        if op in ("add", "remove") and intent not in INTENTS:
+            await self._emit_system_log("generic", f"Unknown voice intent {intent!r}")
+        elif op == "add" and phrase:
+            custom = {k: list(v) for k, v in (du.voice_nav_custom_keywords or {}).items()}
+            existing = custom.setdefault(intent, [])
+            if phrase.lower() not in [e.lower() for e in existing]:
+                existing.append(phrase)
+            du = replace(du, voice_nav_custom_keywords=custom)
+        elif op == "remove" and phrase:
+            custom = {k: list(v) for k, v in (du.voice_nav_custom_keywords or {}).items()}
+            custom[intent] = [p for p in custom.get(intent, []) if p.lower() != phrase.lower()]
+            du = replace(du, voice_nav_custom_keywords=custom)
+        elif op in ("enable", "disable") and phrase:
+            disabled = [p for p in (du.voice_nav_disabled_keywords or [])
+                        if p.lower() != phrase.lower()]
+            if op == "disable":
+                disabled.append(phrase)
+            du = replace(du, voice_nav_disabled_keywords=disabled)
+
+        self._detection_user = du
+        save_detection_user(self._detection_user_path, self._detection_user)
+        self._apply_voice_keywords()
+        await self._broadcast(self._voice_keyword_payload())
+
     async def _maybe_handle_voice_command(self, text: str, now: float) -> bool:
         """Returns True when *text* was a navigation command and has been
         acted on — the caller then skips verse detection for that chunk."""
@@ -1112,6 +1178,7 @@ class WindowVerseServer:
                 "type": "detection_state",
                 "settings": self._detection_user.to_ui_dict(),
             }))
+            await websocket.send(json.dumps(self._voice_keyword_payload()))
             await websocket.send(json.dumps({
                 "type": "ndi_state",
                 "enabled": self._display.ndi_output_enabled,
@@ -1316,6 +1383,10 @@ class WindowVerseServer:
             }))
             if len(results) == 1:
                 await self._stage_preview(results[0], source="search")
+        elif action == "get_voice_keywords":
+            await websocket.send(json.dumps(self._voice_keyword_payload()))
+        elif action == "set_voice_keywords":
+            await self._update_voice_keywords(msg)
         elif action == "set_voice_nav":
             from dataclasses import replace
             from narrative_settings import save_detection_user
@@ -1447,7 +1518,7 @@ class WindowVerseServer:
         out = dict(event)
         out.pop("secondary_text", None)
         out.pop("secondary_language", None)
-        if not out.get("triggered"):
+        if out.get("book") is None or out.get("chapter") is None or out.get("verse") is None:
             return out
         from verse_display import PRIMARY_VERSION_LABEL, SECONDARY_VERSION_LABEL, bilingual_reference
         from bible_books import french_book_name
@@ -1727,12 +1798,12 @@ def main():
 
     server = WindowVerseServer()
 
-    faiss_index = os.environ.get("WINDOWVERSE_FAISS_INDEX") or os.environ.get("MULTIVERSE_FAISS_INDEX")
-    verse_lookup = os.environ.get("WINDOWVERSE_VERSE_LOOKUP") or os.environ.get("MULTIVERSE_VERSE_LOOKUP")
+    faiss_index = os.environ.get("WINDOWVERSE_FAISS_INDEX")
+    verse_lookup = os.environ.get("WINDOWVERSE_VERSE_LOOKUP")
 
     data_root = Path(
         os.environ.get("WINDOWVERSE_DATA_ROOT")
-        or os.environ.get("MULTIVERSE_DATA_ROOT", APP_CONFIG.library.data_root)
+        or os.environ.get("WINDOWVERSE_DATA_ROOT", APP_CONFIG.library.data_root)
     )
     default_faiss = data_root / "bible_vectors.index"
     default_lookup = data_root / "bible_verse_map.pkl"
@@ -1766,7 +1837,7 @@ def main():
         external_verse_lookup=verse_lookup,
         external_lookup_format=os.environ.get(
             "WINDOWVERSE_LOOKUP_FORMAT",
-            os.environ.get("MULTIVERSE_LOOKUP_FORMAT", "pickle"),
+            os.environ.get("WINDOWVERSE_LOOKUP_FORMAT", "pickle"),
         ),
     ))
 

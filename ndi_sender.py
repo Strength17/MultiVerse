@@ -2,7 +2,7 @@
 ndi_sender.py
 
 Broadcasts the currently-displayed verse as a live NDI video source, so
-vMix (or any other NDI receiver) can add Window Verse as a normal input --
+vMix (or any other NDI receiver) can add WindowVerse as a normal input --
 no capture window, no third-party screen-grab tool.
 
 The frame layout mirrors the Live Output stage in ui/index.html exactly:
@@ -61,7 +61,7 @@ class NDISender:
             self._warn_once(
                 "NDI output unavailable — 'cyndilib' (or a dependency) isn't installed. "
                 "Run: pip install cyndilib pillow --break-system-packages  "
-                f"({e}). The rest of Window Verse is unaffected."
+                f"({e}). The rest of WindowVerse is unaffected."
             )
             return
 

@@ -1,7 +1,7 @@
 """
 app_config.py
 
-Single source of truth for every tunable value in Window Verse. Nothing in
+Single source of truth for every tunable value in WindowVerse. Nothing in
 the detection, display, or NDI pipeline should hardcode a threshold,
 timeout, color, or size directly -- it should be read from here, and here
 alone reads config/config.ini.
@@ -39,7 +39,7 @@ def resolve_config_path(path: str | None = None) -> str:
     import os
     if path:
         return path
-    env = os.environ.get("WINDOWVERSE_CONFIG") or os.environ.get("MULTIVERSE_CONFIG")
+    env = os.environ.get("WINDOWVERSE_CONFIG")
     if env:
         return env
     try:

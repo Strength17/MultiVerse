@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import json
 import logging
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 logger = logging.getLogger("windowverse.narrative_settings")
@@ -79,6 +79,10 @@ class DetectionUserSettings:
     voice_nav_auto_broadcast: bool = True
     voice_nav_wrap_books: bool = False
     voice_nav_respects_story_mode: bool = True
+    # Operator-tuned spoken vocabulary: stock phrases switched off by label,
+    # and extra phrases per intent (next/prev/repeat/clear/broadcast).
+    voice_nav_disabled_keywords: list[str] = field(default_factory=list)
+    voice_nav_custom_keywords: dict[str, list[str]] = field(default_factory=dict)
     # Speech detections keep going straight on air (pre-0.0.2.0 behaviour);
     # turn this off to make every verse — spoken or manual — go to preview
     # first and wait for Broadcast.
@@ -121,6 +125,10 @@ class DetectionUserSettings:
             "voice_nav_auto_broadcast": bool(self.voice_nav_auto_broadcast),
             "voice_nav_wrap_books": bool(self.voice_nav_wrap_books),
             "voice_nav_respects_story_mode": bool(self.voice_nav_respects_story_mode),
+            "voice_nav_disabled_keywords": list(self.voice_nav_disabled_keywords or []),
+            "voice_nav_custom_keywords": {
+                k: list(v or []) for k, v in (self.voice_nav_custom_keywords or {}).items()
+            },
             "transcript_auto_broadcast": bool(self.transcript_auto_broadcast),
             **self.narrative_thresholds(),
         }

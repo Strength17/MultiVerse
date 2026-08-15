@@ -536,9 +536,13 @@ body {
 .preview-strip.on-air .preview-tag { color: var(--red); }
 .preview-body {
   flex: 1; min-width: 0; font-size: 11.5px; color: var(--ink);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-height: 74px; overflow-y: auto; line-height: 1.45;
 }
 .preview-body b { font-family: var(--serif); color: #2b9bff; margin-right: 6px; }
+.preview-body .sec {
+  display: block; margin-top: 4px; color: var(--ink-60);
+  font-style: italic; font-size: 11px;
+}
 .preview-strip .btn { flex-shrink: 0; }
 
 /* ── Sub-tabs (Settings / More) ─────────────────────────────────────── */
@@ -567,13 +571,30 @@ body {
 .browser-row:hover { background: rgba(255,255,255,0.04); color: var(--ink); }
 .browser-row.active { color: var(--gold); border-color: rgba(43,155,255,0.35); background: rgba(43,155,255,0.1); }
 .browser-verse-num { font-family: var(--serif); color: #2b9bff; margin-right: 6px; }
-.chapter-grid { flex: 1; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(38px, 1fr)); gap: 4px; align-content: start; }
+.chapter-grid { flex: 1; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(38px, 1fr)); grid-auto-rows: max-content; gap: 4px; align-content: start; }
 .chapter-cell {
   text-align: center; padding: 6px 0; border-radius: 6px; font-size: 12px;
   border: 1px solid var(--line-soft); color: var(--ink-60); cursor: pointer;
 }
 .chapter-cell:hover { color: var(--ink); border-color: var(--ink-40); }
 .chapter-cell.active { color: var(--gold); border-color: rgba(43,155,255,0.35); background: rgba(43,155,255,0.1); }
+.chapter-grid.books { grid-template-columns: repeat(auto-fill, minmax(58px, 1fr)); }
+.chapter-cell.book-cell { font-size: 11px; padding: 8px 2px; white-space: nowrap; overflow: hidden; }
+.grid-hdr { display: flex; align-items: center; gap: 6px; }
+.btn.tiny { padding: 2px 7px; font-size: 11px; }
+.book-grid { flex: 1; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); grid-auto-rows: max-content; gap: 4px; align-content: start; }
+
+/* Recent verses, grouped by book */
+.recall-group { border-bottom: 1px solid var(--line-soft); }
+.recall-group:last-child { border-bottom: none; }
+.recall-caret {
+  width: 16px; text-align: center; color: var(--ink-40); cursor: pointer;
+  font-size: 10px; flex-shrink: 0;
+}
+.recall-caret.placeholder { visibility: hidden; }
+.recall-children { display: none; padding-left: 18px; }
+.recall-group.open .recall-children { display: block; }
+.recall-count { color: var(--ink-40); font-size: 10.5px; flex-shrink: 0; }
 .preview-box {
   flex: 1; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px;
   padding: 14px; font-family: var(--serif); font-size: 15px; line-height: 1.6;
@@ -593,6 +614,21 @@ body {
   font-size: 11.5px; color: var(--gold); cursor: pointer; padding: 6px 2px;
 }
 .search-open-browser:hover { text-decoration: underline; }
+
+/* Voice keyword editor */
+.kw-intent { margin-top: 14px; }
+.kw-intent-name { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-40); }
+.kw-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.kw-chip {
+  display: flex; align-items: center; gap: 5px; font-size: 11.5px;
+  border: 1px solid var(--line); border-radius: 999px; padding: 3px 9px;
+  color: var(--ink-60); cursor: pointer;
+}
+.kw-chip.on { color: var(--ink); border-color: rgba(43,155,255,0.35); background: rgba(43,155,255,0.1); }
+.kw-chip.custom { border-style: dashed; }
+.kw-chip .x { color: var(--ink-40); font-size: 12px; }
+.kw-add { display: flex; gap: 6px; }
+.kw-add input { flex: 1; }
 </style>
 </head>
 <body>
@@ -691,12 +727,16 @@ body {
     <div class="preview-strip" id="previewStrip">
       <div class="preview-tag" id="previewTag">PREVIEW</div>
       <div class="preview-body" id="previewBody">Nothing staged</div>
-      <button class="btn start small" id="broadcastBtn" title="Broadcast preview (Ctrl+Enter)">▶ Broadcast</button>
     </div>
     <div class="stage-scroll">
       <div class="stage" id="stage">
         <div class="stage-empty">No verse on air</div>
       </div>
+    </div>
+    <div class="stage-controls">
+      <button class="btn small" id="stagePrevBtn" title="Previous verse (↑)">◀ Prev</button>
+      <button class="btn small" id="stageNextBtn" title="Next verse (↓)">Next ▶</button>
+      <button class="btn start small" id="broadcastBtn" title="Broadcast preview (Ctrl+Enter)">▶ Broadcast</button>
     </div>
     <div class="stage-controls">
       <button class="btn small" id="popoutBtn">⧉ Open Projector Window</button>
@@ -751,11 +791,18 @@ body {
         <button class="seg-btn" data-testament="ot">OT</button>
         <button class="seg-btn" data-testament="nt">NT</button>
       </div>
+      <div class="seg" id="bookViewSeg">
+        <button class="seg-btn active" data-bookview="grid">Boxes</button>
+        <button class="seg-btn" data-bookview="list">List</button>
+      </div>
       <input class="search-input" id="browserBookFilter" placeholder="Filter books…">
       <div class="browser-list" id="browserBooks"></div>
     </div>
     <div class="browser-col browser-chapters">
-      <div class="browser-hdr">Chapters</div>
+      <div class="grid-hdr">
+        <button class="btn tiny" id="browserGridBack" title="Back" style="display:none">←</button>
+        <span class="browser-hdr" id="browserGridHdr">Books</span>
+      </div>
       <div class="chapter-grid" id="browserChapters"></div>
     </div>
     <div class="browser-col browser-verses">
@@ -810,6 +857,11 @@ body {
             <span>Continue past the end of a book</span></label>
           <label class="opt-row"><input type="checkbox" id="voiceNavRespectsStory" checked>
             <span>Ignore spoken commands while story mode is tracking a passage</span></label>
+        </div>
+        <div class="vmix-steps"><b>Spoken keywords</b>
+          <small>Untick a stock phrase to stop it firing, or add your own wording.
+            Custom phrases must be said on their own.</small>
+          <div id="voiceKeywords"></div>
         </div>
       </div>
     </div>
@@ -1035,6 +1087,8 @@ const browserBooks=$("browserBooks"), browserChapters=$("browserChapters");
 const browserVerses=$("browserVerses"), browserVersesHdr=$("browserVersesHdr");
 const browserPreview=$("browserPreview"), browserBookFilter=$("browserBookFilter");
 const browserPrevBtn=$("browserPrevBtn"), browserNextBtn=$("browserNextBtn");
+const browserGridBack=$("browserGridBack"), browserGridHdr=$("browserGridHdr");
+const stagePrevBtn=$("stagePrevBtn"), stageNextBtn=$("stageNextBtn");
 const browserBroadcastBtn=$("browserBroadcastBtn");
 const micRing=() => txEmpty.querySelector(".mic-ring");
 const micEmptyText=() => txEmpty.querySelector("p");
@@ -1067,10 +1121,10 @@ let ndiEnabled = true;
 let toastTimer = null;
 let selectedMic = "";
 let startupStepStatus = {};
-const COL_ORDER_KEY = "mvColOrder";
-const COL_WIDTHS_KEY = "mvColWidths";
-const DOCK_HEIGHT_KEY = "mvDockHeight";
-const SIDEBAR_WIDTH_KEY = "mvSidebarWidth";
+const COL_ORDER_KEY = "wvColOrder";
+const COL_WIDTHS_KEY = "wvColWidths";
+const DOCK_HEIGHT_KEY = "wvDockHeight";
+const SIDEBAR_WIDTH_KEY = "wvSidebarWidth";
 
 // ── Status ──
 function updateMicEmpty(state) {
@@ -1554,6 +1608,7 @@ function displayToPreview(d, { notifyServer = true } = {}) {
   refBook.value = d.book || "";
   refChapter.value = d.chapter || "";
   refVerse.value = d.verse || "";
+  addToRecall(d);
   if (notifyServer) wsSend({ action: "stage_preview", verse: d });
 }
 
@@ -1568,7 +1623,12 @@ function renderPreview(d) {
   }
   previewVerse = d;
   previewStrip.classList.remove("empty");
-  previewBody.innerHTML = `<b>${d.book} ${d.chapter}:${d.verse}</b>${(d.text || "").slice(0, 220)}`;
+  // The French line is part of what goes on screen, so the operator sees it
+  // in preview too — never only after broadcasting.
+  const sec = d.secondary_text
+    ? `<span class="sec">${(d.secondary_text || "").slice(0, 220)}</span>` : "";
+  previewBody.innerHTML =
+    `<b>${d.book} ${d.chapter}:${d.verse}</b>${(d.text || "").slice(0, 220)}${sec}`;
 }
 
 // Broadcast follows what the operator can actually see: the preview strip
@@ -1666,14 +1726,153 @@ setInterval(() => {
 }, 1000);
 
 // ── Quick Recall ──
+// Grouped by book so the list can't saturate: each book shows only its most
+// recent verse, with a caret that reveals the older ones underneath.
+const recallGroups = [];   // [{ book, verses: [newest, …] }] — newest book first
+const recallOpen = new Set();
+
 function addToRecall(d) {
+  if (!d || !d.book) return;
   recallEmpty.style.display = "none";
-  const row = document.createElement("div");
-  row.className = "recall-item";
-  row.innerHTML = `<span class="recall-ref">${d.book} ${d.chapter}:${d.verse}</span><span class="recall-snip">${d.text}</span>`;
-  row.onclick = () => displayToPreview(d);
-  recallFeed.prepend(row);
-  while (recallFeed.childElementCount > 40) recallFeed.removeChild(recallFeed.lastChild);
+  let group = recallGroups.find(g => g.book === d.book);
+  if (group) {
+    recallGroups.splice(recallGroups.indexOf(group), 1);
+    group.verses = group.verses.filter(
+      v => !(v.chapter === d.chapter && v.verse === d.verse));
+  } else {
+    group = { book: d.book, verses: [] };
+  }
+  group.verses.unshift(d);
+  group.verses = group.verses.slice(0, 20);
+  recallGroups.unshift(group);
+  while (recallGroups.length > 15) recallGroups.pop();
+  renderRecall();
+}
+
+function renderRecall() {
+  recallFeed.innerHTML = "";
+  for (const group of recallGroups) {
+    const [latest, ...older] = group.verses;
+    const wrap = document.createElement("div");
+    wrap.className = "recall-group" + (recallOpen.has(group.book) ? " open" : "");
+
+    const head = document.createElement("div");
+    head.className = "recall-item";
+    const caret = document.createElement("span");
+    caret.className = "recall-caret" + (older.length ? "" : " placeholder");
+    caret.textContent = recallOpen.has(group.book) ? "▾" : "▸";
+    caret.onclick = e => {
+      e.stopPropagation();
+      if (!older.length) return;
+      recallOpen.has(group.book) ? recallOpen.delete(group.book) : recallOpen.add(group.book);
+      renderRecall();
+    };
+    const label = document.createElement("span");
+    label.className = "recall-ref";
+    label.textContent = `${latest.book} ${latest.chapter}:${latest.verse}`;
+    const snip = document.createElement("span");
+    snip.className = "recall-snip";
+    snip.textContent = latest.text || "";
+    head.append(caret, label, snip);
+    if (older.length) {
+      const count = document.createElement("span");
+      count.className = "recall-count";
+      count.textContent = `+${older.length}`;
+      head.appendChild(count);
+    }
+    head.onclick = () => displayToPreview(latest);
+    wrap.appendChild(head);
+
+    const children = document.createElement("div");
+    children.className = "recall-children";
+    for (const v of older) {
+      const row = document.createElement("div");
+      row.className = "recall-item";
+      const ref = document.createElement("span");
+      ref.className = "recall-ref";
+      ref.textContent = `${v.book} ${v.chapter}:${v.verse}`;
+      const text = document.createElement("span");
+      text.className = "recall-snip";
+      text.textContent = v.text || "";
+      row.append(ref, text);
+      row.onclick = () => displayToPreview(v);
+      children.appendChild(row);
+    }
+    wrap.appendChild(children);
+    recallFeed.appendChild(wrap);
+  }
+}
+
+// ── Voice keyword editor ──
+// The stock phrases can be switched off one by one ("continue" and "back"
+// are the usual suspects) and the operator's own wording added per intent.
+const VOICE_INTENT_LABELS = {
+  next: "Next verse", prev: "Previous verse", repeat: "Repeat",
+  clear: "Clear screen", broadcast: "Broadcast",
+};
+
+function renderVoiceKeywords(msg) {
+  const host = $("voiceKeywords");
+  if (!host) return;
+  host.innerHTML = "";
+  for (const group of msg.intents || []) {
+    const block = document.createElement("div");
+    block.className = "kw-intent";
+    const name = document.createElement("div");
+    name.className = "kw-intent-name";
+    name.textContent = VOICE_INTENT_LABELS[group.intent] || group.intent;
+    block.appendChild(name);
+
+    const chips = document.createElement("div");
+    chips.className = "kw-chips";
+    for (const entry of group.builtin || []) {
+      const chip = document.createElement("span");
+      chip.className = "kw-chip" + (entry.enabled ? " on" : "");
+      chip.textContent = (entry.enabled ? "✓ " : "✕ ") + entry.phrase;
+      chip.title = entry.enabled ? "Click to switch off" : "Click to switch on";
+      chip.onclick = () => wsSend({
+        action: "set_voice_keywords", op: entry.enabled ? "disable" : "enable",
+        intent: group.intent, phrase: entry.phrase,
+      });
+      chips.appendChild(chip);
+    }
+    for (const phrase of group.custom || []) {
+      const chip = document.createElement("span");
+      chip.className = "kw-chip on custom";
+      chip.textContent = phrase;
+      const x = document.createElement("span");
+      x.className = "x";
+      x.textContent = "×";
+      chip.appendChild(x);
+      chip.title = "Remove this phrase";
+      chip.onclick = () => wsSend({
+        action: "set_voice_keywords", op: "remove",
+        intent: group.intent, phrase,
+      });
+      chips.appendChild(chip);
+    }
+    block.appendChild(chips);
+
+    const add = document.createElement("div");
+    add.className = "kw-add";
+    const input = document.createElement("input");
+    input.className = "search-input";
+    input.placeholder = `Add a phrase for "${VOICE_INTENT_LABELS[group.intent] || group.intent}"…`;
+    const btn = document.createElement("button");
+    btn.className = "btn small";
+    btn.textContent = "Add";
+    const submit = () => {
+      const phrase = input.value.trim();
+      if (!phrase) return;
+      input.value = "";
+      wsSend({ action: "set_voice_keywords", op: "add", intent: group.intent, phrase });
+    };
+    btn.onclick = submit;
+    input.onkeydown = e => { if (e.key === "Enter") submit(); };
+    add.append(input, btn);
+    block.appendChild(add);
+    host.appendChild(block);
+  }
 }
 
 // ── JSON log ──
@@ -1995,6 +2194,8 @@ function applyNavState(msg) {
   }
   if (navPrevBtn) navPrevBtn.disabled = !msg.has_prev;
   if (navNextBtn) navNextBtn.disabled = !msg.has_next;
+  if (stagePrevBtn) stagePrevBtn.disabled = !msg.has_prev;
+  if (stageNextBtn) stageNextBtn.disabled = !msg.has_next;
   if (browserPrevBtn) browserPrevBtn.disabled = !msg.has_prev;
   if (browserNextBtn) browserNextBtn.disabled = !msg.has_next;
   isOnAir = !!msg.on_air;
@@ -2145,6 +2346,9 @@ let bibleBooks = [];
 let browserTestament = "all";
 let browserBook = null, browserChapter = null;
 let structureRequested = false;
+let bookView = "grid";                 // grid (abbreviation boxes) | list
+let gridMode = "books";                // books -> chapters -> verses, in one pane
+let gridChapters = [], gridVerses = [];
 
 function ensureBibleStructure() {
   if (structureRequested || !ws || ws.readyState !== WebSocket.OPEN) return;
@@ -2165,28 +2369,101 @@ function applyBibleStructure(msg) {
   renderBrowserBooks();
 }
 
+function visibleBooks() {
+  const filter = (browserBookFilter?.value || "").trim().toLowerCase();
+  return bibleBooks.filter(b =>
+    (browserTestament === "all" || (b.testament || "").toLowerCase() === browserTestament) &&
+    (!filter || b.book.toLowerCase().includes(filter) ||
+      (b.abbrev || "").toLowerCase().includes(filter)));
+}
+
 function renderBrowserBooks() {
   if (!browserBooks) return;
-  const filter = (browserBookFilter?.value || "").trim().toLowerCase();
   browserBooks.innerHTML = "";
-  const shown = bibleBooks.filter(b =>
-    (browserTestament === "all" || (b.testament || "").toLowerCase() === browserTestament) &&
-    (!filter || b.book.toLowerCase().includes(filter)));
+  browserBooks.className = bookView === "grid" ? "book-grid" : "browser-list";
+  const shown = visibleBooks();
   if (!shown.length) {
     browserBooks.innerHTML = `<div class="browser-empty">No books match</div>`;
     return;
   }
   for (const b of shown) {
-    const row = document.createElement("div");
-    row.className = "browser-row" + (browserBook === b.book_number ? " active" : "");
-    row.textContent = b.book;
-    row.onclick = () => selectBrowserBook(b.book_number);
-    browserBooks.appendChild(row);
+    const cell = document.createElement("div");
+    const active = browserBook === b.book_number;
+    if (bookView === "grid") {
+      cell.className = "chapter-cell book-cell" + (active ? " active" : "");
+      cell.textContent = b.abbrev || b.book.slice(0, 3);
+      cell.title = b.book;
+    } else {
+      cell.className = "browser-row" + (active ? " active" : "");
+      cell.textContent = b.book;
+    }
+    cell.onclick = () => selectBrowserBook(b.book_number);
+    browserBooks.appendChild(cell);
   }
+  if (gridMode === "books") renderGridPane();
+}
+
+// The middle pane walks books -> chapters -> verses in place, so the last
+// click in it is always the actual verse rather than a dead end at chapters.
+function renderGridPane() {
+  if (!browserChapters) return;
+  browserChapters.innerHTML = "";
+  browserChapters.className = "chapter-grid" + (gridMode === "books" ? " books" : "");
+  if (browserGridBack) browserGridBack.style.display = gridMode === "books" ? "none" : "";
+  const bookName = (bibleBooks.find(b => b.book_number === browserBook) || {}).book || "";
+
+  if (gridMode === "books") {
+    if (browserGridHdr) browserGridHdr.textContent = "Books";
+    for (const b of visibleBooks()) {
+      const cell = document.createElement("div");
+      cell.className = "chapter-cell book-cell" + (browserBook === b.book_number ? " active" : "");
+      cell.textContent = b.abbrev || b.book.slice(0, 3);
+      cell.title = b.book;
+      cell.onclick = () => selectBrowserBook(b.book_number);
+      browserChapters.appendChild(cell);
+    }
+    return;
+  }
+
+  if (gridMode === "chapters") {
+    if (browserGridHdr) browserGridHdr.textContent = `${bookName} — chapters`;
+    for (const ch of gridChapters) {
+      const cell = document.createElement("div");
+      cell.className = "chapter-cell" + (ch === browserChapter ? " active" : "");
+      cell.textContent = ch;
+      cell.onclick = () => {
+        gridMode = "verses";
+        wsSend({ action: "get_chapter", book_number: browserBook, chapter: ch });
+      };
+      browserChapters.appendChild(cell);
+    }
+    return;
+  }
+
+  if (browserGridHdr) browserGridHdr.textContent = `${bookName} ${browserChapter} — verses`;
+  for (const v of gridVerses) {
+    const cell = document.createElement("div");
+    cell.className = "chapter-cell" + (browserPreviewVerse
+      && browserPreviewVerse.verse === v.verse
+      && browserPreviewVerse.chapter === browserChapter ? " active" : "");
+    cell.textContent = v.verse;
+    cell.onclick = () => {
+      displayToPreview({ ...v, source: "browser" });
+      renderGridPane();
+    };
+    browserChapters.appendChild(cell);
+  }
+}
+
+function gridPaneBack() {
+  if (gridMode === "verses") gridMode = "chapters";
+  else if (gridMode === "chapters") gridMode = "books";
+  renderGridPane();
 }
 
 function selectBrowserBook(bookNumber, chapter) {
   browserBook = bookNumber;
+  gridMode = chapter ? "verses" : "chapters";
   renderBrowserBooks();
   wsSend({ action: "get_chapter", book_number: bookNumber, chapter: chapter || 1 });
 }
@@ -2196,14 +2473,10 @@ function applyChapterVerses(msg) {
   browserChapter = msg.chapter;
   renderBrowserBooks();
 
-  browserChapters.innerHTML = "";
-  for (const ch of msg.chapters || []) {
-    const cell = document.createElement("div");
-    cell.className = "chapter-cell" + (ch === msg.chapter ? " active" : "");
-    cell.textContent = ch;
-    cell.onclick = () => wsSend({ action: "get_chapter", book_number: msg.book_number, chapter: ch });
-    browserChapters.appendChild(cell);
-  }
+  gridChapters = msg.chapters || [];
+  gridVerses = msg.verses || [];
+  if (gridMode === "books") gridMode = "chapters";
+  renderGridPane();
 
   browserVersesHdr.textContent = `${msg.book} ${msg.chapter}`;
   renderBrowserVerseList(msg.verses || []);
@@ -2246,7 +2519,7 @@ function applyBrowserResults(msg) {
     ? `${results.length} result${results.length !== 1 ? "s" : ""} for "${msg.query}"`
     : `No results for "${msg.query}"`;
   renderBrowserVerseList(results);
-  browserChapters.innerHTML = "";
+  renderGridPane();
 }
 
 document.querySelectorAll("#testamentSeg .seg-btn").forEach(btn => {
@@ -2258,6 +2531,15 @@ document.querySelectorAll("#testamentSeg .seg-btn").forEach(btn => {
   };
 });
 if (browserBookFilter) browserBookFilter.oninput = renderBrowserBooks;
+if (browserGridBack) browserGridBack.onclick = gridPaneBack;
+document.querySelectorAll("#bookViewSeg .seg-btn").forEach(btn => {
+  btn.onclick = () => {
+    bookView = btn.dataset.bookview;
+    document.querySelectorAll("#bookViewSeg .seg-btn")
+      .forEach(b => b.classList.toggle("active", b === btn));
+    renderBrowserBooks();
+  };
+});
 if (browserBroadcastBtn) browserBroadcastBtn.onclick = () => broadcastFromPreview();
 if (browserPrevBtn) browserPrevBtn.onclick = () => wsSend({ action: "navigate_verse", direction: -1, broadcast: false });
 if (browserNextBtn) browserNextBtn.onclick = () => wsSend({ action: "navigate_verse", direction: 1, broadcast: false });
@@ -2279,6 +2561,8 @@ if (refGoBtn) refGoBtn.onclick = goToReference;
 });
 if (navPrevBtn) navPrevBtn.onclick = () => wsSend({ action: "navigate_verse", direction: -1 });
 if (navNextBtn) navNextBtn.onclick = () => wsSend({ action: "navigate_verse", direction: 1 });
+if (stagePrevBtn) stagePrevBtn.onclick = () => wsSend({ action: "navigate_verse", direction: -1 });
+if (stageNextBtn) stageNextBtn.onclick = () => wsSend({ action: "navigate_verse", direction: 1 });
 if (broadcastBtn) broadcastBtn.onclick = () => broadcastFromPreview();
 
 // ── Keyboard shortcuts (see COMMANDS.md) ─────────────────────────────
@@ -2659,6 +2943,9 @@ function onWsMessage({ data }) {
       break;
     case "detection_state":
       applyDetectionState(msg);
+      break;
+    case "voice_keywords":
+      renderVoiceKeywords(msg);
       break;
     case "audio_devices":
       renderAudioDevices(msg);

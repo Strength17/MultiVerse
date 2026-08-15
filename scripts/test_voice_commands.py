@@ -93,6 +93,37 @@ def main() -> None:
     assert parser.parse("next verse", {"now": 11.5, "finalized": True, "has_verse": True})
     print("OK: 800ms cooldown")
 
+    # Operator-tuned keywords: stock phrases can be switched off, and own
+    # wording added, from Settings.
+    from voice_commands import builtin_keywords
+
+    catalog = builtin_keywords()
+    assert "continue" in catalog["next"] and "back" in catalog["prev"], catalog
+    print("OK: 'continue' and 'back' are listed as editable keywords")
+
+    parser = fresh()
+    parser.set_keywords(["continue", "back"], None)
+    ctx = {"now": clock, "finalized": True, "has_verse": True}
+    assert parser.parse("continue", ctx) is None
+    parser = fresh()
+    parser.set_keywords(["continue", "back"], None)
+    assert parser.parse("back", ctx) is None
+    parser = fresh()
+    parser.set_keywords(["continue", "back"], None)
+    assert parser.parse("next verse", ctx).intent == "next"
+    print("OK: switched-off keywords stop firing, the rest still work")
+
+    parser = fresh()
+    parser.set_keywords(None, {"next": ["kontinye"], "prev": ["retounen"]})
+    assert parser.parse("kontinye", ctx).intent == "next"
+    parser = fresh()
+    parser.set_keywords(None, {"next": ["kontinye"], "prev": ["retounen"]})
+    assert parser.parse("retounen", ctx).intent == "prev"
+    parser = fresh()
+    parser.set_keywords(None, {"next": ["kontinye"]})
+    assert parser.parse("kontinye", {"now": clock, "finalized": True, "has_verse": False}) is None
+    print("OK: custom keywords fire, and still respect the has-verse guard")
+
     print("\nAll voice command checks passed.")
 
 

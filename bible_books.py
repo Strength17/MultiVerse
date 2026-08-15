@@ -3,7 +3,7 @@ bible_books.py
 
 Canonical book list with common abbreviations, used by verse_detector.py
 for direct-reference regex matching. Multiples-of-10 numbering kept
-consistent with Window Verse's existing schema (per the original README's
+consistent with WindowVerse's existing schema (per the original README's
 bible_db.py / data/NKJV.SQLite3 convention).
 
 IMPORTANT -- this app detects references from SPOKEN transcripts, never
@@ -220,6 +220,12 @@ BOOK_NUMBER_TO_CANONICAL: dict[int, str] = {num: name for num, name, _ in BOOKS}
 # Canonical name -> book_number (needed by bible_db.py when a DB stores
 # book names as strings instead of numbers)
 CANONICAL_TO_BOOK_NUMBER: dict[str, int] = {name: num for num, name, _ in BOOKS}
+
+# Short label for the Scripture Browser's book tiles ("1 Samuel" -> "1 Sam").
+BOOK_NUMBER_TO_ABBREV: dict[int, str] = {
+    num: (abbrevs[0].title() if abbrevs else name[:3]).replace("1", "1 ").replace("2", "2 ").replace("3", "3 ")
+    for num, name, abbrevs in BOOKS
+}
 
 # Single-chapter books: a bare "Book N" utterance for these is UNAMBIGUOUS
 # -- there's only one chapter, so N can only be a verse number. No pending

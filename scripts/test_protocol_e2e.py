@@ -167,6 +167,58 @@ async def main():
         await ws.send(json.dumps({"action": "clear_broadcast"}))
         await collect(ws)
 
+        # ── Book tiles need a short label for the Scripture Browser grid ──
+        await ws.send(json.dumps({"action": "get_bible_structure", "testament": "all"}))
+        struct = first(await collect(ws), "bible_structure")
+        books = {b["book"]: b for b in (struct or {}).get("books", [])}
+        check(books.get("Genesis", {}).get("abbrev") == "Gen"
+              and books.get("1 Samuel", {}).get("abbrev", "").startswith("1 "),
+              "book structure carries abbreviations for the box grid")
+
+        # ── Voice keyword editor round-trip ──
+        await ws.send(json.dumps({"action": "get_voice_keywords"}))
+        kw = first(await collect(ws), "voice_keywords")
+        by_intent = {g["intent"]: g for g in (kw or {}).get("intents", [])}
+        check("continue" in [e["phrase"] for e in by_intent.get("next", {}).get("builtin", [])]
+              and "back" in [e["phrase"] for e in by_intent.get("prev", {}).get("builtin", [])],
+              "'continue' and 'back' are exposed as editable keywords")
+
+        await ws.send(json.dumps({"action": "set_voice_keywords", "op": "disable",
+                                  "intent": "next", "phrase": "continue"}))
+        kw = first(await collect(ws), "voice_keywords")
+        entry = next(e for e in next(g for g in kw["intents"] if g["intent"] == "next")["builtin"]
+                     if e["phrase"] == "continue")
+        check(entry["enabled"] is False, "a stock keyword can be switched off and persists")
+
+        await ws.send(json.dumps({"action": "set_voice_keywords", "op": "add",
+                                  "intent": "prev", "phrase": "rewind that"}))
+        kw = first(await collect(ws), "voice_keywords")
+        check("rewind that" in next(g for g in kw["intents"] if g["intent"] == "prev")["custom"],
+              "a custom keyword can be added")
+
+        await ws.send(json.dumps({"action": "set_voice_keywords", "op": "remove",
+                                  "intent": "prev", "phrase": "rewind that"}))
+        kw = first(await collect(ws), "voice_keywords")
+        check("rewind that" not in next(g for g in kw["intents"] if g["intent"] == "prev")["custom"],
+              "a custom keyword can be removed")
+        await ws.send(json.dumps({"action": "set_voice_keywords", "op": "enable",
+                                  "intent": "next", "phrase": "continue"}))
+        await collect(ws)
+
+        # ── Every preview carries the French secondary text ──
+        await ws.send(json.dumps({"action": "get_chapter", "book_number": 430, "chapter": 3}))
+        chap = first(await collect(ws), "chapter_verses")
+        row = next(v for v in chap["verses"] if v["verse"] == 16)
+        await ws.send(json.dumps({"action": "stage_preview", "verse": row}))
+        pv = first(await collect(ws), "preview_verse")
+        check(pv is not None and "book_french" in pv,
+              "a browser-staged preview is enriched with the French reference")
+        # secondary_text only exists when a French edition is installed
+        check(pv.get("secondary_text") is None or pv["secondary_text"].strip() != "",
+              "a browser-staged preview carries the French verse text when available")
+        await ws.send(json.dumps({"action": "clear_preview"}))
+        await collect(ws)
+
     print()
     print(f"{len(fails)} failure(s)" if fails else "ALL PROTOCOL CHECKS PASSED")
     sys.exit(1 if fails else 0)
