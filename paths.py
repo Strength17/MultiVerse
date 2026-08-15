@@ -171,7 +171,13 @@ def _migrate_bible_data(bundled_data: Path, user_data: Path) -> None:
     # Anything else shipped as data/<Version>/<Language>/*.sqlite3 (the French
     # edition, extra versions) is seeded the same way, so a source checkout and
     # an installed copy see the same library.
-    for src in bundled_data.glob("*/*/*"):
+    shipped = [
+        p
+        for root in (bundled_data, bundled_data / "Bible DBs")
+        if root.is_dir()
+        for p in root.glob("*/*/*")
+    ]
+    for src in shipped:
         if not src.is_file() or src.suffix.lower() not in (".sqlite3", ".db", ".sqlite"):
             continue
         dst = user_data / src.parent.parent.name / src.parent.name / src.name

@@ -1,4 +1,10 @@
-Place your Bible database files here when running from source.
+Bible databases shipped with the app live in:
+
+    data/Bible DBs/NKJV/English/NKJV.sqlite3
+    data/Bible DBs/NKJV/French/LSG.sqlite3
+
+They are copied into your user data folder automatically on first launch.
+You can also place extra files directly here when running from source.
 
 INSTALLED DESKTOP APP: use Documents\WindowVerse\data\ instead (same layout below).
 

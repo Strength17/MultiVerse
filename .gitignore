@@ -28,6 +28,8 @@ data/range_cache.json
 data/**/*.db
 data/**/*.SQLite3
 data/**/*.sqlite3
+# Shipped Bible library (tracked on purpose so a clone runs out of the box)
+!data/Bible DBs/**
 !data/README_DATA.txt
 !data/.gitkeep
 !data/backgrounds/README.txt
