@@ -455,7 +455,10 @@ body {
 }
 .sidebar.sidebar-wide .nav-item { justify-content: flex-start; padding: 11px 14px; margin: 2px 8px; }
 .nav-label { display: none; }
-.nav-icon { font-size: 16px; line-height: 1; flex-shrink: 0; }
+.nav-icon { font-size: 16px; line-height: 1; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center; }
+.icon { vertical-align: -3px; flex-shrink: 0; }
+.btn [data-icon], .seg-btn [data-icon] { display: inline-flex; align-items: center; gap: 5px; }
 .nav-item:hover { background: rgba(255,255,255,0.04); color: var(--ink); }
 .nav-item.active { background: rgba(43,155,255,0.12); color: var(--gold); border-color: rgba(43,155,255,0.25); }
 .nav-item.has-errors { background: rgba(224,90,78,0.12); color: #ffb4ae; }
@@ -640,10 +643,10 @@ body {
 <aside class="sidebar" id="sidebar">
   <div class="sidebar-resizer" id="sidebarResizer" title="Drag to widen sidebar"></div>
   <div class="sidebar-hdr">Menu</div>
-  <div class="nav-item active" data-view="live" title="Live"><span class="nav-icon">▣</span><span class="nav-label">Live</span></div>
-  <div class="nav-item" data-view="scripture" title="Scripture Browser"><span class="nav-icon">📖</span><span class="nav-label">Scripture</span></div>
-  <div class="nav-item" data-view="settings" title="Settings"><span class="nav-icon">⚙</span><span class="nav-label">Settings</span></div>
-  <div class="nav-item" data-view="more" id="navLogs" title="More"><span class="nav-icon">⋯</span><span class="nav-label">More</span><span class="nav-badge" id="logBadge" style="display:none">0</span></div>
+  <div class="nav-item active" data-view="live" title="Live"><span class="nav-icon" data-icon="live" data-icon-size="18"></span><span class="nav-label">Live</span></div>
+  <div class="nav-item" data-view="scripture" title="Scripture Browser"><span class="nav-icon" data-icon="scripture" data-icon-size="18"></span><span class="nav-label">Scripture</span></div>
+  <div class="nav-item" data-view="settings" title="Settings"><span class="nav-icon" data-icon="settings" data-icon-size="18"></span><span class="nav-label">Settings</span></div>
+  <div class="nav-item" data-view="more" id="navLogs" title="More"><span class="nav-icon" data-icon="more" data-icon-size="18"></span><span class="nav-label">More</span><span class="nav-badge" id="logBadge" style="display:none">0</span></div>
 </aside>
 
 <div class="workspace">
@@ -668,9 +671,9 @@ body {
   <span class="version-pill" id="versionPill">NKJV</span>
   <div class="header-spacer"></div>
   <div class="ai-badge"><span class="dot" id="sDot"></span><span id="sTxt">disconnected</span></div>
-  <button class="btn start" id="micBtn">▶ Start</button>
-  <button class="btn" id="stopBtn" disabled>■ Stop</button>
-  <button class="btn small" id="saveBtn" title="Download session transcript">💾 Save Transcript</button>
+  <button class="btn start" id="micBtn"><span data-icon="mic" data-icon-label="Start"></span></button>
+  <button class="btn" id="stopBtn" disabled><span data-icon="stop" data-icon-label="Stop"></span></button>
+  <button class="btn small" id="saveBtn" title="Download session transcript"><span data-icon="save" data-icon-label="Save Transcript"></span></button>
 </header>
 
 <div class="view active" id="view-live">
@@ -689,12 +692,12 @@ body {
     </div>
     <div class="tx-scroll" id="txScroll">
       <div class="tx-empty" id="txEmpty">
-        <div class="mic-ring">🎙</div>
+        <div class="mic-ring" data-icon="micRing" data-icon-size="22"></div>
         <p>No transcription yet<br>Click Start to begin</p>
       </div>
       <div class="tx-inner" id="txFeed"></div>
     </div>
-    <div class="col-footer" id="txFooter">Idle — press ▶ Start</div>
+    <div class="col-footer" id="txFooter">Idle — press Start</div>
     <div class="mic-progress" id="micProgress"><div class="mic-progress-bar" id="micProgressBar"></div></div>
   </div>
 
@@ -709,7 +712,7 @@ body {
     </div>
     <div class="engine-body" id="engineBody">
       <div class="engine-empty" id="engineEmpty">
-        <span class="spark">✦</span>
+        <span class="spark" data-icon="spark" data-icon-size="18"></span>
         <p>Waiting for speech detection<br>Verses detected from live speech appear here</p>
       </div>
     </div>
@@ -734,13 +737,13 @@ body {
       </div>
     </div>
     <div class="stage-controls">
-      <button class="btn small" id="stagePrevBtn" title="Previous verse (↑)">◀ Prev</button>
-      <button class="btn small" id="stageNextBtn" title="Next verse (↓)">Next ▶</button>
-      <button class="btn start small" id="broadcastBtn" title="Broadcast preview (Ctrl+Enter)">▶ Broadcast</button>
+      <button class="btn small" id="stagePrevBtn" title="Previous verse (↑)"><span data-icon="prev" data-icon-label="Prev"></span></button>
+      <button class="btn small" id="stageNextBtn" title="Next verse (↓)"><span data-icon="next" data-icon-label="Next"></span></button>
+      <button class="btn start small" id="broadcastBtn" title="Broadcast preview (Ctrl+Enter)"><span data-icon="broadcast" data-icon-label="Broadcast"></span></button>
     </div>
     <div class="stage-controls">
-      <button class="btn small" id="popoutBtn">⧉ Open Projector Window</button>
-      <button class="btn small" id="clearBtn">Clear Screen</button>
+      <button class="btn small" id="popoutBtn"><span data-icon="projector" data-icon-label="Open Projector Window"></span></button>
+      <button class="btn small" id="clearBtn"><span data-icon="clear" data-icon-label="Clear Screen"></span></button>
     </div>
   </div>
 
@@ -755,8 +758,8 @@ body {
       <input class="ref-num" id="refChapter" type="number" min="1" placeholder="Ch">
       <input class="ref-num" id="refVerse" type="number" min="1" placeholder="V">
       <button class="btn small" id="refGoBtn" title="Preview this reference (Ctrl+G to focus)">Go</button>
-      <button class="btn small" id="navPrevBtn" title="Previous verse (↑)">◀</button>
-      <button class="btn small" id="navNextBtn" title="Next verse (↓)">▶</button>
+      <button class="btn small" id="navPrevBtn" title="Previous verse (↑)"><span data-icon="prev"></span></button>
+      <button class="btn small" id="navNextBtn" title="Next verse (↓)"><span data-icon="next"></span></button>
     </div>
     <div class="search-toolbar">
       <select id="searchTestament" title="Search scope">
@@ -792,15 +795,15 @@ body {
         <button class="seg-btn" data-testament="nt">NT</button>
       </div>
       <div class="seg" id="bookViewSeg">
-        <button class="seg-btn active" data-bookview="grid">Boxes</button>
-        <button class="seg-btn" data-bookview="list">List</button>
+        <button class="seg-btn active" data-bookview="grid"><span data-icon="grid" data-icon-size="13" data-icon-label="Boxes"></span></button>
+        <button class="seg-btn" data-bookview="list"><span data-icon="list" data-icon-size="13" data-icon-label="List"></span></button>
       </div>
       <input class="search-input" id="browserBookFilter" placeholder="Filter books…">
       <div class="browser-list" id="browserBooks"></div>
     </div>
     <div class="browser-col browser-chapters">
       <div class="grid-hdr">
-        <button class="btn tiny" id="browserGridBack" title="Back" style="display:none">←</button>
+        <button class="btn tiny" id="browserGridBack" title="Back" style="display:none"><span data-icon="prev" data-icon-size="13"></span></button>
         <span class="browser-hdr" id="browserGridHdr">Books</span>
       </div>
       <div class="chapter-grid" id="browserChapters"></div>
@@ -817,9 +820,9 @@ body {
         <div class="browser-empty">Select a verse to preview it here</div>
       </div>
       <div class="preview-controls">
-        <button class="btn small" id="browserPrevBtn" title="Previous verse">◀</button>
-        <button class="btn small" id="browserNextBtn" title="Next verse">▶</button>
-        <button class="btn start" id="browserBroadcastBtn">▶ Broadcast</button>
+        <button class="btn small" id="browserPrevBtn" title="Previous verse"><span data-icon="prev"></span></button>
+        <button class="btn small" id="browserNextBtn" title="Next verse"><span data-icon="next"></span></button>
+        <button class="btn start" id="browserBroadcastBtn"><span data-icon="broadcast" data-icon-label="Broadcast"></span></button>
       </div>
     </div>
   </div>
@@ -926,7 +929,7 @@ body {
         <div class="vmix-stat"><span class="dot" id="vmixWsDot"></span><span id="vmixWsTxt">Backend: disconnected</span></div>
         <div class="vmix-stat"><span class="dot" id="vmixWinDot"></span><span id="vmixWinTxt">Projector window: closed</span></div>
         <div class="vmix-stat"><span class="dot" id="vmixDbDot"></span><span id="vmixDbTxt">Bible DB: —</span></div>
-        <button class="btn small" id="vmixOpenBtn">⧉ Open Projector Window</button>
+        <button class="btn small" id="vmixOpenBtn"><span data-icon="projector" data-icon-label="Open Projector Window"></span></button>
       </div>
       <div class="vmix-note">WindowVerse broadcasts the current verse as a real NDI video source — vMix (or any NDI receiver) adds it like a normal camera input. The projector window above is an alternative fallback (via vMix's own Desktop Capture) if you'd rather not install the NDI runtime.</div>
       <div class="vmix-steps">
@@ -934,7 +937,7 @@ body {
         2. <code>pip install cyndilib pillow --break-system-packages</code>, then start WindowVerse as usual — the NDI source starts automatically if <code>[ndi] enabled = true</code> in <code>config/config.ini</code>.<br>
         3. In vMix: <b>Add Input → NDI</b> — the source named (by default) <code>WindowVerse</code> appears in the list automatically on the same network.<br>
         4. Add it to a layer/overlay channel as with any other source. It updates automatically whenever a verse is auto-displayed, and clears when you go off-air.<br><br>
-        <button class="btn small" id="ndiPreviewBtn">▶ Send test verse to NDI (matches Live Output layout)</button>
+        <button class="btn small" id="ndiPreviewBtn"><span data-icon="cast" data-icon-label="Send test verse to NDI (matches Live Output layout)"></span></button>
         <span id="ndiPreviewStatus" style="margin-left:8px;font-size:12px;color:var(--ink-60)"></span><br><br>
         Full details, troubleshooting, and every config option: see <code>NDI_SETUP.md</code> in the project folder.
       </div>
@@ -1057,6 +1060,7 @@ body {
   </div>
 </div>
 
+<script src="icons.js"></script>
 <script>
 const $ = id => document.getElementById(id);
 
@@ -1144,7 +1148,7 @@ function updateMicEmpty(state) {
     txEmpty.style.display = "flex";
     const canStart = backendReady && (state === "ready" || state === "stopped");
     text.innerHTML = canStart
-      ? "Ready — click ▶ Start to open the microphone"
+      ? "Ready — click Start to open the microphone"
       : state === "booting" || state === "connecting"
         ? "Waiting for backend to finish loading…"
         : "No transcription yet<br>Click Start to begin";
@@ -1169,10 +1173,10 @@ function setStatus(state) {
     : state === "starting"
       ? "Opening microphone…"
     : canStart
-      ? "Ready — press ▶ Start to open the microphone"
+      ? "Ready — press Start to open the microphone"
       : state === "booting" || state === "connecting"
         ? "Waiting for backend to finish loading…"
-        : "Idle — press ▶ Start";
+        : "Idle — press Start";
 
   if (micStatusPill) {
     micStatusPill.classList.toggle("show", isLive || state === "starting");
@@ -1419,7 +1423,7 @@ function renderTranscriptDetection(d) {
   const card = document.createElement("div");
   card.className = "verse-card";
   card.innerHTML = `
-    <div class="verse-source"><span>✦</span>${(d.source||"detection").toUpperCase()}</div>
+    <div class="verse-source"><span>${iconSvg("spark", 11)}</span>${(d.source||"detection").toUpperCase()}</div>
     <div class="verse-ref">${d.book} ${d.chapter}:${d.verse}</div>
     <div class="verse-text">${d.text}</div>
     <div class="verse-meta">
@@ -1760,7 +1764,7 @@ function renderRecall() {
     head.className = "recall-item";
     const caret = document.createElement("span");
     caret.className = "recall-caret" + (older.length ? "" : " placeholder");
-    caret.textContent = recallOpen.has(group.book) ? "▾" : "▸";
+    caret.innerHTML = iconSvg(recallOpen.has(group.book) ? "down" : "next", 13);
     caret.onclick = e => {
       e.stopPropagation();
       if (!older.length) return;
@@ -1828,7 +1832,7 @@ function renderVoiceKeywords(msg) {
     for (const entry of group.builtin || []) {
       const chip = document.createElement("span");
       chip.className = "kw-chip" + (entry.enabled ? " on" : "");
-      chip.textContent = (entry.enabled ? "✓ " : "✕ ") + entry.phrase;
+      chip.innerHTML = iconSvg(entry.enabled ? "check" : "x", 12) + " " + entry.phrase;
       chip.title = entry.enabled ? "Click to switch off" : "Click to switch on";
       chip.onclick = () => wsSend({
         action: "set_voice_keywords", op: entry.enabled ? "disable" : "enable",
@@ -1842,7 +1846,7 @@ function renderVoiceKeywords(msg) {
       chip.textContent = phrase;
       const x = document.createElement("span");
       x.className = "x";
-      x.textContent = "×";
+      x.innerHTML = iconSvg("x", 12);
       chip.appendChild(x);
       chip.title = "Remove this phrase";
       chip.onclick = () => wsSend({
@@ -2957,6 +2961,16 @@ connectWs();
 setStatus("disconnected");
 
 // ── Controls ──
+hydrateIcons();
+const iconObserver = new MutationObserver(muts => {
+  for (const m of muts) {
+    for (const node of m.addedNodes) {
+      if (node.nodeType === 1) hydrateIcons(node);
+    }
+  }
+});
+iconObserver.observe(document.body, { childList: true, subtree: true });
+
 micBtn.onclick  = () => { userPressedStart = true; wsSend({ action: "start_mic" }); };
 stopBtn.onclick = () => wsSend({ action: "stop" });
 searchInput.addEventListener("keydown", e => {
