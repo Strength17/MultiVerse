@@ -724,6 +724,35 @@ input[type="range"]::-moz-range-thumb {
 <div class="conn-banner" id="connBanner">⚠ Lost connection to backend — reconnecting…</div>
 <div class="action-toast" id="actionToast"></div>
 
+<!-- App Startup/Loading Overlay with transparent logo breathing animation -->
+<div id="appLoadingOverlay" style="position:fixed; inset:0; background:#000000; display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:99999; transition: opacity 0.8s ease;">
+  <div style="display:flex; flex-direction:column; align-items:center; gap:16px; text-align:center;">
+    <img src="logo.png" id="loadingLogo" alt="W" style="width:120px; height:120px; object-fit:contain; animation: logoBreathe 2s infinite ease-in-out; filter: drop-shadow(0 0 16px rgba(43,155,255,0.4));">
+    <div style="font-family: var(--serif); font-size:24px; font-weight:700; color:var(--ink); letter-spacing:-.02em; margin-top:5px;">Window<em>Verse</em></div>
+    
+    <!-- Detailed relocated startup/progress bar at the bottom of the loading overlay -->
+    <div id="loadingOverlayContainer" style="width:280px; margin-top:15px; text-align:left; display:flex; flex-direction:column; gap:6px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; font-size:10px; font-weight:600; text-transform:uppercase; color:var(--ink-40); letter-spacing:0.06em;">
+        <span id="loadingOverlayTitle">Initializing System</span>
+        <span id="loadingOverlayPct" style="font-family: var(--mono);">0%</span>
+      </div>
+      <div style="height:4px; background:var(--line); border-radius:2px; overflow:hidden; position:relative;">
+        <div id="loadingProgressFill" style="width:0%; height:100%; background:linear-gradient(90deg, var(--gold), var(--accent)); transition: width 0.35s ease;"></div>
+      </div>
+      <div style="position:relative; height:18px; overflow:hidden; margin-top:2px;">
+        <div id="loadingStatusMsg" style="position:absolute; left:0; right:0; bottom:0; font-size:11px; color:var(--ink-60); font-family:var(--sans); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Starting background servers...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+@keyframes logoBreathe {
+  0%, 100% { transform: scale(1.0); opacity: 0.8; filter: drop-shadow(0 0 12px rgba(43,155,255,0.3)); }
+  50% { transform: scale(1.08); opacity: 1.0; filter: drop-shadow(0 0 24px rgba(43,155,255,0.6)); }
+}
+</style>
+
 <div class="app-shell">
 <aside class="sidebar" id="sidebar">
   <div class="sidebar-resizer" id="sidebarResizer" title="Drag to widen sidebar"></div>
@@ -998,17 +1027,105 @@ input[type="range"]::-moz-range-thumb {
   </div>
 </div>
 
-<!-- MORE (Recall / Logs / Developer) -->
+<!-- MORE (Help / Logs / Developer) -->
 <div class="view" id="view-more">
   <div class="subtabs" id="moreTabs">
-    <button class="subtab active" data-sub="recall">Recent Verses</button>
+    <button class="subtab active" data-sub="help">Help &amp; FAQ</button>
     <button class="subtab" data-sub="logs">Logs</button>
     <button class="subtab" data-sub="developer">Developer</button>
   </div>
   <div class="side-scroll">
-    <div class="subview active" id="sub-recall">
-      <div class="vmix-steps">Recent verses are shown in the <b>Live</b> page bottom panel.<br><br>
-        <button class="btn small" id="gotoRecallBtn">Go to Recent Verses</button>
+    <div class="subview active" id="sub-help">
+      <div class="vmix-panel" style="max-width: 800px; display: flex; flex-direction: column; gap: 14px;">
+        <div class="vmix-steps">
+          <b style="font-size: 16px; color: var(--gold); display: block; margin-bottom: 6px;">WindowVerse Help Center</b>
+          Quick guides, tips, and frequently asked questions for operators.
+        </div>
+        
+        <div class="faq-list" style="display: flex; flex-direction: column; gap: 10px;">
+          <!-- FAQ 1 -->
+          <details class="vmix-steps" style="cursor: pointer; padding: 12px 16px;">
+            <summary style="font-weight: 600; color: var(--ink); list-style: none; display: flex; justify-content: space-between; align-items: center;">
+              <span>📁 How to add a new Bible version?</span>
+              <span style="font-size: 10px; color: var(--ink-40); font-weight: 700;">CLICK TO EXPAND</span>
+            </summary>
+            <div style="margin-top: 10px; font-size: 12.5px; color: var(--ink-60); line-height: 1.6; border-top: 1px dashed var(--line-soft); padding-top: 8px; cursor: default;">
+              Place your SQLite database file (e.g. <code>.db</code> or <code>.sqlite3</code> format) under the structure:
+              <br><br>
+              <code>data/&lt;Version&gt;/&lt;Language&gt;/&lt;DatabaseName&gt;.sqlite3</code>
+              <br><br>
+              <i>Example:</i> <code>data/ESV/English/ESV.sqlite3</code>
+              <br><br>
+              On next launch, WindowVerse automatically scans this folder, maps the database tables dynamically, and registers it. <b>No rebuild, coding, or compilation required!</b>
+            </div>
+          </details>
+
+          <!-- FAQ 2 -->
+          <details class="vmix-steps" style="cursor: pointer; padding: 12px 16px;">
+            <summary style="font-weight: 600; color: var(--ink); list-style: none; display: flex; justify-content: space-between; align-items: center;">
+              <span>🖼️ How to add and use custom background images?</span>
+              <span style="font-size: 10px; color: var(--ink-40); font-weight: 700;">CLICK TO EXPAND</span>
+            </summary>
+            <div style="margin-top: 10px; font-size: 12.5px; color: var(--ink-60); line-height: 1.6; border-top: 1px dashed var(--line-soft); padding-top: 8px; cursor: default;">
+              1. Copy any image (JPEG, PNG, etc.) into the <code>data/backgrounds/</code> folder in your WindowVerse directory.<br>
+              2. Open the <b>Settings -> Appearance</b> tab.<br>
+              3. Click the <b>Refresh</b> button directly next to the "Background" select-list.<br>
+              4. Your newly added image will instantly appear in the grid below. Click on any thumbnail to apply it to both the preview and live outputs immediately!
+            </div>
+          </details>
+
+          <!-- FAQ 3 -->
+          <details class="vmix-steps" style="cursor: pointer; padding: 12px 16px;">
+            <summary style="font-weight: 600; color: var(--ink); list-style: none; display: flex; justify-content: space-between; align-items: center;">
+              <span>🎙️ How to use hands-free Voice Commands?</span>
+              <span style="font-size: 10px; color: var(--ink-40); font-weight: 700;">CLICK TO EXPAND</span>
+            </summary>
+            <div style="margin-top: 10px; font-size: 12.5px; color: var(--ink-60); line-height: 1.6; border-top: 1px dashed var(--line-soft); padding-top: 8px; cursor: default;">
+              Ensure <b>Voice commands</b> is enabled in the <b>Settings -> Detection &amp; Voice</b> tab. You can control WindowVerse hands-free by speaking directly into your microphone:<br><br>
+              <ul>
+                <li>• <b>Direct Scripture:</b> Simply speak a reference aloud (e.g. <i>"John three sixteen"</i> or <i>"Romans eight twenty eight"</i>) to automatically stage or display that verse.</li>
+                <li>• <b>Navigation:</b> Speak <i>"next verse"</i> (or <i>"continue"</i>) to step forward, and <i>"previous verse"</i> (or <i>"go back"</i>) to step backward.</li>
+                <li>• <b>Display Controls:</b> Say <i>"clear the screen"</i> to go off air, and <i>"put it on screen"</i> to broadcast your active preview.</li>
+              </ul>
+              <br>
+              You can toggle, edit, or add custom spoken trigger wordings directly under the Detection &amp; Voice settings panel!
+            </div>
+          </details>
+
+          <!-- FAQ 4 -->
+          <details class="vmix-steps" style="cursor: pointer; padding: 12px 16px;">
+            <summary style="font-weight: 600; color: var(--ink); list-style: none; display: flex; justify-content: space-between; align-items: center;">
+              <span>⛓️ How do I connect to vMix, OBS, or a physical Projector?</span>
+              <span style="font-size: 10px; color: var(--ink-40); font-weight: 700;">CLICK TO EXPAND</span>
+            </summary>
+            <div style="margin-top: 10px; font-size: 12.5px; color: var(--ink-60); line-height: 1.6; border-top: 1px dashed var(--line-soft); padding-top: 8px; cursor: default;">
+              <b>To use NDI Video Projection (vMix, OBS, Wirecast):</b><br>
+              1. Enable <b>NDI output</b> under the <b>Settings -> Output</b> tab.<br>
+              2. Inside vMix or OBS, click <b>Add Input -> NDI</b> and select the <code>WindowVerse</code> source. It will overlay your scripture text with transparent video beautifully!<br><br>
+              <b>To use a Physical Projector or Monitor fallback:</b><br>
+              1. Connect your projector/screen and set Windows display settings to <b>Extend</b>.<br>
+              2. Click <b>Open Projector Window</b> under the Output tab.<br>
+              3. Drag the opened projector window to your extended screen and press <kbd>F11</kbd> to make it fullscreen!
+            </div>
+          </details>
+
+          <!-- FAQ 5 -->
+          <details class="vmix-steps" style="cursor: pointer; padding: 12px 16px;">
+            <summary style="font-weight: 600; color: var(--ink); list-style: none; display: flex; justify-content: space-between; align-items: center;">
+              <span>⌨️ What are the available Keyboard Shortcuts?</span>
+              <span style="font-size: 10px; color: var(--ink-40); font-weight: 700;">CLICK TO EXPAND</span>
+            </summary>
+            <div style="margin-top: 10px; font-size: 12.5px; color: var(--ink-60); line-height: 1.6; border-top: 1px dashed var(--line-soft); padding-top: 8px; cursor: default;">
+              Control the operator panel with maximum speed using these shortcuts:<br><br>
+              <div style="display: grid; grid-template-columns: 120px 1fr; gap: 8px 16px;">
+                <span><kbd>Enter</kbd></span><span>Display currently staged preview verse live to air.</span>
+                <span><kbd>↑</kbd> / <kbd>↓</kbd></span><span>Step forward or backward through verses inside Preview.</span>
+                <span><kbd>Ctrl</kbd> + <kbd>G</kbd></span><span>Instant focus on the Book search field.</span>
+                <span><kbd>Esc</kbd></span><span>Clear the active preview or close search dropdowns.</span>
+              </div>
+            </div>
+          </details>
+        </div>
       </div>
     </div>
     <div class="subview" id="sub-logs">
@@ -1324,6 +1441,18 @@ function setStatus(state) {
   }
   if (!isErr && state !== "connecting") everConnected = true;
 
+  if (backendReady || state === "ready") {
+    const overlay = $("appLoadingOverlay");
+    if (overlay) {
+      setTimeout(() => {
+        overlay.style.opacity = "0";
+        setTimeout(() => {
+          overlay.style.display = "none";
+        }, 800);
+      }, 5000);
+    }
+  }
+
   updateStartupBarVisibility(state);
 }
 
@@ -1343,6 +1472,9 @@ function setStartupPercent(pct) {
   const n = Math.max(0, Math.min(100, Math.round(pct || 0)));
   if (startupProgressBar) startupProgressBar.style.width = n + "%";
   if (startupPct) startupPct.textContent = n + "%";
+  
+  const loadingProgressFill = $("loadingProgressFill");
+  if (loadingProgressFill) loadingProgressFill.style.width = n + "%";
 }
 
 function floatStartupMessage(label) {
@@ -1368,11 +1500,15 @@ function renderStartupStep(step, label, status, percent) {
 
   if (status === "running") {
     if (startupCurrentMsg) startupCurrentMsg.textContent = label;
+    const loadingStatusMsg = $("loadingStatusMsg");
+    if (loadingStatusMsg) loadingStatusMsg.textContent = label;
     return;
   }
   if (status === "done" || status === "error") {
     if (startupCurrentMsg) startupCurrentMsg.textContent = "";
     floatStartupMessage(label);
+    const loadingStatusMsg = $("loadingStatusMsg");
+    if (loadingStatusMsg) loadingStatusMsg.textContent = label;
     return;
   }
   if (prev === "running" && startupCurrentMsg?.textContent) {
@@ -1701,8 +1837,11 @@ function buildStageHtml(d) {
   const color = displaySettings.text_color || (displaySettings.theme === 'light' ? '#141418' : '#ffffff');
   const colorStyle = `color:${color};text-shadow:none;`; // Reset shadow if color is custom for better readability
 
+  const refColor = displaySettings.ref_color || (displaySettings.theme === 'light' ? '#0052cc' : '#2b9bff');
+  const refColorStyle = `color:${refColor};text-shadow:none;`;
+
   const refPos = displaySettings.ref_position || "top";
-  const ref = `<div class="stage-ref" style="font-size:${lay.ref}px;${colorStyle}">${refText}</div>`;
+  const ref = `<div class="stage-ref" style="font-size:${lay.ref}px;${refColorStyle}">${refText}</div>`;
   const primary = `<div class="stage-text" style="font-size:${lay.body}px;line-height:${lay.lh};${boldP}${italicP}${colorStyle}">${lay.pFull}</div>`;
   if (!d.secondary_text) {
     if (refPos === "bottom") {
@@ -2927,7 +3066,7 @@ document.addEventListener("keydown", e => {
 const SUBVIEW_HOME = {
   vmix: "settings", appearance: "settings", bible: "settings",
   mic: "settings", detection: "settings",
-  logs: "more", developer: "more", recall: "more",
+  logs: "more", developer: "more"
 };
 
 function showSubview(view, sub) {
