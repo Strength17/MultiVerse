@@ -117,7 +117,8 @@ class NDISender:
 
     # ------------------------------------------------------------------
     def update(self, reference: str, text: str, secondary_text: str | None = None,
-               secondary_above: bool | None = None, display: DisplaySettings | None = None):
+               secondary_above: bool | None = None, display: DisplaySettings | None = None,
+               primary_label: str | None = None, secondary_label: str | None = None):
         """Render a new verse-card frame and start broadcasting it."""
         if not self._available:
             return
@@ -126,7 +127,7 @@ class NDISender:
         if secondary_above is not None:
             self._display.secondary_above = secondary_above
         try:
-            frame = self._render_frame(reference, text, secondary_text)
+            frame = self._render_frame(reference, text, secondary_text, primary_label, secondary_label)
         except Exception:
             logger.exception("NDI frame render failed — leaving last frame on air")
             return
@@ -192,7 +193,9 @@ class NDISender:
             self._sec_font = ImageFont.load_default(size=cfg.secondary_font_size)
 
     def _render_frame(self, reference: str | None, text: str | None,
-                       secondary_text: str | None):
+                       secondary_text: str | None,
+                       primary_label: str | None = None,
+                       secondary_label: str | None = None):
         import numpy as np
         from PIL import Image, ImageDraw
 
@@ -200,18 +203,24 @@ class NDISender:
         disp = self._display
         colors = disp.effective_colors()
         br, bg, bb = colors["bg"]
-        img = Image.new("RGBA", (cfg.width, cfg.height), (br, bg, bb, colors["bg_alpha"]))
-        draw = ImageDraw.Draw(img)
 
+        img = None
         if disp.background_mode == "image" and disp.background_image and self._backgrounds_dir:
             bg_path = self._backgrounds_dir / disp.background_image
             if bg_path.exists():
                 try:
-                    bg = Image.open(bg_path).convert("RGBA").resize((cfg.width, cfg.height))
-                    img = Image.alpha_composite(bg, img)
-                    draw = ImageDraw.Draw(img)
+                    from PIL import ImageOps
+                    # Use fit to crop/center without stretching
+                    bg_img = Image.open(bg_path).convert("RGBA")
+                    img = ImageOps.fit(bg_img, (cfg.width, cfg.height), Image.Resampling.LANCZOS)
                 except Exception:
                     logger.exception("Background image load failed: %s", bg_path)
+
+        if img is None:
+            # Fallback to solid color background
+            img = Image.new("RGBA", (cfg.width, cfg.height), (br, bg, bb, colors["bg_alpha"]))
+
+        draw = ImageDraw.Draw(img)
 
         if not text:
             return np.asarray(img, dtype=np.uint8)
@@ -220,19 +229,24 @@ class NDISender:
             PRIMARY_VERSION_LABEL, SECONDARY_VERSION_LABEL, compute_screen_layout,
         )
 
+        p_label = primary_label or PRIMARY_VERSION_LABEL
+        s_label = secondary_label or SECONDARY_VERSION_LABEL
+
         max_width = int(cfg.width * (1 - 0.09))
         x_center = cfg.width // 2
         secondary_above = disp.secondary_above
 
-        p_full = f"{PRIMARY_VERSION_LABEL} {text}".strip()
+        p_full = f"{p_label} {text}".strip()
         s_full = (
-            f"{SECONDARY_VERSION_LABEL} {secondary_text}".strip()
+            f"{s_label} {secondary_text}".strip()
             if secondary_text else ""
         )
         layout = compute_screen_layout(
             text, secondary_text,
             cfg.width, cfg.height, disp.text_scale, disp.ref_scale,
-            PRIMARY_VERSION_LABEL, SECONDARY_VERSION_LABEL,
+            p_label, s_label,
+            block_gap_scale=disp.block_gap_scale,
+            line_gap_scale=disp.line_gap_scale,
         )
         body_px = layout.body_px
         self._ensure_fonts(body_px, layout.ref_px, body_px, disp)
@@ -258,7 +272,15 @@ class NDISender:
         ref_block = ref_px + block_gap if reference else 0
         between = block_gap if secondary_lines else 0
         total_h = ref_block + primary_h + between + secondary_h
-        y = pad_v + max(0, (cfg.height - 2 * pad_v - total_h) // 2)
+        
+        # Calculate vertical positioning based on alignment settings
+        v_pos = getattr(disp, "vertical_position", "center")
+        if v_pos == "top":
+            y = pad_v + int(cfg.height * 0.05)
+        elif v_pos == "bottom":
+            y = cfg.height - pad_v - total_h - int(cfg.height * 0.05)
+        else:
+            y = pad_v + max(0, (cfg.height - 2 * pad_v - total_h) // 2)
 
         rr, rg, rb = colors["reference"]
         tr, tg, tb = colors["text"]
@@ -271,13 +293,20 @@ class NDISender:
                 outline=(rr, rg, rb, 180), width=3,
             )
 
-        if reference:
+        if reference and disp.ref_position == "top":
             _draw_centered_line(draw, reference, self._ref_font_bold, x_center, y, (rr, rg, rb, 255))
             y += ref_px + block_gap
 
         def draw_primary():
             nonlocal y
-            font = self._font_bold if disp.primary_bold else self._font
+            if disp.primary_bold and disp.primary_italic:
+                font = self._font_bold_italic
+            elif disp.primary_bold:
+                font = self._font_bold
+            elif disp.primary_italic:
+                font = self._font_italic
+            else:
+                font = self._font
             for line in primary_lines:
                 _draw_centered_line(draw, line, font, x_center, y, (tr, tg, tb, 255))
                 y += primary_px + line_gap
@@ -299,45 +328,54 @@ class NDISender:
                 y += block_gap
                 draw_secondary()
 
+        if reference and disp.ref_position == "bottom":
+            y += block_gap
+            _draw_centered_line(draw, reference, self._ref_font_bold, x_center, y, (rr, rg, rb, 255))
+
         return np.asarray(img, dtype=np.uint8)
 
     def _ensure_fonts(self, primary_px: int, ref_px: int, sec_px: int, disp: DisplaySettings):
         from PIL import ImageFont
-        path = self._resolve_font_path()
-        sans = Path(os.environ.get("WINDIR", r"C:\Windows")) / "Fonts" / "segoeui.ttf"
-        if disp.font_family == "sans" and sans.exists():
-            path = str(sans)
-        italic_path = None
-        if path:
-            stem = Path(path)
-            for candidate in (stem.parent / f"{stem.stem}i{stem.suffix}",
-                              stem.parent / "segoei.ttf", stem.parent / "georgiai.ttf"):
-                if candidate.exists():
-                    italic_path = str(candidate)
-                    break
-        try:
-            if path:
-                bold_path = path
-                stem = Path(path)
-                for candidate in (stem.parent / f"{stem.stem}bd{stem.suffix}",
-                                  stem.parent / "georgiab.ttf",
-                                  stem.parent / "arialbd.ttf"):
-                    if candidate.exists():
-                        bold_path = str(candidate)
-                        break
-                self._font = ImageFont.truetype(path, primary_px)
-                self._font_bold = ImageFont.truetype(bold_path, primary_px)
-                self._ref_font = ImageFont.truetype(path, ref_px)
-                self._ref_font_bold = ImageFont.truetype(bold_path, ref_px)
-                sec_font_path = italic_path or path
-                if disp.secondary_italic and italic_path:
-                    sec_font_path = italic_path
-                elif not disp.secondary_italic:
-                    sec_font_path = path
-                self._sec_font = ImageFont.truetype(sec_font_path, sec_px)
+        
+        font_dir = Path(os.environ.get("WINDIR", r"C:\Windows")) / "Fonts"
+        
+        if disp.font_family == "sans":
+            base_file = font_dir / "segoeui.ttf"
+            if not base_file.exists():
+                base_file = font_dir / "arial.ttf"
+            
+            if "segoeui" in base_file.name:
+                bold_file = font_dir / "segoeuib.ttf"
+                italic_file = font_dir / "segoeuii.ttf"
+                bi_file = font_dir / "segoeuiz.ttf"
             else:
-                raise OSError("no font")
+                bold_file = font_dir / "arialbd.ttf"
+                italic_file = font_dir / "ariali.ttf"
+                bi_file = font_dir / "arialbi.ttf"
+        else:
+            base_file = font_dir / "georgia.ttf"
+            bold_file = font_dir / "georgiab.ttf"
+            italic_file = font_dir / "georgiai.ttf"
+            bi_file = font_dir / "georgiaz.ttf"
+
+        path = str(base_file) if base_file.exists() else self._resolve_font_path()
+        bold_path = str(bold_file) if bold_file.exists() else path
+        italic_path = str(italic_file) if italic_file.exists() else path
+        bi_path = str(bi_file) if bi_file.exists() else bold_path
+
+        try:
+            self._font = ImageFont.truetype(path, primary_px)
+            self._font_bold = ImageFont.truetype(bold_path, primary_px)
+            self._font_italic = ImageFont.truetype(italic_path, primary_px)
+            self._font_bold_italic = ImageFont.truetype(bi_path, primary_px)
+            
+            self._ref_font = ImageFont.truetype(path, ref_px)
+            self._ref_font_bold = ImageFont.truetype(bold_path, ref_px)
+            
+            sec_font_path = italic_path if disp.secondary_italic else path
+            self._sec_font = ImageFont.truetype(sec_font_path, sec_px)
         except Exception:
+            logger.exception("PIL font load failed, falling back to default")
             self._font = ImageFont.load_default(size=primary_px)
             self._font_bold = self._font
             self._ref_font = ImageFont.load_default(size=ref_px)

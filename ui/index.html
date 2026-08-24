@@ -455,6 +455,7 @@ body {
 .app-shell { flex: 1; display: flex; min-height: 0; overflow: hidden; }
 .sidebar {
   width: 56px; flex-shrink: 0; display: flex; flex-direction: column;
+  justify-content: center;
   background: rgba(18, 19, 22, 0.72); backdrop-filter: blur(16px);
   border-right: 1px solid rgba(255,255,255,0.07);
   position: relative; min-width: 56px;
@@ -609,27 +610,31 @@ body {
 .opt-row small { color: var(--ink-40); font-size: 11px; }
 
 /* ── Scripture Browser ──────────────────────────────────────────────── */
-.browser { flex: 1; display: grid; grid-template-columns: 220px 150px 1fr 320px; gap: 1px; background: var(--line); min-height: 0; }
-.browser-col { background: var(--bg); display: flex; flex-direction: column; min-height: 0; padding: 12px; gap: 8px; }
-.browser-hdr { font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-40); }
+.browser { flex: 1; display: flex; flex-direction: row; gap: 1px; background: var(--line); min-height: 0; }
+.browser-col { position: relative; background: var(--bg); display: flex; flex-direction: column; min-height: 0; padding: 12px; gap: 8px; }
+.browser-books { flex: 0 0 220px; }
+.browser-chapters { flex: 0 0 150px; }
+.browser-verses { flex: 1 1 0; min-width: 200px; }
+.browser-preview { flex: 0 0 320px; }
+.browser-hdr { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-40); margin-bottom: 4px; }
 .browser-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
 .browser-empty { color: var(--ink-40); font-size: 12px; padding: 8px 2px; }
 .browser-row {
-  padding: 6px 8px; border-radius: 6px; font-size: 12.5px; color: var(--ink-60);
+  padding: 8px 10px; border-radius: 6px; font-size: 13.5px; color: var(--ink-60);
   cursor: pointer; border: 1px solid transparent;
 }
 .browser-row:hover { background: rgba(255,255,255,0.04); color: var(--ink); }
 .browser-row.active { color: var(--gold); border-color: rgba(43,155,255,0.35); background: rgba(43,155,255,0.1); }
-.browser-verse-num { font-family: var(--serif); color: #2b9bff; margin-right: 6px; }
-.chapter-grid { flex: 1; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(38px, 1fr)); grid-auto-rows: max-content; gap: 4px; align-content: start; }
+.browser-verse-num { font-family: var(--serif); color: #2b9bff; margin-right: 8px; font-weight: 700; }
+.chapter-grid { flex: 1; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); grid-auto-rows: max-content; gap: 6px; align-content: start; }
 .chapter-cell {
-  text-align: center; padding: 6px 0; border-radius: 6px; font-size: 12px;
+  text-align: center; padding: 10px 0; border-radius: 6px; font-size: 13px;
   border: 1px solid var(--line-soft); color: var(--ink-60); cursor: pointer;
 }
 .chapter-cell:hover { color: var(--ink); border-color: var(--ink-40); }
 .chapter-cell.active { color: var(--gold); border-color: rgba(43,155,255,0.35); background: rgba(43,155,255,0.1); }
-.chapter-grid.books { grid-template-columns: repeat(auto-fill, minmax(58px, 1fr)); }
-.chapter-cell.book-cell { font-size: 11px; padding: 8px 2px; white-space: nowrap; overflow: hidden; }
+.chapter-grid.books { grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); }
+.chapter-cell.book-cell { font-size: 12px; padding: 10px 4px; white-space: nowrap; overflow: hidden; }
 .grid-hdr { display: flex; align-items: center; gap: 6px; }
 .btn.tiny { padding: 2px 7px; font-size: 11px; }
 .book-grid { flex: 1; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); grid-auto-rows: max-content; gap: 4px; align-content: start; }
@@ -676,6 +681,42 @@ body {
 .kw-chip .x { color: var(--ink-40); font-size: 12px; }
 .kw-add { display: flex; gap: 6px; }
 .kw-add input { flex: 1; }
+
+/* Flat Rectangular Range Sliders Styling */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--line);
+  height: 6px;
+  border-radius: 0px;
+  outline: none;
+  margin: 12px 0;
+  width: 100%;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  background: #2b9bff;
+  border-radius: 0; /* Square/rectangular */
+  cursor: pointer;
+  border: 1px solid rgba(0,0,0,0.5);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+  transition: transform 0.1s;
+}
+input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+}
+input[type="range"]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  background: #2b9bff;
+  border-radius: 0; /* Square/rectangular */
+  cursor: pointer;
+  border: 1px solid rgba(0,0,0,0.5);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+}
 </style>
 </head>
 <body>
@@ -712,7 +753,7 @@ body {
   <img class="app-logo" src="logo.png" alt="" width="34" height="34">
   <div class="wordmark">Window<em>Verse</em></div>
   <div class="service-pill">Service <b>Live Sermon</b></div>
-  <span class="version-pill" id="versionPill">NKJV</span>
+  <select class="version-pill" id="versionPill" style="background: var(--panel-alt); cursor: pointer; outline: none; border-color: rgba(43,155,255,0.35); font-family: var(--sans); font-size: 10.5px;"></select>
   <div class="header-spacer"></div>
   <div class="ai-badge"><span class="dot" id="sDot"></span><span id="sTxt">disconnected</span></div>
   <button class="btn start" id="micBtn"><span data-icon="mic" data-icon-label="Start"></span></button>
@@ -734,7 +775,7 @@ body {
       <span class="badge-mini" id="txCount">0 lines</span>
       <span class="mic-status-pill" id="micStatusPill">● Mic live</span>
     </div>
-    <div class="tx-scroll" id="txScroll">
+    <div class="tx-scroll" id="txScroll" tabindex="0" style="outline: none;">
       <div class="tx-empty" id="txEmpty">
         <div class="mic-ring" data-icon="micRing" data-icon-size="22"></div>
         <p>No transcription yet<br>Click Start to begin</p>
@@ -767,29 +808,36 @@ body {
     <div class="col-resize-handle" data-resize-col="2" title="Drag to resize"></div>
     <div class="col-hdr" data-drag-handle>
       <div class="col-title-wrap"><span class="col-num">03</span>
-        <div><span class="col-label">Broadcast</span><span class="col-title">Live Output</span></div>
+        <div><span class="col-label">Display</span><span class="col-title">Preview & Live</span></div>
       </div>
       <div class="stage-status"><span class="dot" id="liveDot"></span><span id="liveTxt">standby</span></div>
     </div>
-    <div class="col-scroll" id="stageColScroll">
-      <div class="preview-strip" id="previewStrip">
-        <div class="preview-tag" id="previewTag">PREVIEW</div>
-        <div class="preview-body" id="previewBody">Nothing staged</div>
+    <div class="col-scroll" id="stageColScroll" style="display: flex; flex-direction: row; flex: 1;">
+      <!-- Preview Section -->
+      <div style="flex: 1; display: flex; flex-direction: column; border-right: 1px solid var(--line-soft);">
+        <div class="col-hdr" style="font-size: 10px; padding: 6px 10px;">Staged Preview</div>
+        <div class="stage-scroll" id="previewContainer" style="flex: 1; display: flex; flex-direction: column;">
+           <div class="stage" id="stagePreview" style="flex: 1; min-height: 200px; margin: 0 10px;">
+              <div class="stage-empty">No verse staged</div>
+           </div>
+        </div>
       </div>
-      <div class="stage-scroll">
-        <div class="stage" id="stage">
-          <div class="stage-empty">No verse on air</div>
+      <!-- Live Section -->
+      <div style="flex: 1; display: flex; flex-direction: column;">
+        <div class="col-hdr" style="font-size: 10px; padding: 6px 10px;">Live Output</div>
+        <div class="stage-scroll" id="liveContainer" style="flex: 1; display: flex; flex-direction: column;">
+           <div class="stage" id="stage" style="flex: 1; min-height: 200px; margin: 0 10px;">
+              <div class="stage-empty">No verse on air</div>
+           </div>
         </div>
       </div>
     </div>
-    <div class="stage-controls">
-      <button class="btn small" id="stagePrevBtn" title="Previous verse (↑)"><span data-icon="prev" data-icon-label="Prev"></span></button>
-      <button class="btn small" id="stageNextBtn" title="Next verse (↓)"><span data-icon="next" data-icon-label="Next"></span></button>
-      <button class="btn start small" id="broadcastBtn" title="Broadcast preview (Ctrl+Enter)"><span data-icon="broadcast" data-icon-label="Broadcast"></span></button>
-    </div>
-    <div class="stage-controls">
-      <button class="btn small" id="popoutBtn"><span data-icon="projector" data-icon-label="Open Projector Window"></span></button>
-      <button class="btn small" id="clearBtn"><span data-icon="clear" data-icon-label="Clear Screen"></span></button>
+    <!-- Prominent Broadcast Button & Controls -->
+    <div style="padding: 10px; display: flex; gap: 8px; border-top: 1px solid var(--line-soft); background: rgba(22, 23, 27, 0.45);">
+      <button class="btn start" id="broadcastBtn" style="flex: 2; justify-content: center; font-weight: bold;">Broadcast to Air</button>
+      <button class="btn small" id="stagePrevBtn" title="Previous verse (↑)"><span data-icon="prev"></span></button>
+      <button class="btn small" id="stageNextBtn" title="Next verse (↓)"><span data-icon="next"></span></button>
+      <button class="btn small" id="clearBtn" title="Clear Screen"><span data-icon="clear"></span></button>
     </div>
   </div>
 
@@ -803,7 +851,7 @@ body {
       <datalist id="bookOptions"></datalist>
       <input class="ref-num" id="refChapter" type="number" min="1" placeholder="Ch">
       <input class="ref-num" id="refVerse" type="number" min="1" placeholder="V">
-      <button class="btn small" id="refGoBtn" title="Preview this reference (Ctrl+G to focus)">Go</button>
+      <button class="btn start small" id="refDisplayBtn" title="Display this reference directly">Display</button>
       <button class="btn small" id="navPrevBtn" title="Previous verse (↑)"><span data-icon="prev"></span></button>
       <button class="btn small" id="navNextBtn" title="Next verse (↓)"><span data-icon="next"></span></button>
     </div>
@@ -815,7 +863,7 @@ body {
       </select>
     </div>
     <input class="search-input" id="searchInput" placeholder='Search verses or references… e.g. "the lord is my shepherd"'>
-    <div class="search-results-scroll" id="searchResults">
+    <div class="search-results-scroll" id="searchResults" tabindex="0" style="outline: none;">
       <div class="search-empty" id="searchEmpty">Type a phrase and press Enter — matches are grouped by testament.</div>
     </div>
   </div>
@@ -832,67 +880,86 @@ body {
 
 <!-- SCRIPTURE BROWSER -->
 <div class="view" id="view-scripture">
-  <div class="browser">
-    <div class="browser-col browser-books">
+  <div class="browser" id="browserGrid">
+    <div class="browser-col browser-books" id="browserColBooks">
       <div class="browser-hdr">Books</div>
       <div class="seg" id="testamentSeg">
         <button class="seg-btn active" data-testament="all">All</button>
         <button class="seg-btn" data-testament="ot">OT</button>
         <button class="seg-btn" data-testament="nt">NT</button>
       </div>
-      <div class="seg" id="bookViewSeg">
-        <button class="seg-btn active" data-bookview="grid"><span data-icon="grid" data-icon-size="13" data-icon-label="Boxes"></span></button>
-        <button class="seg-btn" data-bookview="list"><span data-icon="list" data-icon-size="13" data-icon-label="List"></span></button>
-      </div>
       <input class="search-input" id="browserBookFilter" placeholder="Filter books…">
-      <div class="browser-list" id="browserBooks"></div>
+      <div class="browser-list" id="browserBooks" tabindex="0" style="outline: none;"></div>
+      <div class="col-resize-handle" data-resize-browser-col="0" title="Drag to resize"></div>
     </div>
-    <div class="browser-col browser-chapters">
+    <div class="browser-col browser-chapters" id="browserColChapters">
       <div class="grid-hdr">
         <button class="btn tiny" id="browserGridBack" title="Back" style="display:none"><span data-icon="prev" data-icon-size="13"></span></button>
         <span class="browser-hdr" id="browserGridHdr">Books</span>
       </div>
-      <div class="chapter-grid" id="browserChapters"></div>
+      <div class="chapter-grid" id="browserChapters" tabindex="0" style="outline: none;"></div>
+      <div class="col-resize-handle" data-resize-browser-col="1" title="Drag to resize"></div>
     </div>
-    <div class="browser-col browser-verses">
+    <div class="browser-col browser-verses" id="browserColVerses">
       <div class="browser-hdr" id="browserVersesHdr">Verses</div>
-      <div class="browser-list" id="browserVerses">
+      <div class="browser-list" id="browserVerses" tabindex="0" style="outline: none;">
         <div class="browser-empty">Pick a book and chapter</div>
       </div>
+      <div class="col-resize-handle" data-resize-browser-col="2" title="Drag to resize"></div>
     </div>
-    <div class="browser-col browser-preview">
-      <div class="browser-hdr">Preview</div>
-      <div class="preview-box" id="browserPreview">
-        <div class="browser-empty">Select a verse to preview it here</div>
+    <div class="browser-col browser-preview" id="browserColPreview">
+      <div style="flex: 1; display: flex; flex-direction: column; min-height: 0; border-bottom: 1px solid var(--line-soft); padding-bottom: 10px; margin-bottom: 10px;">
+        <div class="browser-hdr" style="margin-bottom: 6px;">Staged Preview</div>
+        <div class="stage" id="browserStagePreview" style="flex: 1; min-height: 120px;">
+          <div class="stage-empty">No verse staged</div>
+        </div>
       </div>
       <div class="preview-controls">
         <button class="btn small" id="browserPrevBtn" title="Previous verse"><span data-icon="prev"></span></button>
         <button class="btn small" id="browserNextBtn" title="Next verse"><span data-icon="next"></span></button>
-        <button class="btn start" id="browserBroadcastBtn"><span data-icon="broadcast" data-icon-label="Broadcast"></span></button>
+        <button class="btn small start" id="browserBroadcastBtn" style="flex:1; justify-content:center;">Broadcast</button>
+      </div>
+      <div style="flex: 1; display: flex; flex-direction: column; min-height: 0; margin-top: 10px;">
+        <div class="browser-hdr" style="margin-bottom: 6px;">Live Output</div>
+        <div class="stage" id="browserStageLive" style="flex: 1; min-height: 120px;">
+          <div class="stage-empty">No verse on air</div>
+        </div>
       </div>
     </div>
   </div>
 </div>
 
 <!-- SETTINGS (Output / Bible / Mic / Detection) -->
-<div class="view" id="view-settings">
+  <div class="view" id="view-settings">
   <div class="subtabs" id="settingsTabs">
     <button class="subtab active" data-sub="vmix">Output</button>
+    <button class="subtab" data-sub="appearance">Appearance</button>
     <button class="subtab" data-sub="mic">Mic</button>
     <button class="subtab" data-sub="detection">Detection &amp; Voice</button>
+    <button class="subtab" data-sub="shortcuts">Shortcuts</button>
   </div>
   <div class="side-scroll">
     <div class="subview active" id="sub-vmix">
       <div class="vmix-panel" id="panel-vmix"></div>
-      <div class="vmix-panel" id="panel-appearance"></div>
+    </div>
+    <div class="subview" id="sub-appearance">
+      <div class="vmix-panel" id="panel-appearance">
+        <!-- New Version Selector -->
+        <label>
+          Bible Version
+          <select id="bibleVersionSelector"></select>
+        </label>
+        <hr>
+        <!-- Existing appearance settings... -->
+      </div>
     </div>
     <div class="subview" id="sub-mic"><div class="vmix-panel" id="panel-mic"></div></div>
     <div class="subview" id="sub-detection">
       <div class="vmix-panel">
-        <div class="vmix-steps"><b>Broadcast behaviour</b>
+        <div class="vmix-steps"><b>Display behaviour</b>
           <label class="opt-row"><input type="checkbox" id="transcriptAutoBroadcast" checked>
             <span>Put speech-detected verses straight on air<br>
-              <small>Off = detections only fill Preview; you press Broadcast.</small></span></label>
+              <small>Off = detections only fill Preview; you press Display.</small></span></label>
         </div>
         <div class="vmix-steps">
           <label class="master-row" for="voiceNavEnabled">
@@ -915,6 +982,16 @@ body {
               Add. Custom phrases must be said on their own.</small>
             <div id="voiceKeywords"></div>
           </div>
+        </div>
+      </div>
+    </div>
+    <div class="subview" id="sub-shortcuts">
+      <div class="vmix-panel">
+        <div class="vmix-steps"><b>Keyboard Shortcuts</b>
+          <div class="opt-row"><span><kbd>Enter</kbd></span><span>Display current preview to screen</span></div>
+          <div class="opt-row"><span><kbd>↑</kbd> / <kbd>↓</kbd></span><span>Navigate verses in Preview only</span></div>
+          <div class="opt-row"><span><kbd>Ctrl</kbd>+<kbd>G</kbd></span><span>Focus book search box</span></div>
+          <div class="opt-row"><span><kbd>Esc</kbd></span><span>Clear preview / Close browser</span></div>
         </div>
       </div>
     </div>
@@ -942,7 +1019,7 @@ body {
             <button class="btn small" id="clearLogsBtn">Clear</button>
           </div>
         </div>
-        <div class="log-feed" id="logFeed"></div>
+        <div class="log-feed" id="logFeed" tabindex="0" style="outline: none;"></div>
       </div>
     </div>
     <div class="subview" id="sub-developer"><div class="vmix-panel" id="panel-developer"></div></div>
@@ -1045,8 +1122,14 @@ body {
         </label>
         <p class="sensitivity-hint">Mic stays on; only the transcript is saved to Documents\WindowVerse\Transcription.</p>
       </details>
-      <details class="vmix-steps settings-advanced">
-        <summary>Verse appearance (Live Output, NDI, projector)</summary>
+      <div class="vmix-steps" id="dispAppearanceSection">
+        <b>Verse appearance (Live Output, NDI, projector)</b>
+        <label style="display:block;margin:12px 0 8px">Text Color
+          <input type="color" id="dispTextColor" value="#ffffff" style="width:100%;height:30px;cursor:pointer">
+        </label>
+        <label style="display:block;margin:8px 0 8px">Reference Color
+          <input type="color" id="dispRefColor" value="#2b9bff" style="width:100%;height:30px;cursor:pointer">
+        </label>
         <label style="display:block;margin:8px 0">Theme
           <select class="version-select" id="dispTheme" style="margin-top:4px;max-width:200px">
             <option value="dark">Dark background</option>
@@ -1059,22 +1142,32 @@ body {
             <option value="sans">Sans</option>
           </select>
         </label>
+        <label style="display:block;margin:8px 0">Reference Position
+          <select class="version-select" id="dispRefPosition" style="margin-top:4px;max-width:200px">
+            <option value="top">Top</option>
+            <option value="bottom">Bottom</option>
+          </select>
+        </label>
         <label style="display:flex;align-items:center;gap:8px;margin:6px 0"><input type="checkbox" id="dispBold"> Primary bold</label>
         <label style="display:flex;align-items:center;gap:8px;margin:6px 0"><input type="checkbox" id="dispItalic"> Primary italic</label>
         <label style="display:flex;align-items:center;gap:8px;margin:6px 0"><input type="checkbox" id="dispSecItalic" checked> Secondary italic</label>
         <label style="display:flex;align-items:center;gap:8px;margin:6px 0"><input type="checkbox" id="dispBorder"> Gold border</label>
-        <label style="display:block;margin:8px 0">Text size scale <input type="range" id="dispTextScale" min="0.7" max="1.5" step="0.05" value="1"></label>
-        <label style="display:block;margin:8px 0">Reference size scale <input type="range" id="dispRefScale" min="0.7" max="1.5" step="0.05" value="1"></label>
-        <label style="display:block;margin:8px 0">Background
-          <select class="version-select" id="dispBgMode" style="margin-top:4px;max-width:200px">
-            <option value="solid">Solid color</option>
-            <option value="image">Image from data/backgrounds/</option>
-          </select>
-        </label>
-        <label style="display:block;margin:8px 0">Background image
-          <select class="version-select" id="dispBgImage" style="margin-top:4px;max-width:280px"><option value="">— none —</option></select>
-        </label>
-      </details>
+        <label style="display:block;margin:8px 0">Text size scale <input type="range" id="dispTextScale" min="0.3" max="3.0" step="0.05" value="1"></label>
+        <label style="display:block;margin:8px 0">Reference size scale <input type="range" id="dispRefScale" min="0.3" max="3.0" step="0.05" value="1"></label>
+        <label style="display:block;margin:8px 0">Block Spacing Scale <input type="range" id="dispBlockGapScale" min="0.1" max="5.0" step="0.1" value="1"></label>
+        <label style="display:block;margin:8px 0">Line Spacing Scale <input type="range" id="dispLineGapScale" min="0.1" max="5.0" step="0.1" value="1"></label>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin:8px 0 4px;">
+          <label style="display:block;margin:0">Background
+            <select class="version-select" id="dispBgMode" style="margin-top:4px;width:150px">
+              <option value="solid">Solid color</option>
+              <option value="image">Image from data/backgrounds/</option>
+            </select>
+          </label>
+          <button class="btn small" id="refreshBgBtn" type="button" style="margin-top:14px; padding: 4px 10px;" title="Scan background folder for new images">Refresh</button>
+        </div>
+        <div id="bgPreviewGrid" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(80px, 1fr));gap:8px;margin-top:10px;max-height:220px;overflow-y:auto;padding:4px;border:1px solid var(--line);border-radius:8px"></div>
+        <input type="hidden" id="dispBgImage">
+      </div>
       <details class="vmix-steps settings-advanced">
         <summary>Developer — JSON detection log</summary>
         <div class="json-copy-row">
@@ -1127,7 +1220,7 @@ const previewTag=$("previewTag");
 const bookOptions=$("bookOptions");
 const browserBooks=$("browserBooks"), browserChapters=$("browserChapters");
 const browserVerses=$("browserVerses"), browserVersesHdr=$("browserVersesHdr");
-const browserPreview=$("browserPreview"), browserBookFilter=$("browserBookFilter");
+const browserBookFilter=$("browserBookFilter");
 const browserPrevBtn=$("browserPrevBtn"), browserNextBtn=$("browserNextBtn");
 const browserGridBack=$("browserGridBack"), browserGridHdr=$("browserGridHdr");
 const stagePrevBtn=$("stagePrevBtn"), stageNextBtn=$("stageNextBtn");
@@ -1161,6 +1254,7 @@ let toastTimer = null;
 let selectedMic = "";
 let startupStepStatus = {};
 const COL_ORDER_KEY = "wvColOrder";
+const browserPreview = null;
 const COL_WIDTHS_KEY = "wvColWidths";
 const DOCK_HEIGHT_KEY = "wvDockHeight";
 const SIDEBAR_WIDTH_KEY = "wvSidebarWidth";
@@ -1487,7 +1581,10 @@ let lastStageVerse = null;
 let displaySettings = {
   theme: "dark", font_family: "serif", primary_bold: false, primary_italic: false,
   secondary_italic: true, show_border: false, ref_scale: 1, text_scale: 1,
+  text_color: "#ffffff",
   background_mode: "solid", background_image: "",
+  ref_position: "top", block_gap_scale: 1, line_gap_scale: 1,
+  ref_color: "#2b9bff"
 };
 let backgroundImages = [];
 let userPressedStart = false;
@@ -1524,6 +1621,8 @@ function computeStageLayout(d) {
   const { w: boxW, h: boxH } = getStageViewport();
   const ts = displaySettings.text_scale || 1;
   const rs = displaySettings.ref_scale || 1;
+  const bgs = displaySettings.block_gap_scale || 1;
+  const lgs = displaySettings.line_gap_scale || 1;
   const pLabel = d.primary_version_label || "[NKJV]";
   const sLabel = d.secondary_version_label || "[LSG]";
   const pFull = `${pLabel} ${d.text || ""}`.trim();
@@ -1537,8 +1636,8 @@ function computeStageLayout(d) {
   for (let i = 0; i < 52; i++) {
     const cpl = Math.max(12, Math.floor(availW / Math.max(8, body * 0.52)));
     ref = Math.max(MIN_STAGE_REF_PX, body * 0.62 * rs);
-    lineGap = Math.max(3, body * 0.30);
-    blockGap = Math.max(6, body * 0.40);
+    lineGap = Math.max(3, body * 0.30 * lgs);
+    blockGap = Math.max(6, body * 0.40 * bgs);
     const pLines = estimateWrappedLines(pFull, cpl);
     const sLines = sFull ? estimateWrappedLines(sFull, cpl) : 0;
     let total = ref + blockGap + blockH(pLines, body, lineGap);
@@ -1553,12 +1652,12 @@ function computeStageLayout(d) {
 
 // Shrinking stops at a size the operator can still read; anything longer
 // than that scrolls in the stage box instead of turning into fine print.
-function shrinkStageUntilFits() {
-  const content = stage.querySelector(".stage-content");
+function shrinkStageUntilFits(stageEl = stage) {
+  const content = stageEl.querySelector(".stage-content");
   if (!content) return;
   for (let i = 0; i < 28; i++) {
-    const overH = content.scrollHeight > stage.clientHeight + 2;
-    const overW = content.scrollWidth > stage.clientWidth + 2;
+    const overH = content.scrollHeight > stageEl.clientHeight + 2;
+    const overW = content.scrollWidth > stageEl.clientWidth + 2;
     if (!overH && !overW) break;
     let shrank = false;
     content.querySelectorAll(".stage-ref, .stage-text, .stage-secondary").forEach(el => {
@@ -1572,42 +1671,67 @@ function shrinkStageUntilFits() {
   }
 }
 
-function applyStageLayout(d) {
-  stage.classList.toggle("theme-light", displaySettings.theme === "light");
-  stage.classList.toggle("bordered", !!displaySettings.show_border);
-  stage.style.fontFamily = displaySettings.font_family === "sans" ? "var(--sans)" : "var(--serif)";
+function applyStageLayout(d, stageEl = stage) {
+  if (!stageEl) return;
+  stageEl.classList.toggle("theme-light", displaySettings.theme === "light");
+  stageEl.classList.toggle("bordered", !!displaySettings.show_border);
+  stageEl.style.fontFamily = displaySettings.font_family === "sans" ? "var(--sans)" : "var(--serif)";
+  
+  const color = displaySettings.text_color || (displaySettings.theme === 'light' ? '#141418' : '#ffffff');
+  stageEl.style.color = color;
+  stageEl.style.backgroundColor = displaySettings.theme === "light" ? "rgba(255,255,255,0.94)" : "#141418";
+
   if (displaySettings.background_mode === "image" && displaySettings.background_image) {
-    stage.style.backgroundImage = `url(/backgrounds/${encodeURIComponent(displaySettings.background_image)})`;
-    stage.style.backgroundSize = "cover";
-    stage.style.backgroundPosition = "center";
+    stageEl.style.backgroundImage = `url(/backgrounds/${encodeURIComponent(displaySettings.background_image)})`;
+    stageEl.style.backgroundSize = "cover";
+    stageEl.style.backgroundPosition = "center";
   } else {
-    stage.style.backgroundImage = "";
-    stage.style.backgroundSize = "";
+    stageEl.style.backgroundImage = "";
+    stageEl.style.backgroundSize = "";
   }
 }
 
 function buildStageHtml(d) {
   const lay = computeStageLayout(d);
   const refText = d.reference_display || `${d.book_french || ""} • ${d.book} ${d.chapter}:${d.verse}`.replace(/^ • /, "");
+  const boldP = displaySettings.primary_bold ? "font-weight:bold;" : "";
   const italicP = displaySettings.primary_italic ? "font-style:italic;" : "";
   const italicS = displaySettings.secondary_italic ? "font-style:italic;" : "";
-  const ref = `<div class="stage-ref" style="font-size:${lay.ref}px">${refText}</div>`;
-  const primary = `<div class="stage-text" style="font-size:${lay.body}px;line-height:${lay.lh};${italicP}">${lay.pFull}</div>`;
+  
+  const color = displaySettings.text_color || (displaySettings.theme === 'light' ? '#141418' : '#ffffff');
+  const colorStyle = `color:${color};text-shadow:none;`; // Reset shadow if color is custom for better readability
+
+  const refPos = displaySettings.ref_position || "top";
+  const ref = `<div class="stage-ref" style="font-size:${lay.ref}px;${colorStyle}">${refText}</div>`;
+  const primary = `<div class="stage-text" style="font-size:${lay.body}px;line-height:${lay.lh};${boldP}${italicP}${colorStyle}">${lay.pFull}</div>`;
   if (!d.secondary_text) {
+    if (refPos === "bottom") {
+      return `<div class="stage-content">${primary}${ref}</div>`;
+    }
     return `<div class="stage-content">${ref}${primary}</div>`;
   }
   const secClass = secondaryAbovePrimary ? "stage-secondary above" : "stage-secondary";
-  const secondary = `<div class="${secClass}" style="font-size:${lay.body}px;line-height:${lay.lh};${italicS}">${lay.sFull}</div>`;
-  const blocks = secondaryAbovePrimary ? ref + secondary + primary : ref + primary + secondary;
+  const secondary = `<div class="${secClass}" style="font-size:${lay.body}px;line-height:${lay.lh};${italicS}${colorStyle}">${lay.sFull}</div>`;
+  
+  let blocks;
+  if (refPos === "bottom") {
+    blocks = secondaryAbovePrimary ? secondary + primary + ref : primary + secondary + ref;
+  } else {
+    blocks = secondaryAbovePrimary ? ref + secondary + primary : ref + primary + secondary;
+  }
   return `<div class="stage-content">${blocks}</div>`;
 }
 
 // ── Stage / Live Output (col 3) + real pop-out projector window ──
 function sendToStage(d) {
   lastStageVerse = d;
-  applyStageLayout(d);
-  stage.innerHTML = buildStageHtml(d);
-  requestAnimationFrame(() => shrinkStageUntilFits());
+  const stages = [stage, $("browserStageLive")];
+  stages.forEach(el => {
+    if (!el) return;
+    applyStageLayout(d, el);
+    el.innerHTML = buildStageHtml(d);
+    requestAnimationFrame(() => shrinkStageUntilFits(el));
+  });
   liveDot.classList.add("on");
   liveTxt.textContent = "on air";
 }
@@ -1620,7 +1744,12 @@ function clearStage() {
   broadcastVerse = null;
   isOnAir = false;
   lastStageVerse = null;
-  stage.innerHTML = `<div class="stage-empty">No verse on air</div>`;
+  const stages = [stage, $("browserStageLive")];
+  stages.forEach(el => {
+    if (!el) return;
+    el.innerHTML = `<div class="stage-empty">No verse on air</div>`;
+    el.style.backgroundImage = "";
+  });
   liveDot.classList.remove("on");
   liveTxt.textContent = "standby";
 }
@@ -1648,49 +1777,35 @@ function displayToPreview(d, { notifyServer = true } = {}) {
 }
 
 function renderPreview(d) {
-  previewStrip.classList.remove("on-air");
-  if (previewTag) previewTag.textContent = "PREVIEW";
+  const containers = [$("stagePreview"), $("browserStagePreview")];
   if (!d) {
     previewVerse = null;
-    previewStrip.classList.add("empty");
-    previewBody.textContent = "Nothing staged";
+    containers.forEach(c => { if (c) c.innerHTML = `<div class="stage-empty">No verse staged</div>`; });
     return;
   }
   previewVerse = d;
-  previewStrip.classList.remove("empty");
-  // The French line is part of what goes on screen, so the operator sees it
-  // in preview too — never only after broadcasting.
-  const sec = d.secondary_text
-    ? `<span class="sec">${(d.secondary_text || "").slice(0, 220)}</span>` : "";
-  previewBody.innerHTML =
-    `<b>${d.book} ${d.chapter}:${d.verse}</b>${(d.text || "").slice(0, 220)}${sec}`;
-}
-
-// Broadcast follows what the operator can actually see: the preview strip
-// first, then the Scripture Browser's preview pane, then the highlighted
-// browser row.
-function currentBroadcastCandidate() {
-  return previewVerse || browserPreviewVerse || null;
+  containers.forEach(c => {
+    if (!c) return;
+    applyStageLayout(d, c);
+    c.innerHTML = buildStageHtml(d);
+    requestAnimationFrame(() => shrinkStageUntilFits(c));
+  });
 }
 
 function broadcastFromPreview(d) {
-  const verse = d || currentBroadcastCandidate();
+  const verse = d || previewVerse || browserPreviewVerse || null;
   if (!verse) { showToast("Nothing in preview to broadcast"); return; }
   wsSend({ action: "broadcast_verse", verse });
-  // The projector is where the congregation sees it — no point broadcasting
-  // into a window that was never opened.
-  if (!projectorNative && (!projectorWin || projectorWin.closed)) openProjector();
 }
 
 function markOnAir(d) {
   broadcastVerse = d;
   isOnAir = true;
-  previewVerse = null;
+  
+  // Keep the live verse in the preview box as well so it never disappears!
+  previewVerse = d;
   renderPreview(d);
-  previewStrip.classList.remove("empty");
-  previewStrip.classList.add("on-air");
-  if (previewTag) previewTag.textContent = "ON AIR";
-  previewVerse = null;
+
   renderBrowserPreview(d);
   sendToStage(d);
 }
@@ -1706,43 +1821,59 @@ function markOnAir(d) {
 let projectorNative = false;
 
 function openProjector() {
-  const api = window.pywebview && window.pywebview.api;
-  if (api && api.open_projector) {
-    projectorNative = true;
-    api.open_projector();
-    vmixWinDot.className = "dot ok";
-    vmixWinTxt.textContent = "Projector window: open — ready for Local Desktop Capture";
-    return;
+  if (window.pywebview && window.pywebview.api) {
+    window.pywebview.api.open_projector().then(res => {
+      if (res) {
+        projectorNative = true;
+        vmixWinDot.className = "dot on";
+        vmixWinTxt.textContent = "Projector window: active";
+      }
+    });
+  } else {
+    // Fallback for browser testing
+    const w = window.open("projector.html", "WindowVerseProjector", "width=1280,height=720");
+    if (w) {
+      projectorNative = true;
+      vmixWinDot.className = "dot on";
+      vmixWinTxt.textContent = "Projector window: active";
+    } else {
+      showToast("Pop-up blocked. Enable pop-ups or use the desktop app.");
+    }
   }
-  if (projectorWin && !projectorWin.closed) { projectorWin.focus(); return; }
-  projectorWin = window.open("projector.html", "WindowVerseProjector",
-                             "width=1920,height=1080");
-  vmixWinDot.className = "dot ok";
-  vmixWinTxt.textContent = "Projector window: open — ready for Local Desktop Capture";
 }
-popoutBtn.onclick = openProjector;
-vmixOpenBtn.onclick = openProjector;
+if (popoutBtn) popoutBtn.onclick = openProjector;
+if (vmixOpenBtn) vmixOpenBtn.onclick = openProjector;
 
 const stageScroll = stage.parentElement;
 if (stageScroll && typeof ResizeObserver !== "undefined") {
   let stageResizeTimer = null;
-  new ResizeObserver(() => {
-    if (!lastStageVerse) return;
-    clearTimeout(stageResizeTimer);
-    stageResizeTimer = setTimeout(() => sendToStage(lastStageVerse), 80);
+  let lastObservedWidth = 0;
+  let lastObservedHeight = 0;
+  new ResizeObserver(entries => {
+    for (let entry of entries) {
+      const w = Math.round(entry.contentRect.width);
+      const h = Math.round(entry.contentRect.height);
+      if (Math.abs(w - lastObservedWidth) > 4 || Math.abs(h - lastObservedHeight) > 4) {
+        lastObservedWidth = w;
+        lastObservedHeight = h;
+        if (!lastStageVerse) return;
+        clearTimeout(stageResizeTimer);
+        stageResizeTimer = setTimeout(() => sendToStage(lastStageVerse), 80);
+      }
+    }
   }).observe(stageScroll);
 }
 
-// Poll rather than rely on a single open-time flag, since the window can
-// be closed by the operator (or by accident) at any point mid-service --
-// the vMix tab's dot should reflect reality, not just "was opened once".
+// Poll status — in the desktop app we assume it stays open once launched.
 setInterval(() => {
-  const open = projectorNative || (projectorWin && !projectorWin.closed);
-  vmixWinDot.className = "dot" + (open ? " ok" : " bad");
-  vmixWinTxt.textContent = open
-    ? "Projector window: open — ready for Local Desktop Capture"
-    : "Projector window: closed";
-}, 1000);
+  if (projectorNative) {
+    vmixWinDot.className = "dot on";
+    vmixWinTxt.textContent = "Projector window: active";
+  } else {
+    vmixWinDot.className = "dot";
+    vmixWinTxt.textContent = "Projector window: closed";
+  }
+}, 2000);
 
 // ── Quick Recall ──
 // Grouped by book so the list can't saturate: each book shows only its most
@@ -1827,7 +1958,7 @@ function renderRecall() {
 // are the usual suspects) and the operator's own wording added per intent.
 const VOICE_INTENT_LABELS = {
   next: "Next verse", prev: "Previous verse", repeat: "Repeat",
-  clear: "Clear screen", broadcast: "Broadcast",
+  clear: "Clear screen", broadcast: "Display",
 };
 
 function renderVoiceKeywords(msg) {
@@ -1934,8 +2065,19 @@ function renderLibrary(msg) {
   secondaryLanguage = msg.secondary_language || null;
   if (typeof msg.secondary_above === "boolean") secondaryAbovePrimary = msg.secondary_above;
 
-  if (versionPill) versionPill.textContent = currentVersion || "NKJV";
+  if (versionPill && msg.versions) {
+    versionPill.innerHTML = msg.versions.map(v => 
+      `<option value="${v.version}" ${v.version === currentVersion ? "selected" : ""}>${v.version}</option>`
+    ).join("");
+    versionPill.value = currentVersion || "NKJV";
+  }
 
+  const selector = $("bibleVersionSelector");
+  if (selector && msg.versions) {
+    selector.innerHTML = msg.versions.map(v => 
+      `<option value="${v.version}" ${v.version === currentVersion ? "selected" : ""}>${v.version}</option>`
+    ).join("");
+  }
 
   // The secondary translation is always on when a second language exists —
   // only its position above/below the primary is a choice.
@@ -1978,9 +2120,29 @@ if (ndiPreviewBtn) {
 const micSelect = $("micSelect");
 if (micSelect) micSelect.onchange = () => wsSend({ action: "set_mic", name: micSelect.value });
 
+const bibleVersionSelector = $("bibleVersionSelector");
+if (bibleVersionSelector) bibleVersionSelector.onchange = () => wsSend({ action: "switch_version", version: bibleVersionSelector.value });
+if (versionPill) versionPill.onchange = () => wsSend({ action: "switch_version", version: versionPill.value });
+
+function applyDisplaySettingsToAllStages() {
+  const stages = [stage, $("stagePreview"), $("browserStagePreview"), $("browserStageLive")];
+  stages.forEach(el => {
+    if (!el) return;
+    const isLive = el === stage || el === $("browserStageLive");
+    const d = isLive ? lastStageVerse : previewVerse;
+    applyStageLayout(d || {}, el);
+    if (d) {
+      el.innerHTML = buildStageHtml(d);
+      requestAnimationFrame(() => shrinkStageUntilFits(el));
+    } else {
+      el.innerHTML = isLive ? `<div class="stage-empty">No verse on air</div>` : `<div class="stage-empty">No verse staged</div>`;
+    }
+  });
+}
+
 function pushDisplaySettings() {
   wsSend({ action: "set_display", settings: displaySettings });
-  if (lastStageVerse) sendToStage(lastStageVerse);
+  applyDisplaySettingsToAllStages();
 }
 
 const NARRATIVE_PRESETS = {
@@ -2096,10 +2258,29 @@ function buildSearchRow(hit) {
   row.className = "search-hit";
   const pct = Math.round((hit.confidence || 0) * 100);
   const type = (hit.match_type || hit.source || "match").replace(/_/g, " ");
-  row.innerHTML = `
+  
+  const content = document.createElement("div");
+  content.style.flex = "1";
+  content.innerHTML = `
     <div class="search-hit-ref">${hit.book} ${hit.chapter}:${hit.verse}</div>
     <div class="search-hit-text">${hit.text || ""}</div>
     <div class="search-hit-meta">${type}${pct ? ` · ${pct}%` : ""}</div>`;
+  
+  const displayBtn = document.createElement("button");
+  displayBtn.className = "btn small start";
+  displayBtn.style.padding = "4px 8px";
+  displayBtn.innerHTML = iconSvg("broadcast", 12);
+  displayBtn.title = "Display this verse directly";
+  displayBtn.onclick = (e) => {
+    e.stopPropagation();
+    broadcastFromPreview(hit);
+  };
+
+  row.style.display = "flex";
+  row.style.alignItems = "center";
+  row.style.gap = "8px";
+  row.append(content, displayBtn);
+  
   row.onclick = () => displayToPreview({ ...hit, source: "search" });
   return row;
 }
@@ -2229,11 +2410,25 @@ function applyNavState(msg) {
   // operator staged. Only preview_cleared empties the strip.
   if (msg.preview) renderPreview(msg.preview);
 }
-["dispTheme","dispFont","dispBold","dispItalic","dispSecItalic","dispBorder","dispTextScale","dispRefScale","dispBgMode","dispBgImage"].forEach(id => {
+["dispTheme","dispFont","dispBold","dispItalic","dispSecItalic","dispBorder","dispTextScale","dispRefScale","dispBgMode","dispBgImage","dispTextColor","dispRefPosition","dispBlockGapScale","dispLineGapScale","dispRefColor"].forEach(id => {
   const el = $(id);
   if (!el) return;
   el.onchange = el.oninput = () => {
+    const oldTheme = displaySettings.theme;
     displaySettings.theme = $("dispTheme")?.value || "dark";
+    if (displaySettings.theme !== oldTheme) {
+      // Auto-toggle colors on theme change
+      const isLight = displaySettings.theme === "light";
+      const txtColor = isLight ? "#000000" : "#ffffff";
+      const refColor = isLight ? "#0052cc" : "#2b9bff";
+      displaySettings.text_color = txtColor;
+      displaySettings.ref_color = refColor;
+      if ($("dispTextColor")) $("dispTextColor").value = txtColor;
+      if ($("dispRefColor")) $("dispRefColor").value = refColor;
+    } else {
+      displaySettings.text_color = $("dispTextColor")?.value || "#ffffff";
+      displaySettings.ref_color = $("dispRefColor")?.value || "#2b9bff";
+    }
     displaySettings.font_family = $("dispFont")?.value || "serif";
     displaySettings.primary_bold = !!$("dispBold")?.checked;
     displaySettings.primary_italic = !!$("dispItalic")?.checked;
@@ -2243,6 +2438,9 @@ function applyNavState(msg) {
     displaySettings.ref_scale = parseFloat($("dispRefScale")?.value || "1");
     displaySettings.background_mode = $("dispBgMode")?.value || "solid";
     displaySettings.background_image = $("dispBgImage")?.value || "";
+    displaySettings.ref_position = $("dispRefPosition")?.value || "top";
+    displaySettings.block_gap_scale = parseFloat($("dispBlockGapScale")?.value || "1");
+    displaySettings.line_gap_scale = parseFloat($("dispLineGapScale")?.value || "1");
     pushDisplaySettings();
   };
 });
@@ -2267,10 +2465,35 @@ function applyDisplayState(msg) {
   if ($("dispBorder")) $("dispBorder").checked = !!displaySettings.show_border;
   if ($("dispTextScale")) $("dispTextScale").value = displaySettings.text_scale || 1;
   if ($("dispRefScale")) $("dispRefScale").value = displaySettings.ref_scale || 1;
+  if ($("dispRefPosition")) $("dispRefPosition").value = displaySettings.ref_position || "top";
+  if ($("dispBlockGapScale")) $("dispBlockGapScale").value = displaySettings.block_gap_scale || 1;
+  if ($("dispLineGapScale")) $("dispLineGapScale").value = displaySettings.line_gap_scale || 1;
   if ($("dispBgMode")) $("dispBgMode").value = displaySettings.background_mode || "solid";
+  if ($("dispTextColor")) $("dispTextColor").value = displaySettings.text_color || "#ffffff";
+  if ($("dispRefColor")) $("dispRefColor").value = displaySettings.ref_color || "#2b9bff";
   if ($("dispBgImage")) {
-    $("dispBgImage").innerHTML = `<option value="">— none —</option>` +
-      backgroundImages.map(b => `<option value="${b}" ${b===displaySettings.background_image?"selected":""}>${b}</option>`).join("");
+    const grid = $("bgPreviewGrid");
+    if (grid) {
+      if (!backgroundImages || backgroundImages.length === 0) {
+        grid.innerHTML = `<div style="padding:10px;color:var(--ink-40);font-size:12px">No backgrounds found in data/backgrounds/</div>`;
+      } else {
+        grid.innerHTML = backgroundImages.map(b => 
+          `<div class="bg-thumb" data-bg="${b}" style="cursor:pointer;border:2px solid ${b===displaySettings.background_image?'var(--gold)':'transparent'}">
+            <img src="/backgrounds/${encodeURIComponent(b)}" style="width:100%;height:60px;object-fit:cover;border-radius:4px" onerror="this.style.display='none'; this.parentElement.innerHTML='Error loading';">
+           </div>`
+        ).join("");
+        grid.querySelectorAll(".bg-thumb").forEach(thumb => {
+          thumb.onclick = () => {
+            displaySettings.background_image = thumb.dataset.bg;
+            displaySettings.background_mode = "image";
+            $("dispBgMode").value = "image";
+            pushDisplaySettings();
+            grid.querySelectorAll(".bg-thumb").forEach(t => t.style.borderColor = "transparent");
+            thumb.style.borderColor = "var(--gold)";
+          };
+        });
+      }
+    }
   }
   if (lastStageVerse) sendToStage(lastStageVerse);
 }
@@ -2343,9 +2566,8 @@ function mountSidePanels() {
     if (appearance) {
       const wrap = document.createElement("div");
       wrap.className = "vmix-panel";
-      settingsPanel.querySelectorAll("details.settings-advanced").forEach(el => {
-        if (el.querySelector("#dispTheme")) wrap.appendChild(el);
-      });
+      const appSection = settingsPanel.querySelector("#dispAppearanceSection");
+      if (appSection) wrap.appendChild(appSection);
       // Secondary-language position is a display choice, so it lives with the
       // rest of the verse appearance controls now that the Bible tab is gone.
       const orderRow = settingsPanel.querySelector("#secondaryOrderRow");
@@ -2371,7 +2593,25 @@ function mountSidePanels() {
       });
     }
   }
+  
+  // Enable scrolling with arrow keys in settings
+  const sideScroll = document.querySelector(".side-scroll");
+  if (sideScroll) {
+    sideScroll.tabIndex = 0;
+    sideScroll.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowUp") {
+        sideScroll.scrollTop -= 50;
+      } else if (e.key === "ArrowDown") {
+        sideScroll.scrollTop += 50;
+      }
+    });
+  }
 }
+
+// Ensure the microphone device list is updated immediately when the app starts
+window.addEventListener('load', () => {
+    wsSend({ action: "get_audio_devices" });
+});
 
 // ── Scripture Browser ────────────────────────────────────────────────
 // Book/chapter/verse structure comes from the backend (the active Bible
@@ -2380,7 +2620,7 @@ let bibleBooks = [];
 let browserTestament = "all";
 let browserBook = null, browserChapter = null;
 let structureRequested = false;
-let bookView = "grid";                 // grid (abbreviation boxes) | list
+let bookView = "list";                 // grid (abbreviation boxes) | list
 let gridMode = "books";                // books -> chapters -> verses, in one pane
 let gridChapters = [], gridVerses = [];
 
@@ -2482,8 +2722,19 @@ function renderGridPane() {
       && browserPreviewVerse.chapter === browserChapter ? " active" : "");
     cell.textContent = v.verse;
     cell.onclick = () => {
+      // 1. Update active verse selection
       displayToPreview({ ...v, source: "browser" });
       renderGridPane();
+      
+      // 2. Scroll to and highlight in verse list
+      const verseRow = Array.from(browserVerses.querySelectorAll(".browser-row")).find(
+        row => row.dataset.verse === String(v.verse)
+      );
+      if (verseRow) {
+        browserVerses.querySelectorAll(".browser-row").forEach(r => r.classList.remove("active"));
+        verseRow.classList.add("active");
+        verseRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
     };
     browserChapters.appendChild(cell);
   }
@@ -2525,15 +2776,46 @@ function renderBrowserVerseList(verses) {
   for (const v of verses) {
     const row = document.createElement("div");
     row.className = "browser-row";
-    row.innerHTML = `<span class="browser-verse-num">${v.verse}</span>${v.text || ""}`;
+    row.dataset.verse = v.verse;
+    
+    const content = document.createElement("div");
+    content.style.flex = "1";
+    content.innerHTML = `<span class="browser-verse-num">${v.verse}</span>${v.text || ""}`;
+    
+    const displayBtn = document.createElement("button");
+    displayBtn.className = "btn small start";
+    displayBtn.style.padding = "4px 8px";
+    displayBtn.innerHTML = iconSvg("broadcast", 12);
+    displayBtn.title = "Display this verse directly";
+    displayBtn.onclick = (e) => {
+      e.stopPropagation();
+      broadcastFromPreview(v);
+    };
+
+    row.style.display = "flex";
+    row.style.alignItems = "center";
+    row.style.gap = "8px";
+    row.append(content, displayBtn);
+    
     row.onclick = () => {
       browserVerses.querySelectorAll(".browser-row").forEach(r => r.classList.remove("active"));
       row.classList.add("active");
-      displayToPreview({ ...v, source: "browser" });
+      row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      displayToPreview({ ...v, source: "browser" }); // This now just stages to preview
     };
     browserVerses.appendChild(row);
   }
 }
+
+// Live update stage text color from picker
+$("dispTextColor").oninput = (e) => {
+  stage.style.color = e.target.value;
+  // Apply to primary and secondary too for consistency
+  stage.querySelectorAll(".stage-text, .stage-secondary, .stage-ref").forEach(el => {
+    if (el.classList.contains("stage-ref")) return; // Keep ref color or override as needed
+    el.style.color = e.target.value;
+  });
+};
 
 function renderBrowserPreview(d) {
   browserPreviewVerse = d || null;
@@ -2595,19 +2877,48 @@ if (refGoBtn) refGoBtn.onclick = goToReference;
 });
 if (navPrevBtn) navPrevBtn.onclick = () => wsSend({ action: "navigate_verse", direction: -1 });
 if (navNextBtn) navNextBtn.onclick = () => wsSend({ action: "navigate_verse", direction: 1 });
-if (stagePrevBtn) stagePrevBtn.onclick = () => wsSend({ action: "navigate_verse", direction: -1 });
-if (stageNextBtn) stageNextBtn.onclick = () => wsSend({ action: "navigate_verse", direction: 1 });
+if (stagePrevBtn) stagePrevBtn.onclick = () => wsSend({ action: "navigate_verse", direction: -1, broadcast: true });
+if (stageNextBtn) stageNextBtn.onclick = () => wsSend({ action: "navigate_verse", direction: 1, broadcast: true });
 if (broadcastBtn) broadcastBtn.onclick = () => broadcastFromPreview();
+
+if (refDisplayBtn) refDisplayBtn.onclick = () => {
+  const book = refBook.value.trim();
+  if (!book) { showToast("Type a book name first"); return; }
+  wsSend({
+    action: "lookup_reference",
+    book,
+    chapter: parseInt(refChapter.value, 10) || 1,
+    verse: parseInt(refVerse.value, 10) || 1,
+    broadcast: true,
+  });
+};
 
 // ── Keyboard shortcuts (see COMMANDS.md) ─────────────────────────────
 document.addEventListener("keydown", e => {
   const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
-  if (e.ctrlKey && e.key === "Enter") { e.preventDefault(); broadcastFromPreview(); return; }
+  if (e.key === "Enter") {
+    if (typing) return;
+    e.preventDefault();
+    broadcastFromPreview();
+    return;
+  }
   if (e.ctrlKey && (e.key === "g" || e.key === "G")) { e.preventDefault(); refBook?.focus(); refBook?.select(); return; }
   if (e.key === "Escape" && !typing) { renderPreview(null); renderBrowserPreview(null); wsSend({ action: "clear_preview" }); return; }
   if (typing || e.ctrlKey || e.altKey || e.metaKey) return;
-  if (e.key === "ArrowDown") { e.preventDefault(); wsSend({ action: "navigate_verse", direction: 1 }); }
-  else if (e.key === "ArrowUp") { e.preventDefault(); wsSend({ action: "navigate_verse", direction: -1 }); }
+  
+  // Prevent global ArrowUp/ArrowDown verse navigation if we are focusing or typing inside scrollable panel lists
+  const isInsideScrollable = e.target.closest && (
+    e.target.closest("#txScroll") || 
+    e.target.closest("#searchResults") || 
+    e.target.closest("#recallFeed") ||
+    e.target.closest(".browser-list") ||
+    e.target.closest(".chapter-grid") ||
+    e.target.closest(".log-feed")
+  );
+  if (isInsideScrollable) return;
+
+  if (e.key === "ArrowDown") { e.preventDefault(); wsSend({ action: "navigate_verse", direction: 1, broadcast: false }); }
+  else if (e.key === "ArrowUp") { e.preventDefault(); wsSend({ action: "navigate_verse", direction: -1, broadcast: false }); }
 });
 
 // The sidebar is four entries; everything else lives behind a sub-tab.
@@ -2703,12 +3014,19 @@ function initLayoutResize() {
   const dock = $("liveBottomDock");
   const dockResizer = $("dockResizer");
   const sidebarResizer = $("sidebarResizer");
+  const browserGrid = $("browserGrid");
 
   try {
     const savedWidths = JSON.parse(localStorage.getItem(COL_WIDTHS_KEY) || "null");
     if (savedWidths && mainGrid) {
       mainGrid.querySelectorAll(".col").forEach((col, i) => {
         if (savedWidths[i]) col.style.flex = `0 0 ${savedWidths[i]}px`;
+      });
+    }
+    const savedBrowserWidths = JSON.parse(localStorage.getItem(BROWSER_COL_WIDTHS_KEY) || "null");
+    if (savedBrowserWidths && browserGrid) {
+      browserGrid.querySelectorAll(".browser-col").forEach((col, i) => {
+        if (savedBrowserWidths[i]) col.style.flex = `0 0 ${savedBrowserWidths[i]}px`;
       });
     }
   } catch { /* ignore */ }
@@ -2731,6 +3049,30 @@ function initLayoutResize() {
         document.removeEventListener("mouseup", onUp);
         const widths = [...mainGrid.querySelectorAll(".col")].map(c => Math.round(c.getBoundingClientRect().width));
         localStorage.setItem(COL_WIDTHS_KEY, JSON.stringify(widths));
+      };
+      document.addEventListener("mousemove", onMove);
+      document.addEventListener("mouseup", onUp);
+    });
+  });
+
+  browserGrid?.querySelectorAll(".col-resize-handle").forEach(handle => {
+    handle.addEventListener("mousedown", e => {
+      e.preventDefault();
+      const col = handle.closest(".browser-col");
+      if (!col) return;
+      const startX = e.clientX;
+      const startW = col.getBoundingClientRect().width;
+      handle.classList.add("active");
+      const onMove = ev => {
+        const w = Math.max(100, startW + ev.clientX - startX);
+        col.style.flex = `0 0 ${w}px`;
+      };
+      const onUp = () => {
+        handle.classList.remove("active");
+        document.removeEventListener("mousemove", onMove);
+        document.removeEventListener("mouseup", onUp);
+        const widths = [...browserGrid.querySelectorAll(".browser-col")].map(c => Math.round(c.getBoundingClientRect().width));
+        localStorage.setItem(BROWSER_COL_WIDTHS_KEY, JSON.stringify(widths));
       };
       document.addEventListener("mousemove", onMove);
       document.addEventListener("mouseup", onUp);
@@ -2893,13 +3235,10 @@ function onWsMessage({ data }) {
       if (typeof msg.on_air === "boolean") {
         liveDot.classList.toggle("on", msg.on_air);
         liveTxt.textContent = msg.on_air ? "on air" : "standby";
-        if (!msg.on_air) stage.innerHTML = `<div class="stage-empty">No verse on air</div>`;
+        if (!msg.on_air) clearStage();
       }
       if (typeof msg.opacity === "number" && stage) {
         stage.style.opacity = String(msg.opacity);
-      }
-      if (typeof msg.show_secondary === "boolean") {
-        secondaryToggle.checked = msg.show_secondary;
       }
       if (typeof msg.secondary_above === "boolean") {
         secondaryAbovePrimary = msg.secondary_above;
@@ -2910,11 +3249,11 @@ function onWsMessage({ data }) {
       break;
     case "ndi_preview_sent":
       if (ndiPreviewStatus) ndiPreviewStatus.textContent = "Test verse sent — check vMix NDI input now.";
-      if (lastStageVerse) sendToStage({
+      sendToStage({
         book: "John", chapter: 3, verse: 16,
         text: "For God so loved the world, that he gave his only begotten Son.",
-        secondary_text: secondaryToggle && secondaryToggle.checked
-          ? "[French sample] Car Dieu a tant aimé le monde qu'il a donné son Fils unique."
+        secondary_text: secondaryLanguage
+          ? `[${secondaryLanguage} sample] Car Dieu a tant aimé le monde qu'il a donné son Fils unique.`
           : null,
       });
       break;
@@ -3020,6 +3359,11 @@ iconObserver.observe(document.body, { childList: true, subtree: true });
 
 micBtn.onclick  = () => { userPressedStart = true; wsSend({ action: "start_mic" }); };
 stopBtn.onclick = () => wsSend({ action: "stop" });
+if ($("refreshBgBtn")) {
+  $("refreshBgBtn").onclick = () => {
+    wsSend({ action: "refresh_backgrounds" });
+  };
+}
 searchInput.addEventListener("keydown", e => {
   if (e.key === "Enter") {
     const q = searchInput.value.trim();

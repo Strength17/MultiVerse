@@ -177,6 +177,7 @@ class WindowVerseServer:
     def __init__(self):
         self.config = APP_CONFIG
         self.orchestrator = None
+        self._orchestrator_rebuild_task = None
         self.narrative_tracker = None
         self.pipeline = None
         self.bible_db = None
@@ -192,7 +193,7 @@ class WindowVerseServer:
         self.library.rescan()
         self._current_version: str = DEFAULT_TRANSLATION
         self._current_language: str = "English"
-        self._show_secondary: bool = self.config.library.show_secondary_translation_by_default
+        self._show_secondary: bool = True
         self._secondary_above: bool = self.config.library.secondary_above_primary_by_default
 
         self._user_dirs = ensure_user_dirs()
@@ -215,6 +216,7 @@ class WindowVerseServer:
         self._last_speech_at = 0.0
         self._idle_paused = False
         self._mic_listening = False
+        self._mic_failed_warned = False
         self._silence_checkpoint_saved = False
         self._mic_stale_since: float | None = None
         self._last_display_at = 0.0
@@ -513,6 +515,16 @@ class WindowVerseServer:
         if await self._maybe_handle_voice_command(corrected_text, now):
             return
 
+        # Check for contextual bare verse/chapter-verse jumping
+        if self._nav_ref:
+            contextual_ref = self._parse_contextual_ref(corrected_text)
+            if contextual_ref:
+                logger.info("Contextual reference matched: %s", contextual_ref)
+                event = self.navigator.verse_event(contextual_ref, source="voice_context")
+                if event:
+                    await self._go_on_air(event)
+                    return
+
         latency_ms = (chunk_result.end_ts - chunk_result.start_ts) * 1000
         asyncio.ensure_future(self._run_detection_background(
             corrected_text, latency_ms, chunk_result.start_ts, chunk_result.end_ts, now
@@ -572,6 +584,7 @@ class WindowVerseServer:
         # earth" anchored the Creation passage (you can see that in the log)
         # but never produced a verse: the elif chain discarded it.
         if event.get("triggered"):
+            event = self._ensure_current_translation(event)
             await self._handle_detection(event, now)
         elif event.get("warning"):
             # Regex matched a reference with no DB row, or semantic search
@@ -602,7 +615,11 @@ class WindowVerseServer:
             save_secs = self._detection_user.clamped_silence_save_seconds()
             if time.time() - self._last_speech_at < save_secs:
                 continue
+            
+            logger.info(f"DEBUG: Auto-save triggered. Transcript items: {len(self._session_transcript)}")
             saved = await asyncio.to_thread(self._save_session_transcript)
+            logger.info(f"DEBUG: Auto-save complete. Saved: {saved}")
+            
             self._session_transcript.clear()
             self._silence_checkpoint_saved = True
             if saved:
@@ -631,10 +648,13 @@ class WindowVerseServer:
             try:
                 await asyncio.to_thread(self._recover_mic_session)
                 self._mic_stale_since = None
+                self._mic_failed_warned = False  # Reset on successful recovery
                 await self._broadcast({"type": "status", "state": "listening"})
             except Exception as exc:
                 logger.exception("Mic recovery failed")
-                await self._emit_system_log("mic_start_failed", str(exc))
+                if not self._mic_failed_warned:
+                    await self._emit_system_log("mic_start_failed", str(exc))
+                    self._mic_failed_warned = True
 
     def _recover_mic_session(self):
         if not self.pipeline or not self._mic_listening:
@@ -812,6 +832,13 @@ class WindowVerseServer:
             await self._clear_broadcast()
         elif command.intent == "broadcast":
             await self._go_on_air(self._preview or self._last_displayed)
+        elif command.intent == "switch_version":
+            import re
+            m = re.search(r"switch to (?:the )?(amp|nkjv|kjv|msg|message)", command.matched_phrase.lower())
+            if m:
+                ver = m.group(1).upper()
+                if ver == "MESSAGE": ver = "MSG"
+                await self._switch_version(ver, "English", None)
         return True
 
     def _narrative_is_active(self) -> bool:
@@ -828,6 +855,65 @@ class WindowVerseServer:
             event.get("book_number") or event.get("book"),
             event.get("chapter"), event.get("verse"),
         )
+
+    def _parse_contextual_ref(self, text: str) -> VerseRef | None:
+        if not self._nav_ref or not self.navigator or not self.bible_db:
+            return None
+
+        import re
+        # Helper to convert spoken words/digits to integer
+        word_to_num = {
+            "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10,
+            "eleven": 11, "twelve": 12, "thirteen": 13, "fourteen": 14, "fifteen": 15, "sixteen": 16, "seventeen": 17,
+            "eighteen": 18, "nineteen": 19, "twenty": 20, "thirty": 30, "forty": 40, "fifty": 50, "sixty": 60, "seventy": 70,
+            "eighty": 80, "ninety": 90, "hundred": 100
+        }
+        
+        def parse_spoken_number(token: str) -> int | None:
+            token = token.strip().lower()
+            if token.isdigit():
+                return int(token)
+            parts = token.replace("-", " ").split()
+            total = 0
+            for p in parts:
+                if p in word_to_num:
+                    total += word_to_num[p]
+                elif p.isdigit():
+                    total += int(p)
+                else:
+                    return None
+            return total if total > 0 else None
+
+        # 1. Match "verse <digits or words>"
+        m_verse = re.search(r"\bverse\s+([a-z0-9\-\s]+)\b", text, re.IGNORECASE)
+        if m_verse:
+            v_num = parse_spoken_number(m_verse.group(1))
+            if v_num:
+                ref = VerseRef(
+                    book_number=self._nav_ref.book_number,
+                    book=self._nav_ref.book,
+                    chapter=self._nav_ref.chapter,
+                    verse=v_num
+                )
+                if self.bible_db.lookup_verse(ref.book_number, ref.chapter, ref.verse):
+                    return ref
+
+        # 2. Match "chapter <digits/words> verse <digits/words>"
+        m_ch_verse = re.search(r"\bchapter\s+([a-z0-9\-\s]+)\s+verse\s+([a-z0-9\-\s]+)\b", text, re.IGNORECASE)
+        if m_ch_verse:
+            c_num = parse_spoken_number(m_ch_verse.group(1))
+            v_num = parse_spoken_number(m_ch_verse.group(2))
+            if c_num and v_num:
+                ref = VerseRef(
+                    book_number=self._nav_ref.book_number,
+                    book=self._nav_ref.book,
+                    chapter=c_num,
+                    verse=v_num
+                )
+                if self.bible_db.lookup_verse(ref.book_number, ref.chapter, ref.verse):
+                    return ref
+
+        return None
 
     def _nav_state_payload(self) -> dict:
         ref = self._nav_ref
@@ -867,9 +953,8 @@ class WindowVerseServer:
         self._last_displayed = event
         self._last_display_at = time.time()
         self._on_air = True
-        # The preview has been "taken" — clearing it means the arrows now
-        # follow what's on air instead of a stale staged verse.
-        self._preview = None
+        # Keep the previewed verse intact instead of clearing it
+        self._preview = event
         self._nav_ref = self._ref_from_event(event) or self._nav_ref
         await self._broadcast({"type": "broadcast_verse", **event})
         try:
@@ -931,6 +1016,8 @@ class WindowVerseServer:
             or f"{event.get('book')} {event.get('chapter')}:{event.get('verse')}",
             text=event.get("text", ""),
             secondary_text=event.get("secondary_text"),
+            primary_label=event.get("primary_version_label"),
+            secondary_label=event.get("secondary_version_label"),
         )
         self._ndi_broadcasting = True
         self._broadcast_threadsafe({
@@ -1140,8 +1227,8 @@ class WindowVerseServer:
         self._display.secondary_above = self._secondary_above
         save_user_display(self._display_path, self._display)
         self.ndi_sender.set_display(self._display)
-        if self._last_displayed:
-            self._last_displayed = self._attach_secondary_text(self._last_displayed)
+        
+        # Always refresh NDI to show background changes immediately
         self._refresh_ndi_display()
 
     # ── WebSocket handling ────────────────────────────────────────────────────
@@ -1426,9 +1513,9 @@ class WindowVerseServer:
                 msg.get("version"), msg.get("language", "English"), websocket
             )
         elif action == "set_show_translation":
-            self._show_secondary = bool(msg.get("enabled", False))
+            self._show_secondary = True
             await self._broadcast({
-                "type": "broadcast_state", "show_secondary": self._show_secondary
+                "type": "broadcast_state", "show_secondary": True
             })
             await self._refresh_last_display_secondary()
             self._refresh_ndi_display()
@@ -1442,6 +1529,12 @@ class WindowVerseServer:
             self._refresh_ndi_display()
         elif action == "set_display":
             self._apply_display_patch(msg.get("settings") or {})
+            await self._broadcast({
+                "type": "display_state",
+                "settings": self._display.to_ui_dict(),
+                "backgrounds": list_background_images(self._user_dirs["backgrounds"]),
+            })
+        elif action == "refresh_backgrounds":
             await self._broadcast({
                 "type": "display_state",
                 "settings": self._display.to_ui_dict(),
@@ -1537,7 +1630,7 @@ class WindowVerseServer:
             return out
         from verse_display import PRIMARY_VERSION_LABEL, SECONDARY_VERSION_LABEL, bilingual_reference
         from bible_books import french_book_name
-        out["primary_version_label"] = PRIMARY_VERSION_LABEL
+        out["primary_version_label"] = f"[{self._current_version}]"
         book = out.get("book")
         chapter, verse = out.get("chapter"), out.get("verse")
         if book and chapter is not None and verse is not None:
@@ -1546,11 +1639,20 @@ class WindowVerseServer:
         secondary_language = self.library.secondary_language_for(
             self._current_version, self._current_language
         )
+        sec_version = self._current_version
+        if not secondary_language:
+            # Fallback to French if any other version has it on disk (e.g. NKJV)
+            for ver in self.library._versions:
+                if self.library.has_language(ver, "French"):
+                    sec_version = ver
+                    secondary_language = "French"
+                    break
+
         book_number = self._resolve_book_number(out)
         if not (secondary_language and book_number):
             return out
         try:
-            sec_db = self.library.get_db(self._current_version, secondary_language)
+            sec_db = self.library.get_db(sec_version, secondary_language)
             sec_row = sec_db.lookup_verse(
                 book_number, out["chapter"], out["verse"]
             ) if sec_db else None
@@ -1563,6 +1665,32 @@ class WindowVerseServer:
             out["book_number"] = book_number
             out["secondary_version_label"] = SECONDARY_VERSION_LABEL
         return out
+
+    def _ensure_current_translation(self, event: dict) -> dict:
+        """
+        If the event translation does not match the active translation, re-resolves
+        the verse text using the current active navigator so that everything is
+        displayed in the correct version, even if the background orchestrator is still loading.
+        """
+        if not event or not event.get("triggered") or not self.navigator:
+            return event
+        if event.get("translation") == self._current_version:
+            return event
+
+        ref = self.navigator.resolve_ref(
+            event.get("book_number") or event.get("book"),
+            event.get("chapter"),
+            event.get("verse")
+        )
+        if ref:
+            curr_event = self.navigator.verse_event(ref, source=event.get("source", "manual"))
+            if curr_event:
+                # Preserve original metadata/confidence
+                for key in ("confidence", "confidence_band", "latency_ms", "matched_text"):
+                    if key in event:
+                        curr_event[key] = event[key]
+                return curr_event
+        return event
 
     async def _refresh_last_display_secondary(self):
         if not self._last_displayed:
@@ -1577,12 +1705,11 @@ class WindowVerseServer:
 
     async def _switch_version(self, version: str | None, language: str, websocket):
         """
-        Swaps the active Bible DB + rebuilds the detection index for a
-        different version/language. Runs the (potentially slow, CPU-bound)
-        rebuild in a worker thread so it never blocks the event loop --
-        the transcript/mic keep working while it happens. On any failure
-        the PREVIOUS orchestrator is kept running untouched; nothing about
-        version-switching can leave the app in a broken detection state.
+        Instantly swaps the active Bible DB, updating the navigator, preview/displayed
+        verses, and UI immediately. The slow, CPU-bound rebuilding of the semantic detection index
+        (DetectionOrchestrator) is run in a background task (using asyncio.to_thread) so that the
+        main loop and all other features (including transcription and mic) keep running untouched
+        and the switch is perceived as instantaneous.
         """
         if not version:
             return
@@ -1594,50 +1721,56 @@ class WindowVerseServer:
             )
             return
 
+        # Cancel any previous/pending background rebuild task
+        if self._orchestrator_rebuild_task:
+            if not self._orchestrator_rebuild_task.done():
+                logger.info("Cancelling ongoing background orchestrator rebuild for previous version switch.")
+                self._orchestrator_rebuild_task.cancel()
+                self._orchestrator_rebuild_task = None
+
         if self.pipeline and self.pipeline.is_running():
             restore_state = "idle_paused" if self._idle_paused else "listening"
         else:
             restore_state = "ready"
 
-        await self._broadcast({"type": "status", "state": "switching_version"})
-
-        def _rebuild():
-            new_orch = DetectionOrchestrator(
-                db, translation=version,
-                context_timeout_s=self.config.detection.book_memory_seconds,
-                regex_threshold=self.config.detection.regex_threshold,
-                min_semantic_words=self.config.detection.min_semantic_words,
-                dedup_seconds=self.config.detection.dedup_seconds,
-                vector_threshold=self.config.detection.vector_threshold,
-                min_overlap_ratio=self.config.detection.min_overlap_ratio,
-            )
-            new_orch.build_index()
-            return new_orch
-
-        try:
-            new_orchestrator = await asyncio.to_thread(_rebuild)
-        except Exception:
-            logger.exception("Version switch to %s/%s failed — keeping previous version", version, language)
-            await self._emit_system_log(
-                "db_schema_error",
-                f"{version} ({language}) failed to build — kept the previous version running",
-            )
-            await self._broadcast({"type": "status", "state": restore_state})
-            return
-
-        self.orchestrator = new_orchestrator
+        # 1. Update the DB, Navigator, and narrative tracker instantly!
         self.bible_db = db
         self.navigator = VerseNavigator(
             db, wrap_books=self._detection_user.voice_nav_wrap_books,
         )
         self._current_version = version
         self._current_language = language
-        self._last_displayed = None
-        self._preview = None
-        self._nav_ref = None
-        self._last_display_at = 0.0
-        logger.info("Switched active Bible version to %s / %s", version, language)
+        if self.narrative_tracker:
+            self.narrative_tracker.bible_db = db
 
+        # 2. Re-resolve and update currently previewed/displayed verses with the new database's text
+        old_preview = self._preview
+        old_displayed = self._last_displayed
+        
+        self._preview = None
+        self._last_displayed = None
+        
+        if self._nav_ref:
+            self._nav_ref = self.navigator.nearest_ref(
+                self._nav_ref.book_number, self._nav_ref.chapter, self._nav_ref.verse
+            )
+            
+        if old_preview:
+            p_ref = self._ref_from_event(old_preview)
+            if p_ref:
+                self._preview = self.navigator.verse_event(p_ref, source=old_preview.get("source", "operator"))
+                await self._broadcast({"type": "preview_verse", **self._preview})
+                
+        if old_displayed:
+            d_ref = self._ref_from_event(old_displayed)
+            if d_ref:
+                self._last_displayed = self.navigator.verse_event(d_ref, source=old_displayed.get("source", "operator"))
+                self._last_displayed = self._attach_secondary_text(self._last_displayed)
+                await self._broadcast({"type": "broadcast_verse", **self._last_displayed})
+                
+        logger.info("Switched active Bible version to %s / %s instantly", version, language)
+
+        # 3. Broadcast library state instantly!
         await self._broadcast({
             "type": "library",
             "versions": self.library.list_versions(),
@@ -1648,7 +1781,45 @@ class WindowVerseServer:
             "show_secondary": self._show_secondary,
             "secondary_above": self._secondary_above,
         })
-        await self._broadcast({"type": "status", "state": restore_state})
+
+        await self._broadcast({"type": "status", "state": "switching_version"})
+
+        # Define the background rebuild coroutine
+        async def _rebuild_and_swap():
+            def _rebuild():
+                new_orch = DetectionOrchestrator(
+                    db, translation=version,
+                    context_timeout_s=self.config.detection.book_memory_seconds,
+                    regex_threshold=self.config.detection.regex_threshold,
+                    min_semantic_words=self.config.detection.min_semantic_words,
+                    dedup_seconds=self.config.detection.dedup_seconds,
+                    vector_threshold=self.config.detection.vector_threshold,
+                    min_overlap_ratio=self.config.detection.min_overlap_ratio,
+                )
+                new_orch.build_index(cache_dir=self._user_dirs["data"] / "index_cache")
+                return new_orch
+
+            try:
+                new_orchestrator = await asyncio.to_thread(_rebuild)
+                self.orchestrator = new_orchestrator
+                # Re-initialize the narrative tracker's model reference if needed
+                if self.narrative_tracker:
+                    self.narrative_tracker._model = new_orchestrator.vector_engine._model
+                logger.info("Successfully rebuilt and swapped DetectionOrchestrator for %s / %s in background", version, language)
+            except asyncio.CancelledError:
+                logger.info("Background rebuild for %s / %s was cancelled", version, language)
+                raise
+            except Exception:
+                logger.exception("Version switch to %s/%s failed in background — keeping previous orchestrator", version, language)
+                await self._emit_system_log(
+                    "db_schema_error",
+                    f"{version} ({language}) failed to build — kept the previous detection engine running",
+                )
+            finally:
+                await self._broadcast({"type": "status", "state": restore_state})
+
+        # Start background task for index rebuilding
+        self._orchestrator_rebuild_task = asyncio.create_task(_rebuild_and_swap())
 
     # ── OSC broadcast state ───────────────────────────────────────────────────
     def queue_advance(self, direction: int):
