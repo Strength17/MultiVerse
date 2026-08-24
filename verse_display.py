@@ -64,27 +64,42 @@ class DisplaySettings:
     show_border: bool = False
     ref_scale: float = 1.0                 # multiplier on reference size
     text_scale: float = 1.0                # multiplier on body sizes
+    text_color: str = "#ffffff"            # hex color for text
     background_mode: str = "solid"         # solid | image
     background_image: str = ""             # filename under data/backgrounds/
     secondary_above: bool = False
     ndi_output_enabled: bool = True
+    ref_position: str = "top"              # top | bottom
+    vertical_position: str = "center"      # top | center | bottom
+    block_gap_scale: float = 1.0           # multiplier on spacing between blocks
+    line_gap_scale: float = 1.0            # multiplier on spacing between lines
+    ref_color: str = "#2b9bff"             # hex color for reference
 
     def effective_colors(self) -> dict:
+        def hex_to_rgb(hex_str: str) -> tuple[int, int, int]:
+            h = hex_str.lstrip('#')
+            if len(h) == 6:
+                return tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
+            return (255, 255, 255)
+
+        custom_text = hex_to_rgb(self.text_color)
+        custom_ref = hex_to_rgb(self.ref_color)
+
         if self.theme == "light":
             return {
                 "bg": (255, 255, 255),
                 "bg_alpha": 255,
-                "text": (20, 20, 24),
-                "reference": (140, 100, 40),
-                "secondary": (20, 20, 24),
+                "text": custom_text if self.text_color != "#ffffff" else (20, 20, 24),
+                "reference": custom_ref if self.ref_color != "#2b9bff" else (140, 100, 40),
+                "secondary": custom_text if self.text_color != "#ffffff" else (20, 20, 24),
                 "separator": (200, 200, 205),
             }
         return {
             "bg": (0, 0, 0),
             "bg_alpha": 255,
-            "text": (255, 255, 255),
-            "reference": (43, 155, 255),
-            "secondary": (255, 255, 255),
+            "text": custom_text,
+            "reference": custom_ref,
+            "secondary": custom_text,
             "separator": (35, 36, 41),
         }
 
@@ -101,6 +116,8 @@ def compute_screen_layout(
     ref_scale: float = 1.0,
     primary_label: str = PRIMARY_VERSION_LABEL,
     secondary_label: str = SECONDARY_VERSION_LABEL,
+    block_gap_scale: float = 1.0,
+    line_gap_scale: float = 1.0,
 ) -> ScreenLayout:
     """Binary-search font size so short verses read large and long verses shrink to fit."""
     pad_v = max(24, int(canvas_h * 0.05))
@@ -127,8 +144,8 @@ def compute_screen_layout(
     for _ in range(52):
         chars_per_line = max(14, int(avail_w / max(8, body_px * 0.52)))
         ref_px = max(16, int(body_px * 0.62 * ref_scale))
-        line_gap = max(4, int(body_px * 0.30))
-        block_gap = max(8, int(body_px * 0.42))
+        line_gap = max(4, int(body_px * 0.30 * line_gap_scale))
+        block_gap = max(8, int(body_px * 0.42 * block_gap_scale))
         p_lines = estimate_wrapped_lines(p_full, chars_per_line)
         s_lines = estimate_wrapped_lines(s_full, chars_per_line) if s_full else 0
         total = ref_px + block_gap
