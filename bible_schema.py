@@ -36,9 +36,9 @@ CACHE_PATH = Path("data/schema_cache.json")
 FIELD_KEYWORDS = {
     "book": ["bookname", "book_name", "book", "bk", "b"],
     "chapter": ["chapter", "chap", "ch", "c"],
-    "verse": ["versenumber", "verse_number", "verse", "vs", "v"],
+    "verse": ["versecount", "versenumber", "verse_number", "verse", "vs", "v"],
     "text": ["versetext", "verse_text", "scripturetext", "scripture_text",
-              "text", "content", "scripture", "t"],
+              "text", "content", "scripture", "t", "verse"],
 }
 
 # Minimum combined confidence (0-4, one point per required field found)

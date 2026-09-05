@@ -19,11 +19,19 @@ class _Handler(SimpleHTTPRequestHandler):
         logger.debug(fmt, *args)
 
     def do_GET(self):
-        path = self.path.split("?", 1)[0]
+        from urllib.parse import unquote
+        path = unquote(self.path.split("?", 1)[0])
+        # Ensure proper path handling for absolute-like paths
         if path.startswith("/backgrounds/"):
             rel = path[len("/backgrounds/"):]
-            target = (_Handler.backgrounds_root / rel).resolve()
-            if not str(target).startswith(str(_Handler.backgrounds_root.resolve())):
+            # Normalize and combine with the actual backgrounds root
+            target = (_Handler.backgrounds_root / rel.lstrip("/")).resolve()
+            logger.info(f"Static request: path={path} -> rel={rel} -> target={target} (exists={target.exists()})")
+            
+            # Case-insensitive startswith comparison for Windows
+            target_str = str(target).lower()
+            root_str = str(_Handler.backgrounds_root.resolve()).lower()
+            if not target_str.startswith(root_str):
                 self.send_error(403)
                 return
             if not target.is_file():
@@ -37,12 +45,19 @@ class _Handler(SimpleHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(data)
             return
+        
+        # Default behavior for other paths (UI files)
+        super().do_GET()
         if path in ("/", "/ui", "/ui/"):
             path = "/ui/index.html"
         if path.startswith("/ui/"):
             rel = path[len("/ui/"):]
             target = (_Handler.ui_root / rel).resolve()
-            if not str(target).startswith(str(_Handler.ui_root.resolve())):
+            
+            # Case-insensitive startswith comparison for Windows
+            target_str = str(target).lower()
+            root_str = str(_Handler.ui_root.resolve()).lower()
+            if not target_str.startswith(root_str):
                 self.send_error(403)
                 return
             if target.is_dir():

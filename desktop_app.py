@@ -38,8 +38,7 @@ def _ensure_winrt_dependencies() -> None:
     )
     still = verify_winrt_dependencies()
     if still:
-        print(winrt_install_hint(still), file=sys.stderr)
-        sys.exit(1)
+        logger.error("Missing WinRT speech dependencies: %s", winrt_install_hint(still))
 
 
 def _wait_for_port(host: str = "127.0.0.1", port: int = PORT, timeout: float = 120.0) -> bool:
@@ -131,7 +130,7 @@ def main():
         background_color="#000000",
         js_api=api,
     )
-    webview.start(debug=False)
+    webview.start(debug=True)
 
 
 if __name__ == "__main__":

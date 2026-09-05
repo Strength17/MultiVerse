@@ -62,3 +62,4 @@ installer/output/
 release/
 *.zip
 !release/.gitkeep
+.devin

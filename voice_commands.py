@@ -31,6 +31,7 @@ INTENT_PREV = "prev"
 INTENT_REPEAT = "repeat"
 INTENT_CLEAR = "clear"
 INTENT_BROADCAST = "broadcast"
+INTENT_SWITCH_VERSION = "switch_version"
 
 COMMAND_COOLDOWN_SECONDS = 0.8
 
@@ -39,6 +40,7 @@ COMMAND_COOLDOWN_SECONDS = 0.8
 # than "next verse please". The label is what the operator sees (and can
 # switch off) in Settings — it is the plain-English form of the pattern.
 _PHRASES: list[tuple[str, str, float, str]] = [
+    (INTENT_SWITCH_VERSION, r"switch to (?:the )?(amp|nkjv|kjv|msg|message)(?: bible| version)?", 0.95, "switch bible version"),
     (INTENT_NEXT, r"(?:go (?:to )?(?:the )?)?next verse(?: please)?", 0.95, "next verse"),
     (INTENT_NEXT, r"next one(?: please)?", 0.9, "next one"),
     (INTENT_NEXT, r"(?:scroll|move|go) (?:on |ahead )?(?:to the )?next", 0.9, "go to next"),
@@ -71,7 +73,7 @@ _COMPILED = [
     for intent, pattern, score, label in _PHRASES
 ]
 
-INTENTS = (INTENT_NEXT, INTENT_PREV, INTENT_REPEAT, INTENT_CLEAR, INTENT_BROADCAST)
+INTENTS = (INTENT_NEXT, INTENT_PREV, INTENT_REPEAT, INTENT_CLEAR, INTENT_BROADCAST, INTENT_SWITCH_VERSION)
 
 
 def builtin_keywords() -> dict[str, list[str]]:

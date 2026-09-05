@@ -65,4 +65,5 @@ print(f"{'OK' if ok else 'FAIL'} [two-chunk split] -> {r.get('book')} {r.get('ch
 if not ok:
     failed += 1
 
-sys.exit(1 if failed else 0)
+if __name__ == '__main__':
+    sys.exit(1 if failed else 0)

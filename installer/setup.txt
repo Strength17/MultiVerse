@@ -1,5 +1,10 @@
 WindowVerse — Setup requirements
-Version: 0.0.1.0
+Version: 0.0.1.1
+
+NOTE: This specific release (v0.0.1.1) includes the Bible DB files packaged
+with the release zip under NKJV/English and NKJV/French. After download,
+place the files exactly in the Windows user data folders shown in the
+"Bible databases" section below.
 
 ================================================================================
 THE ONE THING (if this fails, WindowVerse cannot work)
@@ -56,7 +61,7 @@ Optional quick test (offline)
 INSTALL
 ================================================================================
 
-  1. Run WindowVerse-Setup-0.0.1.0.exe from this folder.
+  1. Run WindowVerse-Setup-0.0.1.1.exe from this folder.
   2. Follow the installer (default location is fine).
   3. Launch WindowVerse from the Start menu or desktop shortcut.
 
@@ -65,11 +70,15 @@ AFTER INSTALL (before first live use)
 ================================================================================
 
 Bible databases
-  Copy your Bible database files to:
-    Documents\WindowVerse\data\<Version>\<Language>\
-  Example:
+  After downloading the release zip, place the database files exactly here:
     Documents\WindowVerse\data\NKJV\English\NKJV.sqlite3
-  See README_DATA.txt in the install folder or project docs for folder layout.
+    Documents\WindowVerse\data\NKJV\French\FreBBB.db
+
+  Create the folders if needed:
+    Documents\WindowVerse\data\NKJV\English
+    Documents\WindowVerse\data\NKJV\French
+
+  The packaged release contains both versions for the NKJV family.
 
 First run
   1. Open WindowVerse and wait until loading finishes (Start button enables).

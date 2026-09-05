@@ -180,12 +180,57 @@ class WinRTSpeechPipeline:
             self.last_error = str(e)
             return
 
-    async def _main_async(self):
+    def _on_hypothesis(self, sender, args):
+        if self._utterance_start is None:
+            self._utterance_start = time.time()
+            if self.on_speech_started:
+                try:
+                    self.on_speech_started(self._utterance_start)
+                except Exception:
+                    logger.exception("on_speech_started callback failed")
+
+        partial_text = (getattr(args, "hypothesis", None) and
+                         (args.hypothesis.text or "").strip())
+        if partial_text and self.on_partial_result:
+            try:
+                self.on_partial_result(partial_text)
+            except Exception:
+                logger.exception("on_partial_result callback failed")
+
+    def _on_result(self, sender, args):
+        text = (args.result.text or "").strip()
+        end_ts = time.time()
+        start_ts = self._utterance_start or end_ts
+        self._utterance_start = None
+        if not text:
+            return
+        if self.on_result:
+            try:
+                self.on_result(AudioChunkResult(
+                    text=text,
+                    avg_logprob=None,
+                    start_ts=start_ts,
+                    end_ts=end_ts,
+                    had_speech=True,
+                ))
+            except Exception:
+                logger.exception("on_result callback failed")
+
+    def _on_completed(self, sender, args):
+        status = getattr(args, "status", None)
+        self._session_active.clear()
+        if self._stop_event.is_set():
+            logger.info("WinRT session completed (status=%s) -- deliberate stop", status)
+            return
+        if self._loop is not None:
+            asyncio.run_coroutine_threadsafe(self._restart_session(status), self._loop)
+
+    async def _build_recognizer(self):
         missing = verify_winrt_dependencies()
         if missing:
             self.last_error = f"Missing WinRT packages: {', '.join(missing)}"
             logger.error("%s — %s", self.last_error, winrt_install_hint(missing))
-            return
+            return None
 
         import winrt.windows.foundation.collections  # noqa: F401
         import winrt.windows.globalization  # noqa: F401
@@ -203,80 +248,17 @@ class WinRTSpeechPipeline:
         if compilation.status != speech.SpeechRecognitionResultStatus.SUCCESS:
             self.last_error = f"compile_constraints_async failed: {compilation.status}"
             logger.error(self.last_error)
+            return None
+
+        recognizer.add_hypothesis_generated(self._on_hypothesis)
+        recognizer.continuous_recognition_session.add_result_generated(self._on_result)
+        recognizer.continuous_recognition_session.add_completed(self._on_completed)
+        return recognizer
+
+    async def _main_async(self):
+        self._recognizer = await self._build_recognizer()
+        if self._recognizer is None:
             return
-
-        self._recognizer = recognizer
-
-        def on_hypothesis(sender, args):
-            # First partial result of a new utterance == "speech started",
-            # fired well before the phrase finalizes -- mirrors the old
-            # VAD-based instant UI trigger.
-            if self._utterance_start is None:
-                self._utterance_start = time.time()
-                if self.on_speech_started:
-                    try:
-                        self.on_speech_started(self._utterance_start)
-                    except Exception:
-                        logger.exception("on_speech_started callback failed")
-
-            # Every hypothesis call (not just the first) carries the
-            # actual, growing partial text of the in-progress utterance.
-            # This is the ONLY thing that fires while someone is still
-            # talking -- on_result below fires once, only after WinRT
-            # decides the phrase is finished. Thread it through so the
-            # terminal can echo speech live instead of only after a pause.
-            partial_text = (getattr(args, "hypothesis", None) and
-                             (args.hypothesis.text or "").strip())
-            if partial_text and self.on_partial_result:
-                try:
-                    self.on_partial_result(partial_text)
-                except Exception:
-                    logger.exception("on_partial_result callback failed")
-
-        def on_result(sender, args):
-            text = (args.result.text or "").strip()
-            end_ts = time.time()
-            start_ts = self._utterance_start or end_ts
-            self._utterance_start = None
-            if not text:
-                return
-            if self.on_result:
-                try:
-                    self.on_result(AudioChunkResult(
-                        text=text,
-                        # WinRT doesn't expose a Whisper-style avg_logprob;
-                        # leave None. Confidence-based logic downstream
-                        # (detection_orchestrator confidence bands) is
-                        # untouched since it's computed from regex/semantic
-                        # match quality, not this field.
-                        avg_logprob=None,
-                        start_ts=start_ts,
-                        end_ts=end_ts,
-                        had_speech=True,
-                    ))
-                except Exception:
-                    logger.exception("on_result callback failed")
-
-        def on_completed(sender, args):
-            # WinRT's continuous DICTATION session auto-stops itself on its
-            # own internal silence timeout (SpeechRecognitionResultStatus
-            # .TimeoutExceeded is the common one -- typically only a few
-            # seconds of silence). This is Windows deciding to stop, not
-            # anything in this app doing so. Previously nothing subscribed
-            # to this event, so the mic just went silently dead until the
-            # whole process was restarted. Auto-restart unless we're the
-            # ones who asked it to stop.
-            status = getattr(args, "status", None)
-            self._session_active.clear()
-            if self._stop_event.is_set():
-                logger.info("WinRT session completed (status=%s) -- deliberate stop", status)
-                return
-            if self._loop is not None:
-                asyncio.run_coroutine_threadsafe(self._restart_session(status), self._loop)
-
-        recognizer.add_hypothesis_generated(on_hypothesis)
-        recognizer.continuous_recognition_session.add_result_generated(on_result)
-        recognizer.continuous_recognition_session.add_completed(on_completed)
 
         await self._start_session("initial")
         self._session_ready.set()
@@ -295,6 +277,28 @@ class WinRTSpeechPipeline:
         self._utterance_start = None
         logger.info("WinRT continuous on-device dictation session started (%s)", reason)
         return True
+
+    async def _rebuild_recognizer(self, reason: str):
+        old = self._recognizer
+        self._recognizer = None
+        self._session_active.clear()
+
+        if old is not None:
+            try:
+                await old.continuous_recognition_session.stop_async()
+            except Exception:
+                pass
+            try:
+                old.close()
+            except Exception:
+                pass
+
+        rebuilt = await self._build_recognizer()
+        if rebuilt is None:
+            raise RuntimeError(self.last_error or "WinRT recognizer creation failed")
+        self._recognizer = rebuilt
+        await self._start_session(reason)
+        self._session_ready.set()
 
     async def _restart_session(self, status):
         if self._stop_event.is_set() or self._recognizer is None:
@@ -321,10 +325,27 @@ class WinRTSpeechPipeline:
                     except Exception:
                         logger.exception("on_session_recovered callback failed")
                 return
-            except Exception:
+            except Exception as exc:
+                logger.warning(
+                    "WinRT session handle appears stale (%s); rebuilding recognizer after status=%s attempt=%d",
+                    exc,
+                    status,
+                    attempt + 1,
+                )
+                try:
+                    await self._rebuild_recognizer(f"recovered_after_{status}")
+                    if self.on_session_recovered:
+                        try:
+                            self.on_session_recovered()
+                        except Exception:
+                            logger.exception("on_session_recovered callback failed")
+                    return
+                except Exception:
+                    pass
                 logger.exception(
-                    "Failed to auto-restart WinRT session (status=%s, attempt=%d)",
-                    status, attempt + 1,
+                    "Failed to rebuild WinRT recognizer after stale handle (status=%s, attempt=%d)",
+                    status,
+                    attempt + 1,
                 )
                 await asyncio.sleep(0.35 * (attempt + 1))
         self.last_error = f"WinRT session failed to restart after status={status}"
@@ -332,7 +353,8 @@ class WinRTSpeechPipeline:
 
     async def _stop_async(self):
         try:
-            await self._recognizer.continuous_recognition_session.stop_async()
+            if self._recognizer is not None:
+                await self._recognizer.continuous_recognition_session.stop_async()
             logger.info("WinRT session stopped")
         except Exception:
             logger.exception("Error stopping WinRT session")

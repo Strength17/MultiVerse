@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <title>WindowVerse — Projector</title>
 <style>
+  :root { --text-color: #f5f2ea; --ref-color: #2b9bff; --ref-shadow: 0 0 12px rgba(43,155,255,.35); }
   html,body{margin:0;height:100%;background:#000;}
-  body{color:#f5f2ea;font-family:'Source Serif 4',Georgia,serif;
+  body{color:var(--text-color);font-family:'Source Serif 4',Georgia,serif;
        display:flex;align-items:center;justify-content:center;text-align:center;padding:5vw;
        box-sizing:border-box;overflow:hidden;cursor:none;}
-  body.light{background:#f7f4ec;color:#14110c;}
-  .ref{color:#2b9bff;font-size:3vw;margin-bottom:1.4vw;text-shadow:0 0 12px rgba(43,155,255,.35);}
-  body.light .ref{color:#0b5cab;text-shadow:none;}
+  body.light{background:#f7f4ec; --text-color: #14110c; --ref-color: #0b5cab; --ref-shadow: none; }
+  .ref{color:var(--ref-color);font-size:3vw;margin-bottom:1.4vw;text-shadow:var(--ref-shadow);}
   .txt{font-size:4.2vw;line-height:1.5;font-weight:700;}
   .sec{font-style:italic;font-size:3.2vw;line-height:1.5;margin-top:1.4vw;}
   .sec.above{margin-top:0;margin-bottom:1.4vw;}
@@ -25,8 +25,12 @@ const root = document.getElementById("root");
 const esc = s => String(s == null ? "" : s)
   .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 let secondaryAbove = false;
+let displaySettings = {};
 
-function clear() { root.innerHTML = '<div class="empty">No verse on air</div>'; }
+function clear() { 
+  root.innerHTML = '<div class="empty">No verse on air</div>'; 
+  updateBackground();
+}
 
 function render(d) {
   const refText = d.reference_display
@@ -36,6 +40,38 @@ function render(d) {
   const sec = d.secondary_text
     ? `<div class="sec${secondaryAbove ? " above" : ""}">${esc(d.secondary_text)}</div>` : "";
   root.innerHTML = secondaryAbove && sec ? ref + sec + txt : ref + txt + sec;
+  updateBackground();
+}
+
+function applyDisplaySettings() {
+  const s = displaySettings;
+  if (!s) return;
+  document.body.classList.toggle("light", s.theme === "light");
+  document.body.style.fontFamily = s.font_family === "sans" ? "Arial, sans-serif" : "'Source Serif 4', Georgia, serif";
+  
+  if (s.text_color) {
+    document.documentElement.style.setProperty('--text-color', s.text_color);
+    document.documentElement.style.setProperty('--ref-color', s.text_color);
+    document.documentElement.style.setProperty('--ref-shadow', 'none');
+  } else {
+    document.documentElement.style.removeProperty('--text-color');
+    document.documentElement.style.removeProperty('--ref-color');
+    document.documentElement.style.removeProperty('--ref-shadow');
+  }
+  updateBackground();
+}
+
+function updateBackground() {
+  const s = displaySettings;
+  const isOnAir = root.querySelector(".empty") === null;
+  if (isOnAir && s && s.background_mode === "image" && s.background_image) {
+    document.body.style.backgroundImage = `url(/backgrounds/${encodeURIComponent(s.background_image)})`;
+    document.body.style.backgroundSize = "cover";
+    document.body.style.backgroundPosition = "center";
+  } else {
+    document.body.style.backgroundImage = "";
+    document.body.style.backgroundSize = "";
+  }
 }
 
 // The projector is a first-class client of the backend rather than a
@@ -51,7 +87,8 @@ function connect() {
     else if (m.type === "library" && typeof m.secondary_above === "boolean") {
       secondaryAbove = m.secondary_above;
     } else if (m.type === "display_state" && m.settings) {
-      document.body.classList.toggle("light", m.settings.theme === "light");
+      displaySettings = m.settings;
+      applyDisplaySettings();
     }
   };
   ws.onclose = () => setTimeout(connect, 1000);

@@ -40,6 +40,22 @@ class NarrativePassage:
 
 NARRATIVE_PASSAGES: list[NarrativePassage] = [
     NarrativePassage(
+        id="psalm_23", book="Psalms", book_number=190,
+        start_chapter=23, start_verse=1, end_chapter=23, end_verse=6,
+        title="The Shepherd's Psalm",
+        summary=(
+            "The Lord is my shepherd, I lack nothing. He makes me lie down "
+            "in green pastures, he leads me beside quiet waters, he refreshes "
+            "my soul. He guides me along the right paths for his name's sake. "
+            "Even though I walk through the darkest valley, I will fear no evil, "
+            "for you are with me; your rod and your staff, they comfort me. "
+            "You prepare a table before me in the presence of my enemies. "
+            "You anoint my head with oil; my cup overflows. Surely your goodness "
+            "and love will follow me all the days of my life, and I will dwell "
+            "in the house of the Lord forever."
+        ),
+    ),
+    NarrativePassage(
         id="prodigal_son", book="Luke", book_number=420,
         start_chapter=15, start_verse=11, end_chapter=15, end_verse=32,
         title="The Prodigal Son",

@@ -14,6 +14,7 @@ a = Analysis(
         (str(ROOT / 'ui'), 'ui'),
         (str(ROOT / 'config'), 'config'),
         (str(ROOT / 'data' / 'README_DATA.txt'), 'data'),
+        (str(ROOT / 'data' / 'Bible DBs'), 'data/Bible DBs'),
         (str(ROOT / 'data' / 'backgrounds' / 'README.txt'), 'data/backgrounds'),
         (str(ROOT / 'assets' / 'windowverse.ico'), 'assets'),
         (str(ROOT / 'assets' / 'windowverse_logo.png'), 'assets'),

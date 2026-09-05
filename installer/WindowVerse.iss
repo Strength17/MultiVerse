@@ -2,7 +2,7 @@
 ; Requires Inno Setup 6+ (iscc.exe on PATH)
 
 #define MyAppName "WindowVerse"
-#define MyAppVersion "0.0.1.0"
+#define MyAppVersion "0.0.1.1"
 #define MyAppPublisher "Strength Awa"
 #define MyAppURL "https://github.com/strength17/windowverse"
 #define MyAppExeName "WindowVerse.exe"

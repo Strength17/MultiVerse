@@ -205,6 +205,9 @@ class WindowVerseServer:
         self._secondary_above = self._display.secondary_above
         self._display.secondary_above = self._secondary_above
         self._selected_mic: str = "System Default Microphone"
+        self._devices_cache: list = []
+        self._onboarding_path = self._user_dirs["config"] / "onboarding.json"
+        self._onboarding_listen = False
         self._session_transcript: list[dict] = []
         self._ndi_broadcasting = False
 
@@ -224,6 +227,7 @@ class WindowVerseServer:
         self._startup_warnings: list[str] = []
         self._startup_steps: dict[str, dict] = {}
         self._ready = False
+        self._startup_error = None
 
         # OSC / broadcast state
         self.osc_controller = None
@@ -253,6 +257,80 @@ class WindowVerseServer:
         self._detection_executor = concurrent.futures.ThreadPoolExecutor(
             max_workers=1, thread_name_prefix="windowverse-detect"
         )
+
+    def _onboarding_completed(self) -> bool:
+        try:
+            data = json.loads(self._onboarding_path.read_text(encoding="utf-8"))
+            return bool(data.get("completed"))
+        except Exception:
+            return False
+
+    def _set_onboarding_completed(self, completed: bool) -> None:
+        self._onboarding_path.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "completed": bool(completed),
+            "completed_at": time.strftime("%Y-%m-%dT%H:%M:%S") if completed else None,
+        }
+        self._onboarding_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+    def _check_requirements(self) -> dict:
+        import platform
+        from winrt_pipeline import verify_winrt_dependencies
+
+        is_windows = sys.platform.startswith("win")
+        os_name = f"{platform.system()} {platform.release()}"
+        os_ok = False
+        os_is_win11 = False
+
+        if is_windows:
+            try:
+                win_ver = sys.getwindowsversion()
+                build = int(win_ver.build)
+                os_is_win11 = build >= 22000
+                os_ok = win_ver.major >= 10
+                label = "Windows 11" if os_is_win11 else f"Windows {platform.release()}"
+                os_name = f"{label} (Build {build})"
+            except Exception:
+                release = platform.release()
+                os_ok = release in ("10", "11")
+                os_is_win11 = release == "11"
+                os_name = f"Windows {release}"
+
+        winrt_missing = verify_winrt_dependencies()
+        winrt_ok = len(winrt_missing) == 0
+
+        devices = list_input_devices()
+        self._devices_cache = devices
+        mic_ok = bool(devices) and not (
+            len(devices) == 1 and devices[0].get("id") == "default"
+        )
+        default_mic = next((d.get("name") for d in devices if d.get("is_default")), None)
+        if default_mic and self._selected_mic.startswith("System Default"):
+            self._selected_mic = default_mic
+
+        db_ok = False
+        db_path_str = ""
+        if self.bible_db:
+            db_ok = True
+            db_path_str = str(self.bible_db.db_path) if hasattr(self.bible_db, "db_path") else ""
+        elif getattr(self, "library", None) and self.library.list_versions():
+            db_ok = True
+
+        return {
+            "os_ok": os_ok,
+            "os_is_win11": os_is_win11,
+            "os_name": os_name,
+            "winrt_ok": winrt_ok,
+            "winrt_missing": winrt_missing,
+            "mic_ok": mic_ok,
+            "mic_devices": devices,
+            "selected_mic": self._selected_mic,
+            "db_ok": db_ok,
+            "db_path": db_path_str,
+            "speech_ready": self.pipeline is not None,
+            "backend_ready": bool(self._ready),
+            "onboarding_completed": self._onboarding_completed(),
+        }
 
     # ── Initialisation ────────────────────────────────────────────────────────
     def _report_startup(self, step_id: str, label: str, status: str, sub_percent: int | None = None):
@@ -481,6 +559,12 @@ class WindowVerseServer:
         # spoken. Only the internal matching copy gets corrected.
         raw_text = chunk_result.text
         corrected_text = correct_text(raw_text)
+
+        write_line(f"[TRANSCRIPT] {raw_text}")
+        _append_transcript_log(raw_text)
+        await self._broadcast({"type": "transcript_partial", "text": raw_text})
+        if self._onboarding_listen:
+            return
 
         self._session_transcript.append({
             "ts": time.strftime("%Y-%m-%d %H:%M:%S"),
@@ -1130,8 +1214,9 @@ class WindowVerseServer:
 
     def _audio_devices_payload(self) -> dict:
         devices = list_input_devices()
-        # "System Default Microphone" is a placeholder, not a device: resolve it
-        # so Settings names the endpoint speech recognition will actually open.
+        self._devices_cache = devices
+        if not devices:
+            devices = [{"name": "System Default Microphone", "id": "default", "is_default": True}]
         active = self._selected_mic
         if active.startswith("System Default"):
             active = next(
@@ -1253,7 +1338,22 @@ class WindowVerseServer:
         for step in self._startup_steps.values():
             await websocket.send(json.dumps({"type": "startup_progress", **step}))
         state = "ready" if self._ready else "booting"
+        if self._startup_error:
+            state = "error"
         await websocket.send(json.dumps({"type": "status", "state": state}))
+        
+        # Always send requirements status so UI can show onboarding checks
+        await websocket.send(json.dumps({
+            "type": "requirements_status",
+            **self._check_requirements()
+        }))
+        if self._startup_error:
+            await websocket.send(json.dumps({
+                "type": "status",
+                "state": "error",
+                "detail": self._startup_error
+            }))
+
         if self._ready:
             self.library.rescan()
             await websocket.send(json.dumps({
@@ -1309,11 +1409,31 @@ class WindowVerseServer:
 
     async def _dispatch(self, msg: dict, websocket):
         action = msg.get("action")
-        if action == "start_mic":
-            if not self._ready:
+        if action == "check_requirements":
+            reqs = self._check_requirements()
+            await websocket.send(json.dumps({
+                "type": "requirements_status",
+                **reqs
+            }))
+        elif action == "complete_onboarding":
+            self._set_onboarding_completed(True)
+            self._onboarding_listen = False
+            await websocket.send(json.dumps({
+                "type": "onboarding_state",
+                "completed": True,
+            }))
+        elif action == "reset_onboarding":
+            self._set_onboarding_completed(False)
+            await websocket.send(json.dumps({
+                "type": "onboarding_state",
+                "completed": False,
+            }))
+        elif action == "start_mic":
+            self._onboarding_listen = bool(msg.get("onboarding"))
+            if self.pipeline is None:
                 await self._emit_system_log(
                     "not_ready",
-                    "Backend is still loading — wait for all startup steps to finish.",
+                    "Speech engine is still loading — wait for startup to finish.",
                 )
                 return
             await self._broadcast({"type": "status", "state": "starting"})
@@ -1334,7 +1454,9 @@ class WindowVerseServer:
             self._mic_stale_since = None
             self._last_speech_at = time.time()
         elif action == "stop":
-            saved = await asyncio.to_thread(self._save_session_transcript)
+            skip_save = self._onboarding_listen
+            self._onboarding_listen = False
+            saved = None if skip_save else await asyncio.to_thread(self._save_session_transcript)
             self._mic_listening = False
             self._silence_checkpoint_saved = False
             self._mic_stale_since = None
@@ -1913,22 +2035,27 @@ class WindowVerseServer:
                 )
             except Exception as exc:
                 logger.exception("Startup failed")
+                self._startup_error = str(exc)
                 await self._broadcast({
                     "type": "status", "state": "error", "detail": str(exc),
                 })
-                try:
-                    await asyncio.Future()
-                finally:
-                    pass
-                return
+                while True:
+                    await asyncio.sleep(3600)
 
             from osc_control import OSCController
             self.osc_controller = OSCController(self)
             await self.osc_controller.start()
 
-            self._report_startup("ndi", "Starting NDI output", "running")
-            await asyncio.to_thread(self.ndi_sender.start)
+            # Mark NDI startup step as done immediately so progress reaches 100% without waiting
             self._report_startup("ndi", "Starting NDI output", "done")
+            
+            # Start NDI as a background task
+            async def run_ndi_start():
+                try:
+                    await asyncio.to_thread(self.ndi_sender.start)
+                except Exception:
+                    logger.exception("NDI background start failed")
+            asyncio.create_task(run_ndi_start())
 
             asyncio.create_task(self._rescan_library_loop())
             asyncio.create_task(self._silence_monitor_loop())
@@ -1936,6 +2063,10 @@ class WindowVerseServer:
 
             self._ready = True
             await self._broadcast({"type": "status", "state": "ready"})
+            await self._broadcast({
+                "type": "requirements_status",
+                **self._check_requirements(),
+            })
             self.library.rescan()
             await self._broadcast({
                 "type": "library",
@@ -1962,6 +2093,7 @@ class WindowVerseServer:
                 "broadcasting": False,
                 "available": getattr(self.ndi_sender, "_available", False),
             })
+            await self._broadcast(self._audio_devices_payload())
             logger.info("Startup complete — press Start in the UI to open the microphone")
             try:
                 await asyncio.Future()

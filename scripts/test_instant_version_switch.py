@@ -70,6 +70,9 @@ server.WinRTSpeechPipeline = MockPipeline
 # Mock verification to avoid schema check failures on missing dependencies
 server.verify_anchor_verses = lambda db: []
 
+import pytest
+
+@pytest.mark.anyio
 async def test_instant_switch():
     print("Initializing test server...")
     srv = WindowVerseServer()

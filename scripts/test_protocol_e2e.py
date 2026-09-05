@@ -237,4 +237,5 @@ async def main():
     print(f"{len(fails)} failure(s)" if fails else "ALL PROTOCOL CHECKS PASSED")
     sys.exit(1 if fails else 0)
 
-asyncio.run(main())
+if __name__ == '__main__':
+    asyncio.run(main())
